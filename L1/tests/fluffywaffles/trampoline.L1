@@ -1,0 +1,142 @@
+(:entry
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:entry
+  // Fill the heap and try to blow the stack recursing all over it.
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    0 0
+    //
+    // Allocate the world
+    //
+    // heap size  : 1048576 (1024 * 1024 bytes = 1MB)
+    // int64_ts   : 131072 (1MB / 8 bytes = 131,072 int64_t s)
+    // # to alloc : 131072 (encoded: * 2 + 1 = 262145)
+    //
+    // Let's allocate HEAP_MAX 0s and make sure we don't blow the stack
+    // doing a recursive insertion-sort. (Which is a no-op, but it doesn't
+    // know that.)
+    //
+    rdi <- 262145   // decoded : 131072
+    rsi <- 1        // decoded : 0
+    call allocate 2 // rax     : [ 0 x 131,072 ]
+    //
+    // Blow the stack
+    //
+    rdi <- rax
+    mem rsp -8 <- :printed
+    call :print_array 1
+    :printed
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:print_array
+  // Recursively & inefficiently print the whole of an array
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    1 0 // array_ptr
+    mem rsp -8 <- :got_size
+    call :array_size 1
+    :got_size
+    rsi <- 1   // start at 1
+    rdx <- rax // stop at size
+    mem rsp -8 <- :exit_print_array
+    call :print_array_range 3
+    :exit_print_array
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:print_array_range
+  // Recursively & inefficiently print a range of values from an array
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    3 1 // array_ptr, start, end (both ends inclusive)
+    cjump rsi < rdx :ok1 // check that we're in-bounds
+    call array-error 2  // if not, fail angrily
+    :ok1
+    mem rsp 0 <- rdi // save array_ptr
+    rdi @ rdi rsi 8  // get a[i] (encoded)
+    rdi >>= 1        // decode a[i]
+    call print 1     // print a[i]
+    rdi <- mem rsp 0 // restore array_ptr
+    cjump rsi = rdx :exit_print_array_range // if we're at the end, quit
+    // otherwise, increment index and go again
+    rsi++
+    mem rsp -8 <- :exit_print_array_range
+    call :print_array_range 3
+    :exit_print_array_range
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:array_size
+  // Get the size of an array
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    1 0 // array_ptr
+    rax <- mem rdi 0 // get array size (not! encoded)
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:checked_array_at
+  // Safely(!) get an element of an array
+  // NOTE: Efficiency is traded for safety for no particular reason here.
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    2 0 // array_ptr, index
+    rsi++ // indices start from 1! but programmers count from 0!
+    mem rsp -8 <- :check1
+    call :array_size 1
+    :check1 cjump rsi < rax :ok2
+    call array-error 2   // array_error exits. do not pass go; no return
+    :ok2 rax @ rdi rsi 8  // array_ptr + (8 * index)
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:checked_array_set
+  // Safely(!) set an element of an array
+  // NOTE: Efficiency is traded for safety for no particular reason here.
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    3 0 // array_ptr, index, value
+    rsi++ // indices start from 1
+    mem rsp -8 <- :check2
+    call :array_size 1
+    :check2 cjump rsi < rax :ok3
+    call array-error 2 // exits program; no need to clean up.
+    :ok3 rsi <<= 3      // i*8
+    rsi += rdi         // array_ptr + (i * 8)
+    mem rsi 0 <- rdx   // array_ptr + (i * 8) <- value
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:array_swap
+  // Swap 2 elements of an array
+  // NOTE: Uses (very) unnecessary amounts of stack space.
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    3 3 // array_ptr, i, j, tmp, a[i], a[j]
+    // get  a[i]
+    mem rsp -8 <- :save_a_i
+    call :checked_array_at 2
+    :save_a_i
+    mem rsp 8 <- rax       // save a[i]
+    mem rsp 0 <- rsi       // save i
+    rsi <- rdx             // prepare j
+    // get  a[j]
+    mem rsp -8 <- :save_a_j
+    call :checked_array_at 2
+    :save_a_j
+    mem rsp 16 <- rax      // save a[j]
+    rsi <- mem rsp 0       // restore i
+    mem rsp 0 <- rdx       // save j
+    rdx <- mem rsp 16      // prepare a[j]
+    // set a[i] to a[j]
+    mem rsp -8 <- :done_set_a_i
+    call :checked_array_set 3
+    :done_set_a_i
+    rsi <- mem rsp 0       // restore j
+    rdx <- mem rsp 8       // prepare a[i]
+    // set a[j] to a[i]
+    mem rsp -8 <- :done_set_a_j
+    call :checked_array_set 3
+    :done_set_a_j
+    return)
+
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  (:trampoline
+  // Make the stack bouncy
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+    2 0
+    return))
