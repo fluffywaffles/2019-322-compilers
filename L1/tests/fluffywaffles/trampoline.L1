@@ -15,6 +15,13 @@
     // doing a recursive insertion-sort. (Which is a no-op, but it doesn't
     // know that.)
     //
+    // NOTE: the heap apparently is much bigger than this. Empirical
+    // testing suggests it's somewhere between 1025000 and 1050000
+    // array-cells (which... should be 8 bytes, right?) large. That
+    // seems... Like unless I'm calculating something very wrong, the
+    // stack is in fact much, much larger than 1MB using the provided
+    // runtime.o, in contrast to the 1MB limit in our runtime.c.
+    //
     rdi <- 262145   // decoded : 131072
     rsi <- 1        // decoded : 0
     call allocate 2 // rax     : [ 0 x 131,072 ]
@@ -37,8 +44,9 @@
     :got_size
     rsi <- 1   // start at 1
     rdx <- rax // stop at size
+    rcx <- :print_array_range
     mem rsp -8 <- :exit_print_array
-    call :print_array_range 3
+    call :trampoline_3 4
     :exit_print_array
     return)
 
@@ -46,20 +54,28 @@
   (:print_array_range
   // Recursively & inefficiently print a range of values from an array
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
-    3 1 // array_ptr, start, end (both ends inclusive)
+    3 3 // array_ptr, start, end (both ends inclusive)
     cjump rsi < rdx :ok1 // check that we're in-bounds
     call array-error 2  // if not, fail angrily
     :ok1
-    mem rsp 0 <- rdi // save array_ptr
-    rdi @ rdi rsi 8  // get a[i] (encoded)
-    rdi >>= 1        // decode a[i]
-    call print 1     // print a[i]
-    rdi <- mem rsp 0 // restore array_ptr
+    mem rsp 0  <- rdi // save array_ptr
+    mem rsp 8  <- rsi // save start
+    mem rsp 16 <- rdx // save end
+    rdi @ rdi rsi 8   // get address of a[i]
+    rdi <- mem rdi 0  // get a[i] from its address
+    call print 1      // print a[i]
+    rdi <- mem rsp 0  // restore array_ptr
+    rsi <- mem rsp 8  // restore start
+    rdx <- mem rsp 16 // restore end
+    rax <- 0          // set rax to 'terminate'
+    rsi++             // increment index
     cjump rsi = rdx :exit_print_array_range // if we're at the end, quit
-    // otherwise, increment index and go again
-    rsi++
-    mem rsp -8 <- :exit_print_array_range
-    call :print_array_range 3
+    //*** THIS WILL SEGFAULT... I can't convince it to blow the stack!
+    //*** THIS SHOULD BLOW THE STACK
+    // mem rsp -8 <- :exit_print_array_range
+    // call :print_array_range 3
+    //*** Instead, do this:
+    rax <- :print_array_range // set rax to 'continue'
     :exit_print_array_range
     return)
 
@@ -135,8 +151,14 @@
     return)
 
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
-  (:trampoline
+  (:trampoline_3
   // Make the stack bouncy
+  // rdi: arg1 rsi: arg2 rdx: arg3 rcx: fn
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
-    2 0
+    4 0
+    r12 <- rcx
+    :trampoline_jump
+    mem rsp -8 <- :trampoline_after_call
+    call r12 3    :trampoline_after_call
+    cjump rax = r12 :trampoline_jump
     return))
