@@ -5,33 +5,46 @@
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
     0 0
     //
-    // Allocate the world
+    // Allocate space for 1..15
     //
-    // heap size  : 1048576 (1024 * 1024 bytes = 1MB)
-    // int64_ts   : 131072 (1MB / 8 bytes = 131,072 int64_t s)
-    // # to alloc : 131072 (encoded: * 2 + 1 = 262145)
-    //
-    // Let's allocate HEAP_MAX 0s and make sure we don't blow the stack
-    // doing a recursive insertion-sort. (Which is a no-op, but it doesn't
-    // know that.)
-    //
-    // NOTE: the heap apparently is much bigger than this. Empirical
-    // testing suggests it's somewhere between 1025000 and 1050000
-    // array-cells (which... should be 8 bytes, right?) large. That
-    // seems... Like unless I'm calculating something very wrong, the
-    // stack is in fact much, much larger than 1MB using the provided
-    // runtime.o, in contrast to the 1MB limit in our runtime.c.
-    //
-    rdi <- 262145   // decoded : 131072
+    rdi <- 31       // decoded : 15
     rsi <- 1        // decoded : 0
-    call allocate 2 // rax     : [ 0 x 131,072 ]
+    call allocate 2 // rax     : [ 0 x 15 ]
+    rbx <- rax      // save the array for later
+
     //
-    // Blow the stack
+    // Initialize 1..15
     //
-    rdi <- rax
-    mem rsp -8 <- :printed
-    call :print_array 1
-    :printed
+    mem rax 8   <- 3  // 1
+    mem rax 16  <- 5  // 2
+    mem rax 24  <- 7  // 3
+    mem rax 32  <- 9  // 4
+    mem rax 40  <- 11 // 5
+    mem rax 48  <- 13 // 6
+    mem rax 56  <- 15 // 7
+    mem rax 64  <- 17 // 8
+    mem rax 72  <- 19 // 9
+    mem rax 80  <- 21 // 10
+    mem rax 88  <- 23 // 11
+    mem rax 96  <- 25 // 12
+    mem rax 104 <- 27 // 13
+    mem rax 112 <- 29 // 14
+    mem rax 120 <- 31 // 15
+
+    //
+    // Test array_swap
+    //
+    rdi <- rbx
+    rsi <- 4
+    rdx <- 5
+    // Exits with an out of bounds message:
+    // rsi <- 15
+    mem rsp -8 <- :swapped_array_4_5
+    call :array_swap 3
+    :swapped_array_4_5
+    rdi <- rbx
+    call print 1
+
     return)
 
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
