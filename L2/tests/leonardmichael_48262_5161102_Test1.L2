@@ -23,25 +23,25 @@
 
  (:populate
   1 0
-  size <- rdi
-  count_to_write <- 1 // rdi already contains the size
-  rsi <- count_to_write
-  rdi <- size
+  %size <- rdi
+  %count_to_write <- 1 // rdi already contains the %size
+  rsi <- %count_to_write
+  rdi <- %size
   call allocate 2
-  counter <- 0
-  write_ptr <- rax
+  %counter <- 0
+  %write_ptr <- rax
 
   :write_val
-  write_ptr += 8 // r9 holds write location
-  encoded_counter <- counter
-  encoded_counter <<= 1
-  encoded_counter += 1
-  mem write_ptr 0 <- counter
-  counter += 1
+  %write_ptr += 8 // r9 holds write location
+  %encoded_counter <- %counter
+  %encoded_counter <<= 1
+  %encoded_counter += 1
+  mem %write_ptr 0 <- %counter
+  %counter += 1
   goto :check_count
 
   :check_count
-  cjump counter <= size :write_val :out
+  cjump %counter <= %size :write_val :out
 
   :out
   return
@@ -53,22 +53,22 @@
   mem rsp 8 <- r13
   mem rsp 16 <- r14
 
-  counter <- 0
-  size <- rdi
-  addr <- rsi
+  %counter <- 0
+  %size <- rdi
+  %addr <- rsi
 
   :print_val
-  addr += 8
-  r13 <- addr
+  %addr += 8
+  r13 <- %addr
   rdi <- mem r13 0
   rdi <<= 1
   rdi += 1
   call print 1
-  counter += 1
+  %counter += 1
   goto :count
 
   :count
-  cjump counter <= size :print_val :get_out
+  cjump %counter <= %size :print_val :get_out
 
   :get_out
   r14 <- stack-arg -8

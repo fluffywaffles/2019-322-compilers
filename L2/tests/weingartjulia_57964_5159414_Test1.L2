@@ -10,34 +10,34 @@
 		call allocate 2	
 			
 		// Counter 
-		constraint <- 10 
-		constraint <<= 1
-		constraint ++
-		counter <- 0
+		%constraint <- 10 
+		%constraint <<= 1
+		%constraint ++
+		%counter <- 0
 		:loop
-		//val is the value to store
-		//val encoded so shift by 2 
-		val <- counter 
-		val <<= 2
-		val++
-		// variable for the offset within the array
-		offset <- counter
-		offset <<= 3
+		//%val is the value to store
+		//%val encoded so shift by 2 
+		%val <- %counter 
+		%val <<= 2
+		%val++
+		// variable for the %offset within the array
+		%offset <- %counter
+		%offset <<= 3
 		// Start after the size element
-		offset += 8
-		offset += rax
-		cjump val <= constraint :fill :stopFill
+		%offset += 8
+		%offset += rax
+		cjump %val <= %constraint :fill :stopFill
 	
 		:fill
-		mem offset 0 <- val
+		mem %offset 0 <- %val
 		goto :incCount
 		:stopFill
-		mem offset 0 <- 0
+		mem %offset 0 <- 0
 	
 		:incCount
-		counter++
+		%counter++
 		
-		cjump counter < 20 :loop :continue 
+		cjump %counter < 20 :loop :continue 
 
 		:continue
 		rdi <- rax

@@ -39,12 +39,12 @@
 		return)
   (:printVars
     8 0
-    var1 <- stack-arg 0
-    var1 += rdi
-    rdi <- var1
+    %var1 <- stack-arg 0
+    %var1 += rdi
+    rdi <- %var1
     call print 1
-    var2 <- stack-arg 8
-    rdi <- var2
+    %var2 <- stack-arg 8
+    rdi <- %var2
     call print 1
     return
   )

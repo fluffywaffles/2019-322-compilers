@@ -19,20 +19,20 @@
   )
 
   (:isPrime 1 0
-    n <- rdi
-    i <- 5
-    cjump n <= 3 :return0 :loop
+    %n <- rdi
+    %i <- 5
+    cjump %n <= 3 :return0 :loop
 
     :loop
-    rdi <- n
-    rsi <- i
-    i += 2
+    rdi <- %n
+    rsi <- %i
+    %i += 2
     mem rsp -8 <- :isDivisible_ret
     call :isDivisible 2
     :isDivisible_ret
     cjump rax = 3 :return0 :checkdone
     :checkdone
-    cjump n <= i :return1 :loop
+    cjump %n <= %i :return1 :loop
 
     :return0
     rax <- 1
@@ -44,17 +44,17 @@
   )
 
   (:isDivisible 2 0
-    // is a divisible by b?
-    a <- rdi
-    b <- rsi
+    // is %a divisible by %b?
+    %a <- rdi
+    %b <- rsi
 
     :check1
-    cjump a < b :ret0 :check2
+    cjump %a < %b :ret0 :check2
     :check2
-    cjump a = b :ret1 :subtract
+    cjump %a = %b :ret1 :subtract
     :subtract
-    a++
-    a -= b
+    %a++
+    %a -= %b
     goto :check1
 
     :ret0

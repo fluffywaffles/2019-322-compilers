@@ -5,7 +5,7 @@
     rdi <- 5
     rsi <- 1
     call allocate 2
-    p <- rax
+    %p <- rax
     return
   )
 )

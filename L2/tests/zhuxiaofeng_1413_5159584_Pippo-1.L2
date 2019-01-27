@@ -6,16 +6,16 @@
 		cjump rdi = rsi :choice1 :choice2
 		:choice1
 		call allocate 2
-		arrayPointer <- rax
-		arrayPointer &= 1
-		cjump arrayPointer = 0 :isArray :isnotArray
+		%arrayPointer <- rax
+		%arrayPointer &= 1
+		cjump %arrayPointer = 0 :isArray :isnotArray
 		:isArray
-		arrayPointer <- rax
-		mem arrayPointer 8 <- 7
-		mem arrayPointer 16 <- 9
-		rdi <- arrayPointer
+		%arrayPointer <- rax
+		mem %arrayPointer 8 <- 7
+		mem %arrayPointer 16 <- 9
+		rdi <- %arrayPointer
 		call print 1	
-		rdi <- mem arrayPointer 0
+		rdi <- mem %arrayPointer 0
 		mem rsp -8 <- :encodeArraySize_ret
 		call :encodeArraySize 1
 		:encodeArraySize_ret

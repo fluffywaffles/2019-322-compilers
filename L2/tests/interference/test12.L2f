@@ -1,9 +1,9 @@
 (:myF
   0 0
 
-  myVar <- :myF2
+  %myVar <- :myF2
 
-  call myVar 0
+  call %myVar 0
 
   return
 )

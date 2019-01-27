@@ -121,7 +121,7 @@ int64_t totalSum (C_matrix * m){
   for (int64_t index1 = 0; index1 < m->length0; index1 = index1 + 1) {
     for (int64_t index2 = 0; index2 < m->length1; index2 = index2 + 1) {
       sum = sum + m->m[index1][index2] ;
-    }
+    }    
   }
   return sum ;
 }

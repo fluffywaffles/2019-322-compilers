@@ -1,15 +1,15 @@
 (:myF
   2 0
 
-  myVar1 <- 5
-  myVar2 <- 0
+  %myVar1 <- 5
+  %myVar2 <- 0
 
   cjump rdi < rsi :trueLabel :falseLabel
 :trueLabel
-  rax <- myVar1
+  rax <- %myVar1
   goto :endLabel
 :falseLabel
-  rax <- myVar2
+  rax <- %myVar2
 
 :endLabel
   return

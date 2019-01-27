@@ -4,7 +4,7 @@
   mem rsp 0 <- rbx
 
   rbx <- 5
-  myVar1 <- rbx
+  %myVar1 <- rbx
 
   rbx <- mem rsp 0
   return

@@ -3,11 +3,11 @@
   (:go
     0 0
 
-    myV <- 1
+    %myV <- 1
 
-    myV *= 1
+    %myV *= 1
 
-    rdi <- myV
+    rdi <- %myV
     mem rsp -8 <- :ret
     call print 1
     :ret

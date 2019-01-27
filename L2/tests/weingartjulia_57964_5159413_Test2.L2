@@ -1,5 +1,5 @@
 // Test2
-// Goal: Send 7 1's to an add function, return the sum, print it
+// Goal: Send 7 1's to an add function, return the %sum, print it
 
 (:myGo 
 	(:myGo
@@ -14,27 +14,27 @@
 		mem rsp -16 <- 1
 		call :add 7
 		:f_ret
-		// Load sum into rdi for print
+		// Load %sum into rdi for print
 		rdi <- rax
 		call print 1
 		return
 	)
 	(:add
-	// Add values stored in registers/on stack, return sum to caller
+	// Add values stored in registers/on stack, return %sum to caller
 		7 1
-		sum <- rdi
-		sum += rsi
-		sum += rdx
-		sum += rcx
-		sum += r8
-		sum += r9
-		arg7 <- stack-arg 0
-		sum += arg7
-		sum <<= 1
-		sum++
-		rdi <- sum
+		%sum <- rdi
+		%sum += rsi
+		%sum += rdx
+		%sum += rcx
+		%sum += r8
+		%sum += r9
+		%arg7 <- stack-arg 0
+		%sum += %arg7
+		%sum <<= 1
+		%sum++
+		rdi <- %sum
 		call print 1
-		rax <- sum
+		rax <- %sum
 		return
 	)
 )

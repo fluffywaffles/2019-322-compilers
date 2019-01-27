@@ -6,8 +6,8 @@
   )
   (:myF
     1 0
-    v1 <- rdi
-    rax <- v1
+    %v1 <- rdi
+    rax <- %v1
     return
   )
 )

@@ -5,17 +5,17 @@
         rsi <- 5
         call allocate 2
         mem rsp 0 <- rax
-        pointer <- rax
-        pointer += 8
-        mem pointer 0 <- 3
-        pointer += 8
-        mem pointer 0 <- 5
-        pointer += 8
-        mem pointer 0 <- 7
-        pointer += 8
-        mem pointer 0 <- 9
-        pointer += 8
-        mem pointer 0 <- 11
+        %pointer <- rax
+        %pointer += 8
+        mem %pointer 0 <- 3
+        %pointer += 8
+        mem %pointer 0 <- 5
+        %pointer += 8
+        mem %pointer 0 <- 7
+        %pointer += 8
+        mem %pointer 0 <- 9
+        %pointer += 8
+        mem %pointer 0 <- 11
         rdi <- mem rsp 0
 
         mem rsp -8 <- :f_ret
@@ -43,13 +43,13 @@
 
         rcx @ rax r12 8
 
-        ptr <- r13
+        %ptr <- r13
         :loop
-        ptr += 8
+        %ptr += 8
         cjump r12 = 0 :finish :cont
 
         :cont
-        rdi <- mem ptr 0
+        rdi <- mem %ptr 0
         mem rcx 0 <- rdi
         r12 -= 1
         rcx -= 8

@@ -5,21 +5,21 @@
     rdi <- 5
     rsi <- 5
     call allocate 2
-    array1 <- rax
+    %array1 <- rax
 
     // Print the array
-    rdi <- array1
+    rdi <- %array1
     call print 1
 
     // Check the array
-    rdi <- array1
+    rdi <- %array1
     rsi <- 0
     mem rsp -8 <- :checkArray_ret
     call :checkArray 2
     :checkArray_ret
-    isAnArray <- rax
+    %isAnArray <- rax
 
-    rdi <- isAnArray
+    rdi <- %isAnArray
     mem rsp -8 <- :printValue_ret
     call :printValue 1
     :printValue_ret
@@ -30,9 +30,9 @@
     mem rsp -8 <- :checkArray_ret2
     call :checkArray 2
     :checkArray_ret2
-    isAnArray <- rax
+    %isAnArray <- rax
 
-    rdi <- isAnArray
+    rdi <- %isAnArray
     mem rsp -8 <- :printValue_ret2
     call :printValue 1
     :printValue_ret2

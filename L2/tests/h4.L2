@@ -3,11 +3,11 @@
  //// (:test
  ////  0 0
  ////  // test
- ////  rdi <- 5 // size 2 array
+ ////  rdi <- 5 // size 2 %array
  ////  rsi <- 15 // of int = 7
  ////  call allocate 2
   
- ////  rdi <- 7 // size 3 array
+ ////  rdi <- 7 // size 3 %array
  ////  rsi <- rax 
  ////  call allocate 2
  ////  rdi <- rax
@@ -19,28 +19,28 @@
  ////  )
  (:printArray
   1 0
-  // Check if array
-  maybe_arr <- rdi
-  maybe_arr <<= 63 // if zero -> mem, otherwise int
-  cjump maybe_arr = 0 :isarr :isnotarr
+  // Check if %array
+  %maybe_arr <- rdi
+  %maybe_arr <<= 63 // if zero -> mem, otherwise int
+  cjump %maybe_arr = 0 :isarr :isnotarr
 
   :isnotarr
   rax <- 1
   goto :end
   
   :isarr
-  array <- rdi
-  length <- mem array 0 // get array size
-  i <- 0 // counter
+  %array <- rdi
+  %length <- mem %array 0 // get %array size
+  %i <- 0 // counter
   :loop
-  cjump i < length :body :end
+  cjump %i < %length :body :end
   :body
-  rdi <- array // array ptr
-  i <- r12 // index
+  rdi <- %array // %array ptr
+  %i <- r12 // %index
   mem rsp -8 <- :printArrayElement_ret
   call :printArrayElement 2
   :printArrayElement_ret
-  i++
+  %i++
   goto :loop
 
   :end
@@ -50,16 +50,16 @@
 
  (:printArrayElement
   2 2
-  array <- rdi
-  index <- rsi
-  index++ //// base 1 idx
+  %array <- rdi
+  %index <- rsi
+  %index++ //// base 1 idx
   
-  //// print the index
-  array @ array index 8
-  maybe_arr <- mem rdi 0
+  //// print the %index
+  %array @ %array %index 8
+  %maybe_arr <- mem rdi 0
   
   //// print idx
-  rdi <- index
+  rdi <- %index
   rdi--
   rdi <<= 1
   rdi++
@@ -72,11 +72,11 @@
   rdi++
   call print 1
   
-  //// check if array
-  rdi <- maybe_array
-  check <- maybe_array
-  check <<= 63 // if zero -> mem, otherwise int
-  cjump check = 0 :isarr_2 :isnotarr_2
+  //// %check if %array
+  rdi <- %maybe_array
+  %check <- %maybe_array
+  %check <<= 63 // if zero -> mem, otherwise int
+  cjump %check = 0 :isarr_2 :isnotarr_2
 
   :isnotarr_2
   call print 1

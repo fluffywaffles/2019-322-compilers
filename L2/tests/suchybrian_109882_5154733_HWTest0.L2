@@ -1,25 +1,25 @@
 (:rabbitHole
     (:rabbitHole
       0 0
-      myvar <- 3
-      rdi <- myvar
+      %myvar <- 3
+      rdi <- %myvar
       call print 1
       mem rsp -8 <- :ret0
       call :myF0 1
       :ret0
-      myvar <- 32
-      myvar <<= 1
-      myvar++
-      rdi <- myvar
+      %myvar <- 32
+      %myvar <<= 1
+      %myvar++
+      rdi <- %myvar
       call print 1
       return
     )
     (:myF0
       1 1
-      myvar0 <- 2
-      myvar0 <<= 1
-      myvar0++
-      rdi <- myvar0
+      %myvar0 <- 2
+      %myvar0 <<= 1
+      %myvar0++
+      rdi <- %myvar0
       call print 1
       mem rsp -8 <- :ret1
       call :myF1 1
@@ -28,10 +28,10 @@
     )
     (:myF1
       1 1
-      myvar1 <- 4
-      myvar1 <<= 1
-      myvar1++
-      rdi <- myvar1
+      %myvar1 <- 4
+      %myvar1 <<= 1
+      %myvar1++
+      rdi <- %myvar1
       call print 1
       mem rsp -8 <- :ret2
       call :myF2 1
@@ -40,10 +40,10 @@
     )
     (:myF2
       1 1
-      myvar2 <- 8
-      myvar2 <<= 1
-      myvar2++
-      rdi <- myvar2
+      %myvar2 <- 8
+      %myvar2 <<= 1
+      %myvar2++
+      rdi <- %myvar2
       call print 1
       mem rsp -8 <- :ret3
       call :myF3 1
@@ -52,10 +52,10 @@
     )
     (:myF3
       1 1
-      myvar3 <- 16
-      myvar3 <<= 1
-      myvar3++
-      rdi <- myvar3
+      %myvar3 <- 16
+      %myvar3 <<= 1
+      %myvar3++
+      rdi <- %myvar3
       call print 1
       rax <- rdi
       return

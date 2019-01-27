@@ -6,48 +6,48 @@
   (:sort
     1 0
     // store input array
-    arr_ptr <- rdi
+    %arr_ptr <- rdi
   
-    arr_len <- mem arr_ptr 0
-    i <- 2         // outer loop starting iterator
+    %arr_len <- mem %arr_ptr 0
+    %i <- 2         // outer loop starting iterator
 
     // while loop over the array
     :outer_loop
-      cjump arr_len < i :after :outer_step  
+      cjump %arr_len < %i :after :outer_step  
       
       :outer_step 
-        j <- i
+        %j <- %i
      
       // inner while loop for inserting a number using swap 
       :inner_loop
-        cjump j <= 1 :after_inner_step :inner_step
+        cjump %j <= 1 :after_inner_step :inner_step
 
         :inner_step
-            prev_value_ptr <- j
-            prev_value_ptr --
-            prev_value_ptr <<= 3
-            prev_value_ptr += arr_ptr
-            curr_value_ptr <- j
-            curr_value_ptr <<= 3
-            curr_value_ptr += arr_ptr
-            prev_value <- mem prev_value_ptr 0   // array[j - 1]
-            curr_value <- mem curr_value_ptr 0  // array[j]
-            cjump curr_value < prev_value :swap :after_inner_step
+            %prev_value_ptr <- %j
+            %prev_value_ptr --
+            %prev_value_ptr <<= 3
+            %prev_value_ptr += %arr_ptr
+            %curr_value_ptr <- %j
+            %curr_value_ptr <<= 3
+            %curr_value_ptr += %arr_ptr
+            %prev_value <- mem %prev_value_ptr 0   // array[%j - 1]
+            %curr_value <- mem %curr_value_ptr 0  // array[%j]
+            cjump %curr_value < %prev_value :swap :after_inner_step
 
-        // swap two numbers if array[j - 1] > array[j]
+        // swap two numbers if array[%j - 1] > array[%j]
         :swap
-            mem curr_value_ptr 0 <- prev_value
-            mem prev_value_ptr 0 <- curr_value
-            j --
+            mem %curr_value_ptr 0 <- %prev_value
+            mem %prev_value_ptr 0 <- %curr_value
+            %j --
             goto :inner_loop
 
         :after_inner_step
-            i ++ 
+            %i ++ 
 
       goto :outer_loop 
 
     :after
-        rax <- arr_ptr
+        rax <- %arr_ptr
         return 
   )
 

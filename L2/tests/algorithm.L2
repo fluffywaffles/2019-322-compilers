@@ -17,28 +17,28 @@
   )
   (:printArray
     1 0
-    check <- rdi
-    check &= 1
-    cjump check = 0 :isarray :notarray
+    %check <- rdi
+    %check &= 1
+    cjump %check = 0 :isarray :notarray
     :notarray
     rax <- 0
     return
 
     :isarray 
-    c <- 0
-    arr <- rdi
-    arrlength <- mem rdi 0
+    %c <- 0
+    %arr <- rdi
+    %arrlength <- mem rdi 0
 
     :forloop
-    cjump c < arrlength :continue :done
+    cjump %c < %arrlength :continue :done
 
     :continue
-    rdi <- arr
-    rsi <- c
+    rdi <- %arr
+    rsi <- %c
     mem rsp -8 <- :ret
     call :printArrayElement 2
     :ret
-    c++
+    %c++
     goto :forloop
 
     :done
@@ -49,35 +49,35 @@
   (:printArrayElement
     2 0
 
-    arr <- rdi
-    i <- rsi  // rsi input is decoded
+    %arr <- rdi
+    %i <- rsi  // rsi input is decoded
 
     // print the index
-    rdi <- i
+    rdi <- %i
     rdi <<= 1
     rdi += 1
     call print 1
 
-    rdi <- i
+    rdi <- %i
     rdi *= 8
     rdi += 8
 
     // encode result and print 
     rdi <<= 1
     rdi += 1
-    offset <- rdi
+    %offset <- rdi
     call print 1
 
-    // get a[i]
-    offset >>= 1
-    arr += offset
-    ai <- mem arr 0
+    // get a[%i]
+    %offset >>= 1
+    %arr += %offset
+    %ai <- mem %arr 0
 
-    // check if a[i] is an array
-    check <- ai
-    check &= 1
-    rdi <- ai
-    cjump check = 0 :isarr :notarr
+    // %check if a[%i] is an array
+    %check <- %ai
+    %check &= 1
+    rdi <- %ai
+    cjump %check = 0 :isarr :notarr
 
     :notarr
     call print 1

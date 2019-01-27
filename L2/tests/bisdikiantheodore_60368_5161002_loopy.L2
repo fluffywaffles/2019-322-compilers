@@ -3,9 +3,9 @@
     0 0
 	rax <- 2
 	rbx <- 3
-	var1 <- rax
-	var2 <- rbx
-	cjump var1 <= var2 :true :false
+	%var1 <- rax
+	%var2 <- rbx
+	cjump %var1 <= %var2 :true :false
 	:true
 	mem rsp -8 <- :loopy_ret
 	call :loopy 0

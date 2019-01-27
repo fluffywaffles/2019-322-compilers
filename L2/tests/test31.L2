@@ -5,8 +5,8 @@
     rdi <- 5
     rsi <- 1
     call allocate 2
-    p <- rax
-    rdi <- p
+    %p <- rax
+    rdi <- %p
     call print 1
     return
   )

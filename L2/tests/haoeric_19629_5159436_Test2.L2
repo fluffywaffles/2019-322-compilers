@@ -1,6 +1,6 @@
 (:go
 	(:go 0 0
-		// store iterations of the Collatz Conjecture in an array
+		// store iterations of the Collatz Conjecture in an %array
 		// 12, 19, 27, 871 give interesting results according to wikipedia
 
 		rdi <- 25 	// 12
@@ -38,52 +38,52 @@
 		return
 	)
 
-	(:collatz 2 5 	// takes the starting integer and a max array size
-		starting_integer <- rdi
-		max_array_size <- rsi
+	(:collatz 2 5 	// takes the starting integer and a max %array size
+		%starting_integer <- rdi
+		%max_array_size <- rsi
 
 		// check if input is negative
-		cjump starting_integer <= 1 :done :next
+		cjump %starting_integer <= 1 :done :next
 		:next
-		cjump max_array_size <= 1 :done :allocate
+		cjump %max_array_size <= 1 :done :allocate
 
-		:allocate 	// allocate array
-		rdi <- max_array_size
+		:allocate 	// allocate %array
+		rdi <- %max_array_size
 		rsi <- 1
 		call allocate 2
-		array <- rax 	// array
-		array_pointer <- rax
-		array_pointer += 8 	// pointer to current location
-		max_array_size *= 8
-		max_array_size += array 	// last array location
+		%array <- rax 	// %array
+		%array_pointer <- rax
+		%array_pointer += 8 	// pointer to current location
+		%max_array_size *= 8
+		%max_array_size += %array 	// last %array location
 
-		:loop 		// fill array
-		mem array_pointer 0 <- starting_integer
-		array_pointer += 8
-		cjump max_array_size < array_pointer :done :check 	// out of bounds check
+		:loop 		// fill %array
+		mem %array_pointer 0 <- %starting_integer
+		%array_pointer += 8
+		cjump %max_array_size < %array_pointer :done :check 	// out of bounds check
 
 		:check
-		cjump starting_integer <= 3 :done :continue
+		cjump %starting_integer <= 3 :done :continue
 
 		:continue
-		even_or_odd <- starting_integer
-		even_or_odd &= 3
-		cjump even_or_odd = 1 :even :odd
+		%even_or_odd <- %starting_integer
+		%even_or_odd &= 3
+		cjump %even_or_odd = 1 :even :odd
 
 		:even		// n/2
-		starting_integer >>= 2
-		starting_integer <<= 1
-		starting_integer += 1
+		%starting_integer >>= 2
+		%starting_integer <<= 1
+		%starting_integer += 1
 		goto :loop
 
 		:odd		// 3n+1
-		starting_integer --
-		starting_integer *= 3
-		starting_integer += 3
+		%starting_integer --
+		%starting_integer *= 3
+		%starting_integer += 3
 		goto :loop
 
 		:done
-		rax <- array
+		rax <- %array
 		return
 	)
 )

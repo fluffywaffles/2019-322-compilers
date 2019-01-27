@@ -46,7 +46,7 @@ echo "" ;
 echo "" ;
 
 echo "########## SUMMARY" ;
-echo "Test passed: $passed out of $total"
 if test "${testsFailed}" != "" ; then
   echo "Failed tests: ${testsFailed}" ;
 fi
+echo "Test passed: $passed out of $total"

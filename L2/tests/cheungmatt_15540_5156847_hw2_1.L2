@@ -15,34 +15,34 @@
   )
   (:printArray
     1 0
-    ifArray <- rdi
-    ifArray &= 1
-    cjump ifArray = 0 :isArray :notArray
+    %ifArray <- rdi
+    %ifArray &= 1
+    cjump %ifArray = 0 :isArray :notArray
     :notArray
     rax <- -1
     return
 
     :isArray
-    i <- 0
-    array <- rdi
-    arrayLen <- mem rdi 0
-    rdi <- arrayLen
+    %i <- 0
+    %array <- rdi
+    %arrayLen <- mem rdi 0
+    rdi <- %arrayLen
     rdi <<= 1
     rdi += 1
 
     :loop
-    cjump i < arrayLen :continue :exit
+    cjump %i < %arrayLen :continue :exit
     
     :continue
-    rdi <- i
+    rdi <- %i
     rdi <<= 1
     rdi += 1
     call print 1
-    array += 8
-    arrayElement <- mem array 0 
-    rdi <- arrayElement
+    %array += 8
+    %arrayElement <- mem %array 0 
+    rdi <- %arrayElement
     call print 1
-    i++
+    %i++
     goto :loop
 
     :exit

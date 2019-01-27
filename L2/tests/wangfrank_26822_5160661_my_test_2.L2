@@ -4,24 +4,24 @@
         rdi <- 5
         rsi <- 5
         call allocate 2
-        pointer_1 <- rax
-        iter <- rax
-        iter += 8
-        mem iter 0 <- 3
-        iter += 8
-        mem iter 0 <- 5
+        %pointer_1 <- rax
+        %iter <- rax
+        %iter += 8
+        mem %iter 0 <- 3
+        %iter += 8
+        mem %iter 0 <- 5
         rdi <- 5
         rsi <- 11
         call allocate 2
-        pointer_2 <- rax
+        %pointer_2 <- rax
 
-        rdi <- pointer_1
+        rdi <- %pointer_1
         call print 1
-        rdi <- pointer_2
+        rdi <- %pointer_2
         call print 1
 
-        rdi <- pointer_1
-        rsi <- pointer_2
+        rdi <- %pointer_1
+        rsi <- %pointer_2
         mem rsp -8 <- :f_ret
         call :extend_array 1
         :f_ret

@@ -6,20 +6,20 @@
     rdi <- 5
     rsi <- 5
     call allocate 2
-    array1 <- rax
+    %array1 <- rax
 
-    // Print the array
-    rdi <- array1
+    // Print the %array
+    rdi <- %array1
     call print 1
 
-    // Check the array
-    rdi <- array1
+    // Check the %array
+    rdi <- %array1
     mem rsp -8 <- :checkArray_ret
     call :checkArray 1
     :checkArray_ret
-    isAnArray <- rax
+    %isAnArray <- rax
 
-    rdi <- isAnArray
+    rdi <- %isAnArray
     mem rsp -8 <- :printValue_ret
     call :printValue 1
     :printValue_ret
@@ -29,9 +29,9 @@
     mem rsp -8 <- :checkArray_ret2
     call :checkArray 1
     :checkArray_ret2
-    isAnArray <- rax
+    %isAnArray <- rax
 
-    rdi <- isAnArray
+    rdi <- %isAnArray
     mem rsp -8 <- :printValue_ret2
     call :printValue 1
     :printValue_ret2
@@ -43,12 +43,12 @@
     1 0
 
     // Initialization of variables
-    array <- rdi
+    %array <- rdi
 
-    // Check if the array is an actual array
-    tempArrayPointer <- array
-    tempArrayPointer &= 1
-    cjump tempArrayPointer = 0 :isAnArray :isAnInt
+    // Check if the %array is an actual %array
+    %tempArrayPointer <- %array
+    %tempArrayPointer &= 1
+    cjump %tempArrayPointer = 0 :isAnArray :isAnInt
 
     :isAnInt
     rax <- 0
@@ -63,14 +63,14 @@
     1 0
 
     // Initialization of variables
-    intToPrint <- rdi
+    %intToPrint <- rdi
 
     // Encode the integer
-    intToPrint <<= 1
-    intToPrint++
+    %intToPrint <<= 1
+    %intToPrint++
 
     // Print
-    rdi <- intToPrint
+    rdi <- %intToPrint
     call print 1
 
     return

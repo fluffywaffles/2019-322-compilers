@@ -13,7 +13,7 @@
 
   (:printValues
     8 0
-    stackValue <- stack-arg 8
+    %stackValue <- stack-arg 8
     return
   )
 

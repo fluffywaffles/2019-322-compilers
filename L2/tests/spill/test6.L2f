@@ -3,15 +3,15 @@
 
   mem rsp 8 <- 3
 
-  myVar <- 0
-  mem rsp 0 <- myVar
+  %myVar <- 0
+  mem rsp 0 <- %myVar
 
 
-  myVar <- mem rsp 8
+  %myVar <- mem rsp 8
 
   return
 )
 
-myVar
+%myVar
 
-S
+%S

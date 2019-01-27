@@ -10,8 +10,8 @@
       mem rax 8 <- rbx
 
 
-      array <- rax
-      rdi <- array
+      %array <- rax
+      rdi <- %array
       mem rsp -8 <- :ret
       call :printArray 1
       :ret
@@ -20,27 +20,27 @@
 
     (:printArray
       1 0
-      array <- rdi
-      lowestBit <- array
-      lowestBit &= 1
-      cjump lowestBit = 1 :retFalse :continue
+      %array <- rdi
+      %lowestBit <- %array
+      %lowestBit &= 1
+      cjump %lowestBit = 1 :retFalse :continue
       :continue
-      i <- 0
+      %i <- 0
       goto :loopCheck
 
       :loop
-      rdi <- array
-      rsi <- i
+      rdi <- %array
+      rsi <- %i
       mem rsp -8 <- :printArRet
       call :printArrayElement 2
       :printArRet
-      rdi <- array
-      i += 1
+      rdi <- %array
+      %i += 1
 
       :loopCheck
       rax <- mem rdi 0
       rax >>= 1
-      rbx <- i
+      rbx <- %i
       cjump rax < rbx :retTrue :loop
 
       :retFalse
@@ -55,32 +55,32 @@
 
     (:printArrayElement
       2 0
-      array <- rdi
-      i <- rsi
+      %array <- rdi
+      %i <- rsi
 
       rsi <<= 1
       rsi++
       rdi <- rsi
       call print 1
 
-      L1DataLayout <- i
-      L1DataLayout <<= 3
-      L1DataLayout += 8
-      L1DataLayout <<= 1
-      L1DataLayout += 1
-      rdi <- L1DataLayout
+      %L1DataLayout <- %i
+      %L1DataLayout <<= 3
+      %L1DataLayout += 8
+      %L1DataLayout <<= 1
+      %L1DataLayout += 1
+      rdi <- %L1DataLayout
       call print 1
 
-      rax <- i
+      rax <- %i
       rax++
       rax <<= 3
-      arrayI <- array
-      arrayI += rax
-      rax <- arrayI
+      %arrayI <- %array
+      %arrayI += rax
+      rax <- %arrayI
 
-      lowestBit <- mem rax 0
-      lowestBit &= 1
-      cjump lowestBit = 1 :notArray :array
+      %lowestBit <- mem rax 0
+      %lowestBit &= 1
+      cjump %lowestBit = 1 :notArray :array
 
       :notArray
       rdi <- mem rax 0

@@ -15,16 +15,16 @@
   (:printValues
     9 0
 
-    stackValue <- stack-arg 0
-    rdi <- stackValue
+    %stackValue <- stack-arg 0
+    rdi <- %stackValue
     call print 1
 
-    stackValue2 <- stack-arg 8
-    rdi <- stackValue2
+    %stackValue2 <- stack-arg 8
+    rdi <- %stackValue2
     call print 1
 
-    stackValue3 <- stack-arg 16
-    rdi <- stackValue3
+    %stackValue3 <- stack-arg 16
+    rdi <- %stackValue3
     call print 1
 
     return

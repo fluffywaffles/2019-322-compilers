@@ -10,12 +10,12 @@
     rdi <- r12
     call print 1
 
-    var1 <- 5
+    %var1 <- 5
     mem rsp -8 <- :myF_ret
     call :myF 0
     :myF_ret
 
-    var1++
+    %var1++
 
     // Restore r12
     r12 <- mem rsp 0

@@ -86,15 +86,15 @@
   (:myF2
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao_20
     call :myF4 1
     :call_label_ciao_20
@@ -103,15 +103,15 @@
   (:myF4
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao_21
     call :myF8 1
     :call_label_ciao__ciao_21
@@ -120,15 +120,15 @@
   (:myF8
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao_22
     call :myF16 1
     :call_label_ciao__ciao__ciao_22
@@ -137,15 +137,15 @@
   (:myF16
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao__ciao_23
     call :myF32 1
     :call_label_ciao__ciao__ciao__ciao_23
@@ -154,15 +154,15 @@
   (:myF32
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao__ciao__ciao_24
     call :myF64 1
     :call_label_ciao__ciao__ciao__ciao__ciao_24
@@ -171,15 +171,15 @@
   (:myF64
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao__ciao__ciao__ciao_25
     call :myF128 1
     :call_label_ciao__ciao__ciao__ciao__ciao__ciao_25
@@ -188,15 +188,15 @@
   (:myF128
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao__ciao__ciao__ciao__ciao_26
     call :myF256 1
     :call_label_ciao__ciao__ciao__ciao__ciao__ciao__ciao_26
@@ -205,15 +205,15 @@
   (:myF256
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
-    rdi <- myvar0
+    rdi <- %myvar0
     mem rsp -8 <- :call_label_ciao__ciao__ciao__ciao__ciao__ciao__ciao__ciao_27
     call :myF512 1
     :call_label_ciao__ciao__ciao__ciao__ciao__ciao__ciao__ciao_27
@@ -222,12 +222,12 @@
   (:myF512
     1 0
     rdi <- rdi
-    myvar0 <- rdi
-    myvar0 <- myvar0
-    myvar0 <<= 1
-    myvar0 <- myvar0
-    myvar0 += 1
-    rdi <- myvar0
+    %myvar0 <- rdi
+    %myvar0 <- %myvar0
+    %myvar0 <<= 1
+    %myvar0 <- %myvar0
+    %myvar0 += 1
+    rdi <- %myvar0
     rdi <- rdi
     call print 1
     return

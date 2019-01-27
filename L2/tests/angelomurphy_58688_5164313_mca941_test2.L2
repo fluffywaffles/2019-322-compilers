@@ -7,9 +7,9 @@
     r15 <- 4
     rbp <- 5
     rbx <- 6
-    my_var_1 <- 7
-    my_var_2 <- 8
-    my_var_3 <- 9
+    %my_var_1 <- 7
+    %my_var_2 <- 8
+    %my_var_3 <- 9
     mem rsp -8 <- :tlfc_ret
     mem rsp -16 <- -1
     call :test_large_fun_call 7
@@ -42,15 +42,15 @@
     rdi <<= 1
     rdi += 1
     call print 1
-    rdi <- my_var_1
+    rdi <- %my_var_1
     rdi <<= 1
     rdi += 1
     call print 1
-    rdi <- my_var_2
+    rdi <- %my_var_2
     rdi <<= 1
     rdi += 1
     call print 1
-    rdi <- my_var_3
+    rdi <- %my_var_3
     rdi <<= 1
     rdi += 1
     call print 1
@@ -58,8 +58,8 @@
   )
   (:test_large_fun_call
     7 0
-    stack_val <- stack-arg 0
-    rax <- stack_val
+    %stack_val <- stack-arg 0
+    rax <- %stack_val
     rax += 1
     return
   )

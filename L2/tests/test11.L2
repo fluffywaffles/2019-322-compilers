@@ -2,10 +2,10 @@
 
   (:main
     0 0
-    v1 <- 1
-    v2 <- 2
+    %v1 <- 1
+    %v2 <- 2
     mem rsp -8 <- :call_label0
-    rdi <- v1
+    rdi <- %v1
     call :myF 1
 
     :call_label0
@@ -15,11 +15,11 @@
 
   (:myF
     1 0
-    p1 <- rdi
-    tempV <- p1
-    tempV +=2
+    %p1 <- rdi
+    %tempV <- %p1
+    %tempV +=2
     mem rsp -8 <- :call_label1
-    rdi <- tempV
+    rdi <- %tempV
     call print 1
 
     :call_label1

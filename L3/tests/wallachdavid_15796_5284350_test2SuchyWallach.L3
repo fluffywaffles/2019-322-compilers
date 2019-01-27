@@ -1,38 +1,38 @@
 // this program will check if the given value is prime
 // it will print 0 to indicate it compiled successfully
-// it will print 0 or 1 before that indicating the status of prime for the given val
+// it will print 0 or 1 before that indicating the status of prime for the given %val
 define :main() {
 	
-	val <- 10 
-	result <- call :isPrime (val)
+	%val <- 10 
+	%result <- call :isPrime (%val)
 
-	// print the result of the function
-	printRes <- call :encode (result)
-	call print (printRes)
+	// print the %result of the function
+	%printRes <- call :encode (%result)
+	call print (%printRes)
 
-	// on success
-	success <- call :encode (0)
-	call print (success)
+	// on %success
+	%success <- call :encode (0)
+	call print (%success)
 }
 
 
-define :isPrime(val) {
+define :isPrime(%val) {
 	
-	arr <- call allocate(val, 1)
+	%arr <- call allocate(%val, 1)
 
-	index <- val - 1
+	%index <- %val - 1
 
 	:start
-	done <- index <= 2
-	br done :false1 :continue
+	%done <- %index <= 2
+	br %done :false1 :continue
 
 	:continue
-	divisible <- :isDivisible(val, index)
+	%divisible <- :isDivisible(%val, %index)
 
-	br divisible :true1 :next1
+	br %divisible :true1 :next1
 	:next1
-	tmpIndex <- index
-	index <- tmpIndex + 1
+	tmpIndex <- %index
+	%index <- tmpIndex + 1
 	:start
 
 	:false1
@@ -92,10 +92,10 @@ define :isDivisible(val1, val2){
 }
 
 
-define :encode(val){
+define :encode(%val){
 	// encode the value
 	// used for printing
-	val <- val << 1
-	val <- val + 1
-	return val
+	%val <- %val << 1
+	%val <- %val + 1
+	return %val
 }
