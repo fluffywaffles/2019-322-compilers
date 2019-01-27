@@ -1,0 +1,9 @@
+g++
+-std=c++17
+-g3
+-DDEBUG
+-pedantic
+-pedantic-errors
+-Werror=pedantic
+-I./lib
+-I./lib/PEGTL/include
