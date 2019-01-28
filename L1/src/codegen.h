@@ -341,7 +341,7 @@ namespace L1::codegen::ast::generate {
         int lhs_ = helper::integer(lhs);
         int rhs_ = helper::integer(rhs);
         os << "movq ";
-        if      (op_ ==  "<" && lhs_ < rhs_)  os << "$1";
+        if      (op_ ==  "<" && lhs_  < rhs_) os << "$1";
         else if (op_ ==  "=" && lhs_ == rhs_) os << "$1";
         else if (op_ == "<=" && lhs_ <= rhs_) os << "$1";
         else                                  os << "$0";
@@ -349,24 +349,18 @@ namespace L1::codegen::ast::generate {
         helper::gas_register(dest, os);
         return;
       } else if (predicate::constant(lhs) && predicate::reg(rhs)) {
-        helper::cmp::rc(rhs, lhs, os);
-        os << "\n  ";
-        helper::cmp::setg_ge_e(dest, op, os);
-        os << "\n  ";
+        helper::cmp::rc(rhs, lhs, os);        os << "\n  ";
+        helper::cmp::setg_ge_e(dest, op, os); os << "\n  ";
         helper::cmp::movzbq(dest, os);
         return;
       } else if (predicate::reg(lhs) && predicate::constant(rhs)) {
-        helper::cmp::rc(lhs, rhs, os);
-        os << "\n  ";
-        helper::cmp::setl_le_e(dest, op, os);
-        os << "\n  ";
+        helper::cmp::rc(lhs, rhs, os);        os << "\n  ";
+        helper::cmp::setl_le_e(dest, op, os); os << "\n  ";
         helper::cmp::movzbq(dest, os);
         return;
       } else if (predicate::reg(lhs) && predicate::reg(rhs)) {
-        helper::cmp::rr(lhs, rhs, os);
-        os << "\n  ";
-        helper::cmp::setl_le_e(dest, op, os);
-        os << "\n  ";
+        helper::cmp::rr(lhs, rhs, os);        os << "\n  ";
+        helper::cmp::setl_le_e(dest, op, os); os << "\n  ";
         helper::cmp::movzbq(dest, os);
         return;
       }
@@ -392,10 +386,11 @@ namespace L1::codegen::ast::generate {
         std::string op_  = op.content();
         int lhs_ = helper::integer(lhs);
         int rhs_ = helper::integer(rhs);
-        if      (op_ ==  "<" && lhs_  < rhs_) os << "jmp " << then_label;
-        else if (op_ ==  "=" && lhs_ == rhs_) os << "jmp " << then_label;
-        else if (op_ == "<=" && lhs_ <= rhs_) os << "jmp " << then_label;
-        else                                  os << "jmp " << else_label;
+        os << "jmp ";
+        if      (op_ ==  "<" && lhs_  < rhs_) os << then_label;
+        else if (op_ ==  "=" && lhs_ == rhs_) os << then_label;
+        else if (op_ == "<=" && lhs_ <= rhs_) os << then_label;
+        else                                  os << else_label;
         return;
       } else if (predicate::constant(lhs) && predicate::reg(rhs)) {
         helper::cmp::rc(rhs, lhs, os);
@@ -529,15 +524,17 @@ namespace L1::codegen::ast::generate {
 
     if (n.is<update::usable::arithmetic::increment>()) {
       assert(n.children.size() == 2); // ignore '++'
+      const node & dest = *n.children.at(0);
       os << "inc ";
-      helper::gas_register(*n.children.at(0), os);
+      helper::gas_register(dest, os);
       return;
     }
 
     if (n.is<update::usable::arithmetic::decrement>()) {
       assert(n.children.size() == 2); // ignore '--'
+      const node & dest = *n.children.at(0);
       os << "dec ";
-      helper::gas_register(*n.children.at(0), os);
+      helper::gas_register(dest, os);
       return;
     }
 
@@ -552,7 +549,8 @@ namespace L1::codegen::ast::generate {
         os << "(" ; helper::gas_register(base, os);
         os << ", "; helper::gas_register(offset, os);
         os << ", "; os << helper::integer(scale);
-        os << "),";
+        os << ")";
+      os << ", ";
       helper::gas_register(dest, os);
       return;
     }

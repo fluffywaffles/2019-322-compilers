@@ -8,32 +8,18 @@ namespace peg = tao::pegtl;
 namespace parse_tree {
   using namespace peg::parse_tree;
 
-  void print_node (const node & n, const std::string & s = "" ) {
-    // detect the root node:
+  void print_node (const node & n, const std::string & indent = "") {
+    // node cases
     if (n.is_root()) {
-      std::cout << "ROOT" << std::endl;
+      std::cout << "ROOT\n";
+    } else if (n.has_content()) {
+      std::cout << indent << n.name() << " \"" << n.content() << "\"\n";
+    } else {
+      std::cout << indent << n.name() << "\n";
     }
-    else {
-      if (n.has_content()) {
-        std::cout
-          << s << n.name()
-          << " \"" << n.content() << "\""
-          /* << " at " << n.begin() << " to " << n.end() */
-          << std::endl;
-      }
-      else {
-        std::cout
-          << s << n.name()
-          /* << " at " << n.begin() */
-          << std::endl;
-      }
-    }
-    // print all child nodes
+    // recursion
     if (!n.children.empty()) {
-      const auto s2 = s + "  ";
-      for (auto & up : n.children) {
-        print_node(*up, s2);
-      }
+      for (auto & up : n.children) print_node(*up, "  " + indent);
     }
   }
 
