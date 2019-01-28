@@ -1,3 +1,4 @@
+#pragma once
 #include "tao/pegtl.hpp"
 
 namespace peg = tao::pegtl;
@@ -19,13 +20,12 @@ namespace L1::grammar {
     template <char c> using a = peg::one<c>;
     template <char c, typename... Rules>
       struct exclude : peg::if_must<peg::not_at<a<c>>, Rules...> {};
-    template <typename... atoms>
-      struct sexp : peg::must<a<'('>, exclude<')', atoms...>, a<')'>> {};
-    // Eat left spaces, and right comments
     template <typename Rule>
       using spaced1 = peg::pad<Rule, peg::sor<peg::space, comment>>;
     template <typename... Rules>
-      struct spaced  : peg::seq<spaced1<Rules>...> {};
+      struct spaced : peg::seq<spaced1<Rules>...> {};
+    template <typename... atoms>
+      struct sexp : spaced<a<'('>, exclude<')', atoms...>, a<')'>> {};
   }
 
   //
@@ -33,12 +33,12 @@ namespace L1::grammar {
   //
 
   inline namespace character {
-    struct colon        : a<':'> {};
+    struct colon        : util::a<':'> {};
     struct numeric      : peg::range<'0', '9'> {};
     struct lowercase    : peg::range<'a', 'z'> {};
     struct uppercase    : peg::range<'A', 'Z'> {};
     struct alphabetic   : peg::sor<lowercase, uppercase> {};
-    struct underscore   : a<'_'> {};
+    struct underscore   : util::a<'_'> {};
     struct alphanumeric : peg::sor<alphabetic, numeric> {};
   }
 
@@ -56,33 +56,36 @@ namespace L1::grammar {
     // label ::= :[a-zA-Z_][a-zA-Z_0=9]*
     struct label : peg::seq<colon, name> {};
   }
+  namespace identifier = literal::identifier;
 
   //
   // Literals
   //
 
-  // Numerals
+  // Integers
+  namespace literal::number::integer {
+    struct positive : peg::seq<peg::opt<util::a<'+'>>, peg::plus<numeric>> {};
+    struct negative : peg::seq<util::a<'-'>, positive> {};
+    // NOTE: try to match negative first to short-circuit
+    struct any : peg::sor<negative, positive> {};
+  }
+
+  // Special Numbers
+  // NOTE: MUST create separate actions for each special case
+  namespace literal::number::special {
+    // NOTE: there is no (%x, %y, 0) - only 2, 4, 8.
+    // QUESTION: 0 means (%x, %y)?
+    struct scale : peg::one<'1', '2', '4', '8'> {};
+    struct divisible_by8 : integer::any {};
+  }
+
   namespace literal {
-    struct number : peg::seq<peg::opt<a<'-'>>, peg::plus<numeric>> {};
     // N ::= <a literal number>
-    using N = number;
-  }
-
-  // Numerals for Addressing
-  // NOTE: there is no (%x, %y, 0) - only 2, 4, 8.
-  // QUESTION: 0 means (%x, %y)?
-  namespace literal {
-    struct scale : peg::one<'0', '2', '4', '8'> {};
+    using N = number::integer::any;
     // E ::= 0 | 2 | 4 | 8
-    using E = scale;
-  }
-
-  // Rule-based Numerals
-  namespace literal {
-    // TODO: enforce divisibility by 8 in parsing action?
-    struct sum_bytes : number {};
+    using E = number::special::scale;
     // M ::= N times 8
-    using M = sum_bytes;
+    using M = number::special::divisible_by8;
   }
 
   //
@@ -105,9 +108,9 @@ namespace L1::grammar {
   namespace op::binary::comparison {
     struct less       : a<'<'> {};
     struct equal      : a<'='> {};
-    struct less_equal : peg::seq<less, equal> {};
+    struct less_equal : TAO_PEGTL_STRING("<=") {};
     // NOTE: order MATTERS!
-    struct any : peg::sor<less, less_equal, equal> {};
+    struct any : peg::sor<less_equal, less, equal> {};
   }
   // cmp ::= < | <= | =
   namespace op { using cmp = binary::comparison::any; }
@@ -166,7 +169,7 @@ namespace L1::grammar {
   //
 
   // General-purpose
-  namespace registers {
+  namespace literal::identifier::x86_64_register {
     struct rax : TAO_PEGTL_STRING("rax") {}; // accumulator
     struct rbx : TAO_PEGTL_STRING("rbx") {}; // base index
     struct rcx : TAO_PEGTL_STRING("rcx") {}; // counter
@@ -191,7 +194,7 @@ namespace L1::grammar {
   //
 
   inline namespace register_set {
-    using namespace registers;
+    using namespace identifier::x86_64_register;
     // NOTE: order matters! (again!)
     struct r10_15  : peg::sor<r10, r11, r12, r13, r14, r15> {};
     struct shift   : rcx {};
@@ -206,7 +209,8 @@ namespace L1::grammar {
     using a   = address; // But these two, I don't know... Is 'a' address?
     using w   = usable;  // Is 'w'... word? usable is better.
     using x   = memory;  // Is 'x'... yeah I don't know. It's just 'x'.
-    using any = memory;
+    // NOTE: anchor action: never matched directly; fired by change_action
+    struct any : memory {};
   }
 
   //
@@ -215,7 +219,7 @@ namespace L1::grammar {
 
   namespace operand {
     using label  = literal::identifier::label;
-    using number = literal::number;
+    using number = literal::number::integer::any;
     struct movable    : peg::sor<register_set::any, number, label> {};
     struct callable   : peg::sor<register_set::usable, label> {};
     struct comparable : peg::sor<register_set::any, number> {};
@@ -265,7 +269,7 @@ namespace L1::grammar {
     // mem x M
     namespace mem_ {
       using x = register_set::memory;
-      using M = literal::sum_bytes;
+      using M = literal::number::special::divisible_by8;
       using mem = literal::instruction::mem;
       struct e : spaced<mem, x, M> {};
     }
@@ -361,7 +365,7 @@ namespace L1::grammar {
     namespace expr = expression;
     using w = register_set::usable;
     using s = operand::movable;
-    using E = literal::scale;
+    using E = literal::number::special::scale;
     using at = op::address_at;
     struct gets_address    : spaced<w, at, w, w, E> {};   // w @ w w E
     struct gets_movable    : expr::gets<w, s> {};         // w <- s
@@ -388,11 +392,11 @@ namespace L1::grammar {
     using mem = expression::mem;
     using plusplus   = op::increment;
     using minusminus = op::decrement;
-    struct increment         : spaced<peg::seq<w, plusplus>> {};   // w++
-    struct decrement         : spaced<peg::seq<w, minusminus>> {}; // w--
-    struct comparable        : aop::all<w, t> {};          // w aop t
-    struct add_relative      : aop::add<w, mem> {};        // w += mem x M
-    struct subtract_relative : aop::subtract<w, mem> {};   // w -= mem x M
+    struct increment         : spaced<w, plusplus> {};   // w++
+    struct decrement         : spaced<w, minusminus> {}; // w--
+    struct comparable        : aop::all<w, t> {};        // w aop t
+    struct add_relative      : aop::add<w, mem> {};      // w += mem x M
+    struct subtract_relative : aop::subtract<w, mem> {}; // w -= mem x M
   }
 
   // Shifts on usable registers
@@ -400,7 +404,7 @@ namespace L1::grammar {
     namespace expr = expression;
     using namespace op;
     using w   = register_set::usable;
-    using N  = literal::number;
+    using N  = literal::number::integer::any;
     using sx = register_set::shift;
     struct shift_register : expr::shift_op::all<w, sx> {}; // w sop sx
     struct number         : expr::shift_op::all<w,  N> {}; // w sop N
@@ -420,7 +424,7 @@ namespace L1::grammar {
   namespace instruction::jump {
     using label = literal::identifier::label;
     using go2_literal = literal::instruction::go2;
-    struct go2  : peg::seq<go2_literal, label> {}; // goto label
+    struct go2 : spaced<go2_literal, label> {}; // goto label
     namespace cjump {
       template <typename... Ts>
         using cjump_expr = expression::cjump<Ts...>;
@@ -444,8 +448,8 @@ namespace L1::grammar {
     }
     namespace call {
       using u = operand::callable;
-      using N = literal::number;
-      struct callable : expression::call::dyn<u, N> {}; // call u N
+      struct arity : literal::number::integer::positive {};
+      struct callable : expression::call::dyn<u, arity> {}; // call u N
     }
     struct ret : spaced<literal::instruction::ret> {};
   }
@@ -453,6 +457,8 @@ namespace L1::grammar {
   namespace instruction {
     // NOTE: order MATTERS here! Follow the grammar.
     struct any : peg::sor<
+      // w <- t cmp t
+      assign::usable::gets_comparison,
       // w <- s
       assign::usable::gets_movable,
       // w <- mem x M
@@ -473,8 +479,6 @@ namespace L1::grammar {
       update::usable::arithmetic::add_relative,
       // w -= mem x M
       update::usable::arithmetic::subtract_relative,
-      // w <- t cmp t
-      assign::usable::gets_comparison,
       // cjump t cmp t label label
       jump::cjump::if_else,
       // cjump t cmp t label
@@ -502,15 +506,23 @@ namespace L1::grammar {
     > {};
   }
 
-  struct function : spaced<sexp<spaced<
-    literal::identifier::label,
-    literal::number,
-    literal::number,
-    peg::plus<instruction::any>
-  >>> {};
+  struct arg_count    : literal::number::integer::positive {};
+  struct local_count  : literal::number::integer::positive {};
+  struct instructions : peg::plus<instruction::any> {};
 
-  struct program : spaced<sexp<spaced<
+  struct function : sexp<spaced<
     literal::identifier::label,
-    peg::plus<peg::if_must<peg::at<util::a<'('>>, function>>
-  >>> {};
+    arg_count,
+    local_count,
+    instructions
+  >> {};
+
+  struct functions : peg::plus<spaced<function>> {};
+
+  struct program : sexp<spaced<
+    literal::identifier::label,
+    functions
+  >> {};
+
+  struct entry : spaced<program> {};
 }
