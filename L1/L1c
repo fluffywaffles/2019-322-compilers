@@ -15,8 +15,9 @@ if ! test -f prog.o ; then
   exit 1;
 fi
 
-gcc -O2 -c -g -o runtime.o ../lib/runtime.c
+# No pie for you!
+gcc -no-pie -O2 -c -g -o runtime.o ../lib/runtime.c
 
-gcc -o a.out prog.o runtime.o
+gcc -no-pie -o a.out prog.o runtime.o
 
 exit 0
