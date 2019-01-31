@@ -1,12 +1,14 @@
 #pragma once
+
 #include "tao/pegtl.hpp"
 
-namespace peg = tao::pegtl;
-
 namespace L1::grammar {
+  namespace peg = tao::pegtl;
+
   //
   // Comments
   //
+
   struct comment : peg::disable<
     TAO_PEGTL_STRING("//"),
     peg::until<peg::eolf>
@@ -73,8 +75,6 @@ namespace L1::grammar {
   // Special Numbers
   // NOTE: MUST create separate actions for each special case
   namespace literal::number::special {
-    // NOTE: there is no (%x, %y, 0) - only 2, 4, 8.
-    // QUESTION: 0 means (%x, %y)?
     struct scale : peg::one<'1', '2', '4', '8'> {};
     struct divisible_by8 : integer::any {};
   }
@@ -97,7 +97,7 @@ namespace L1::grammar {
 
   namespace op::quaternary {
     namespace address {
-      struct at : a<'@'> {};
+      struct at : util::a<'@'> {};
     }
   }
 
@@ -106,8 +106,8 @@ namespace L1::grammar {
 
   // Comparison <cmp>
   namespace op::binary::comparison {
-    struct less       : a<'<'> {};
-    struct equal      : a<'='> {};
+    struct less       : util::a<'<'> {};
+    struct equal      : util::a<'='> {};
     struct less_equal : TAO_PEGTL_STRING("<=") {};
     // NOTE: order MATTERS!
     struct any : peg::sor<less_equal, less, equal> {};
@@ -193,7 +193,7 @@ namespace L1::grammar {
   // Register sets
   //
 
-  inline namespace register_set {
+  namespace register_set {
     using namespace identifier::x86_64_register;
     // NOTE: order matters! (again!)
     struct r10_15  : peg::sor<r10, r11, r12, r13, r14, r15> {};
@@ -506,23 +506,27 @@ namespace L1::grammar {
     > {};
   }
 
-  struct arg_count    : literal::number::integer::positive {};
-  struct local_count  : literal::number::integer::positive {};
-  struct instructions : peg::plus<instruction::any> {};
+  namespace function {
+    struct arg_count    : literal::number::integer::positive {};
+    struct local_count  : literal::number::integer::positive {};
+    struct instructions : peg::plus<instruction::any> {};
 
-  struct function : sexp<spaced<
-    literal::identifier::label,
-    arg_count,
-    local_count,
-    instructions
-  >> {};
+    struct define : sexp<spaced<
+      literal::identifier::label,
+      arg_count,
+      local_count,
+      instructions
+    >> {};
+  }
 
-  struct functions : peg::plus<spaced<function>> {};
+  namespace program {
+    struct functions : peg::plus<spaced<function::define>> {};
 
-  struct program : sexp<spaced<
-    literal::identifier::label,
-    functions
-  >> {};
+    struct define : sexp<spaced<
+      literal::identifier::label,
+      functions
+    >> {};
+  }
 
-  struct entry : spaced<program> {};
+  struct entry : spaced<program::define> {};
 }

@@ -588,7 +588,7 @@ namespace L1::codegen::ast::generate {
 
   void functions (const node & n, std::ostream & os) {
     for (auto & child : n.children) {
-      assert(child->is<grammar::function>()
+      assert(child->is<grammar::function::define>()
           && "functions: got non-function!");
       generate::function(*child, os);
     }
@@ -597,6 +597,7 @@ namespace L1::codegen::ast::generate {
 
   void program (const node & n, std::ostream & os) {
     assert(n.children.size() == 2);
+    assert(n.is<grammar::program::define>() && "top is not a program!");
     const node & entry     = *n.children.at(0);
     const node & functions = *n.children.at(1);
     os << ".text\n";

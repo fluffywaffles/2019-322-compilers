@@ -5,7 +5,6 @@
 
 #include "grammar.h"
 #include "codegen.h"
-
 #include "parse_tree.h"
 
 namespace peg = tao::pegtl;

@@ -29,8 +29,8 @@ namespace parse_tree {
       using selector = selector<
         Rule,
         apply_store_content::to<
-          arg_count,
-          local_count,
+          function::arg_count,
+          function::local_count,
           identifier::label,
           register_set::any,
           register_set::shift,
@@ -87,9 +87,9 @@ namespace parse_tree {
           instruction::update::usable::arithmetic::increment,
           instruction::update::usable::arithmetic::decrement,
           instruction::assign::usable::gets_address,
-          program,
-          functions,
-          function,
-          instructions>>;
+          program::define,
+          program::functions,
+          function::define,
+          function::instructions>>;
   }
 }
