@@ -479,7 +479,10 @@ namespace L1::codegen::ast::generate {
     if (n.is<invoke::ret>()) {
       int stack = 8 * locals;
       if (args  > 6) stack += 8 * (args - 6);
-      if (stack > 0) os << "addq $" << stack << ", %rsp\n";
+      if (stack > 0) {
+        os << "addq $" << stack << ", %rsp\n";
+        os << "  "; // Reindent
+      }
       os << "ret";
       return;
     }
