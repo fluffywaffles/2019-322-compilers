@@ -299,91 +299,83 @@ namespace L1::grammar {
   // Expressions
   //
 
-  namespace expression {
-    // mem x M
-    namespace mem_ {
-      using M = literal::number::special::divisible_by8;
+  namespace meta::expression {
+    namespace mem {
+      using M   = literal::number::special::divisible_by8;
       using mem = literal::instruction::mem;
       template <typename x>
       struct e : spaced<mem, x, M> {};
     }
-    using mem = mem_::e<operand::memory>;
-    // t cmp t
-    namespace cmp_ {
+    namespace cmp {
       using cmp = op::binary::comparison::any;
       template <typename t>
       struct e : spaced<t, cmp, t> {};
     }
-    using cmp = cmp_::e<operand::comparable>;
+  }
+
+  namespace expression {
+    // mem x M
+    using mem = meta::expression::mem::e<operand::memory>;
+    // t cmp t
+    using cmp = meta::expression::cmp::e<operand::comparable>;
   }
 
   //
   // Statement Helpers
   //
 
-  namespace statement {
+  namespace meta::statement {
     // <A, B>: A <- B
-    namespace gets_ {
+    namespace gets {
       using gets = literal::instruction::gets;
       template <typename dest, typename source>
         struct s : spaced<dest, gets, source> {};
     }
-    template <typename d, typename s> using gets = gets_::s<d, s>;
-    // cjump t cmp t label [label]
-    namespace cjump_ {
+    // <C, L[, L]>: cjump C L [L]
+    namespace cjump {
       using cjump = literal::instruction::cjump;
       template <typename cmp, typename... labels>
         struct s : spaced<cjump, cmp, labels...> {};
     }
-    template<typename cmp, typename... labels>
-      using cjump = cjump_::s<cmp, labels...>;
-    // call {u,intrinsic} N
-    namespace call_ {
+    // <U, N>: call U N
+    namespace call {
       using call = literal::instruction::call;
       template <typename fn, typename num_args>
         struct s : spaced<call, fn, num_args> {};
     }
-    namespace call {
-      namespace _ = call_;
-      template <char c> using a = util::a<c>;
-      template <typename f, char n> struct intrinsic : _::s<f, a<n>> {};
-      template <typename fn, typename n> struct defined : _::s<fn, n> {};
-    }
-    // <A,B> A aop B
-    namespace aop {
-      using add_op   = op::add;
-      using bit_and  = op::bitwise_and;
-      using subtract = op::subtract;
-      using multiply = op::multiply;
-      template <class D, class S> struct add  : spaced<D, add_op,   S> {};
-      template <class D, class S> struct sub  : spaced<D, subtract, S> {};
-      template <class D, class S> struct mul  : spaced<D, multiply, S> {};
-      template <class D, class S> struct andq : spaced<D, bit_and,  S> {};
-      using any_aop  = op::binary::arithmetic::any;
-      template <class D, class S> struct s    : spaced<D, any_aop,  S> {};
-    }
+    // <A, B>: A <aop> B
     namespace arithmetic {
-      namespace _ = aop;
-      template <class D, class S> struct add : _::add<D, S> {};
-      template <class D, class S> struct subtract : _::sub<D, S> {};
-      template <class D, class S> struct multiply : _::mul<D, S> {};
-      template <class D, class S> struct bitwise_and : _::andq<D, S> {};
-      template <class D, class S> struct all : _::s<D, S> {};
+      #define binop template <typename D, typename S>
+      using aop_any = op::binary::arithmetic::any;
+      binop struct add         : spaced<D, op::add, S> {};
+      binop struct subtract    : spaced<D, op::subtract, S> {};
+      binop struct multiply    : spaced<D, op::multiply, S> {};
+      binop struct bitwise_and : spaced<D, op::bitwise_and, S> {};
+      binop struct all         : spaced<D, aop_any, S> {};
     }
-    // <A,B> A sop B
-    namespace sop {
-      using any_sop = op::binary::shift::any;
-      using shift_l = op::shift_left;
-      using shift_r = op::shift_right;
-      template <class D, class S> struct shl : spaced<D, shift_l, S> {};
-      template <class D, class S> struct shr : spaced<D, shift_r, S> {};
-      template <class D, class S> struct s   : spaced<D, any_sop, S> {};
-    }
+    // <A,B>: A <sop> B
     namespace shift {
-      namespace _ = sop;
-      template <class D, class S> struct shift_left  : _::shl<D, S> {};
-      template <class D, class S> struct shift_right : _::shr<D, S> {};
-      template <class D, class S> struct all : _::s<D, S> {};
+      #define binop template <typename D, typename S>
+      using any_sop = op::binary::shift::any;
+      binop struct shift_left  : spaced<D, op::shift_left, S> {};
+      binop struct shift_right : spaced<D, op::shift_right, S> {};
+      binop struct all         : spaced<D, any_sop, S> {};
+    }
+  }
+
+  namespace statement {
+    // Re-export meta::gets
+    template <typename d, typename s>
+      using gets = meta::statement::gets::s<d, s>;
+    // Re-export meta::cjump
+    template<typename cmp, typename... labels>
+      using cjump = meta::statement::cjump::s<cmp, labels...>;
+    // call {u,intrinsic} N
+    namespace call {
+      template <typename fn, char n>
+        struct intrinsic : meta::statement::call::s<fn, util::a<n>> {};
+      template <typename fn, typename n>
+        struct defined   : meta::statement::call::s<fn, n> {};
     }
   }
 
@@ -428,7 +420,7 @@ namespace L1::grammar {
 
   // Artihmetic on assignable registers
   namespace instruction::update::assignable::arithmetic {
-    namespace aop = statement::arithmetic;
+    namespace aop = meta::statement::arithmetic;
     using w = operand::assignable;
     using t = operand::comparable;
     using mem = expression::mem;
@@ -443,17 +435,16 @@ namespace L1::grammar {
 
   // Shifts on assignable registers
   namespace instruction::update::assignable::shift {
-    namespace stmt = statement;
     using w  = operand::assignable;
     using N  = literal::number::integer::any;
     using sx = operand::shift;
-    struct shift  : stmt::shift::all<w, sx> {}; // w sop sx
-    struct number : stmt::shift::all<w,  N> {}; // w sop N
+    struct shift  : meta::statement::shift::all<w, sx> {}; // w sop sx
+    struct number : meta::statement::shift::all<w,  N> {}; // w sop N
   }
 
   // Arithmetic on relative memory locations
   namespace instruction::update::relative::arithmetic {
-    namespace aop = statement::arithmetic;
+    namespace aop = meta::statement::arithmetic;
     using t = operand::comparable;
     using mem = expression::mem;
     struct add_comparable      : aop::add<mem, t> {};      // mem x M += t
