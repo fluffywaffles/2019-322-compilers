@@ -31,7 +31,7 @@ int main (int argc, char ** argv) {
   /* debug::trace_parse(in); */
   /* debug::trace_parse_tree(in); */
   auto root = ast::parse<grammar, ast::filter::selector>(in);
-  /* parse_tree::print_node(*root); */
+  /* ast::print_node(*root); */
   L1::codegen::generate(*root);
   return 0;
 }
