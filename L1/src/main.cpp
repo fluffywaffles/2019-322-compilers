@@ -8,6 +8,7 @@
 #include "parse_tree.h"
 
 namespace peg = tao::pegtl;
+namespace ast = L1::parse_tree;
 using grammar = peg::must<L1::grammar::entry>;
 
 namespace debug {
@@ -15,9 +16,9 @@ namespace debug {
     peg::parse<grammar, peg::nothing, peg::tracer>(in);
   }
   void trace_parse_tree (peg::file_input<> & in) {
-    parse_tree::parse<
+    ast::parse<
       grammar,
-      parse_tree::filter::selector,
+      ast::filter::selector,
       peg::nothing,
       peg::tracer
     >(in);
@@ -29,7 +30,7 @@ int main (int argc, char ** argv) {
   peg::file_input<> in(argv[1]);
   /* debug::trace_parse(in); */
   /* debug::trace_parse_tree(in); */
-  auto root = parse_tree::parse<grammar, parse_tree::filter::selector>(in);
+  auto root = ast::parse<grammar, ast::filter::selector>(in);
   /* parse_tree::print_node(*root); */
   L1::codegen::generate(*root);
   return 0;

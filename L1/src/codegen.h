@@ -9,6 +9,20 @@ namespace L1::codegen::ast::generate {
   using namespace L1::grammar;
 
   namespace helper {
+    template <typename Rule>
+    bool matches (const node & n) {
+      assert(n.has_content() && "matches: must have content!");
+      const std::string & content = n.content();
+      // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
+      using namespace tao::pegtl;
+      memory_input<> content_input (content, "");
+      return normal<Rule>::template
+        match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
+        (content_input);
+    }
+  }
+
+  namespace helper {
     std::string register_to_lower8 (std::string rxx) {
       if (rxx ==  "r8") return  "r8b";
       if (rxx ==  "r9") return  "r9b";
@@ -60,14 +74,11 @@ namespace L1::codegen::ast::generate {
   }
 
   namespace helper::label {
-    std::string parse (std::string colon_label) {
-      std::string label(colon_label);
-      label[0] = '_';
-      return label;
-    }
-    std::string parse (const node & n) {
-      assert(n.has_content() && "helper::label: no content!");
-      return parse(n.content());
+    std::string get_underscore_name (const node & n) {
+      assert(n.children.size() == 1 && "label: no name child!");
+      const node & name = *n.children.at(0);
+      assert(name.has_content() && "label: name has no content!");
+      return "_" + name.content();
     }
   }
 
@@ -164,49 +175,50 @@ namespace L1::codegen::ast::generate {
   namespace helper::cmp::predicate {
     bool constant (const node & n) {
       assert(n.children.size() == 1);
+      const node & value = *n.children.at(0);
       return n.is<grammar::operand::comparable>()
-        && (*n.children.at(0)).is<literal::number::integer::any>();
+        && helper::matches<literal::number::integer::any>(value);
     }
     bool reg (const node & n) {
       assert(n.children.size() == 1);
+      const node & value = *n.children.at(0);
       return n.is<grammar::operand::comparable>()
-        && (*n.children.at(0)).is<register_set::any>();
+        && helper::matches<register_set::any>(value);
     }
   }
 
   void label (const node & n, std::ostream & os) {
-    assert(n.has_content() && "label: no content!");
-    os << helper::label::parse(n.content());
+    os << helper::label::get_underscore_name(n);
   }
 
   namespace operand {
     void movable (const node & n, std::ostream & os) {
       assert(n.children.size() == 1);
-      const node & subtype = *n.children.at(0);
-      if (subtype.is<literal::number::integer::any>()) {
-        helper::constant(n, os);
+      const node & value = *n.children.at(0);
+      if (value.is<literal::number::integer::any>()) {
+        helper::constant(value, os);
         return;
       }
-      if (subtype.is<identifier::label>()) {
+      if (value.is<identifier::label>()) {
         os << helper::constant_prefix;
-        generate::label(n, os);
+        generate::label(value, os);
         return;
       }
-      if (subtype.is<register_set::any>()) {
-        helper::gas_register(n, os);
+      if (helper::matches<register_set::any>(value)) {
+        helper::gas_register(value, os);
         return;
       }
       assert(false && "operand::movable: unreachable!");
     }
     void comparable (const node & n, std::ostream & os) {
       assert(n.children.size() == 1);
-      const node & subtype = *n.children.at(0);
-      if (subtype.is<literal::number::integer::any>()) {
-        helper::constant(n, os);
+      const node & value = *n.children.at(0);
+      if (value.is<literal::number::integer::any>()) {
+        helper::constant(value, os);
         return;
       }
-      if (subtype.is<register_set::any>()) {
-        helper::gas_register(n, os);
+      if (helper::matches<register_set::any>(value)) {
+        helper::gas_register(value, os);
         return;
       }
       assert(false && "operand::comparable: unreachable!");
@@ -223,7 +235,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<assign::usable::gets_movable>()) {
+    if (n.is<assign::assignable::gets_movable>()) {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & src  = *n.children.at(1);
@@ -234,7 +246,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<assign::usable::gets_relative>()) {
+    if (n.is<assign::assignable::gets_relative>()) {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & src  = *n.children.at(1);
@@ -256,7 +268,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::arithmetic::comparable>()) {
+    if (n.is<update::assignable::arithmetic::comparable>()) {
       assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
@@ -269,7 +281,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::shift::shift_register>()) {
+    if (n.is<update::assignable::shift::shift>()) {
       assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
@@ -283,7 +295,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::shift::number>()) {
+    if (n.is<update::assignable::shift::number>()) {
       assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
@@ -310,8 +322,8 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::arithmetic::add_relative>()
-        || n.is<update::usable::arithmetic::subtract_relative>()) {
+    if (n.is<update::assignable::arithmetic::add_relative>()
+        || n.is<update::assignable::arithmetic::subtract_relative>()) {
       assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
@@ -324,7 +336,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<assign::usable::gets_comparison>()) {
+    if (n.is<assign::assignable::gets_comparison>()) {
       namespace predicate = helper::cmp::predicate;
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
@@ -364,7 +376,7 @@ namespace L1::codegen::ast::generate {
         helper::cmp::movzbq(dest, os);
         return;
       }
-      assert(false && "assign::usable::gets_comparison: unreachable!");
+      assert(false && "assign::assignable::gets_comparison: unreachable!");
     }
 
     if (n.is<jump::cjump::if_else>()) {
@@ -377,8 +389,8 @@ namespace L1::codegen::ast::generate {
       const node & rhs  = *cmp.children.at(2);
       const node & then = *n.children.at(1);
       const node & els  = *n.children.at(2);
-      std::string then_label = helper::label::parse(then);
-      std::string else_label = helper::label::parse(els);
+      std::string then_label = helper::label::get_underscore_name(then);
+      std::string else_label = helper::label::get_underscore_name(els);
       if (predicate::constant(lhs) && predicate::constant(rhs)) {
         assert(op.has_content() && "gets_comparison: op: no content!");
         assert(lhs.has_content() && "gets_comparison: lhs: no content!");
@@ -426,7 +438,7 @@ namespace L1::codegen::ast::generate {
       const node & op   = *cmp.children.at(1);
       const node & rhs  = *cmp.children.at(2);
       const node & then = *n.children.at(1);
-      std::string then_label = helper::label::parse(then);
+      std::string then_label = helper::label::get_underscore_name(then);
       if (predicate::constant(lhs) && predicate::constant(rhs)) {
         assert(op.has_content() && "gets_comparison: op: no content!");
         assert(lhs.has_content() && "gets_comparison: lhs: no content!");
@@ -492,19 +504,19 @@ namespace L1::codegen::ast::generate {
       const node & callable = *n.children.at(0);
       const node & integer  = *n.children.at(1);
       assert(callable.children.size() == 1);
-      const node & callable_subtype = *callable.children.at(0);
+      const node & value = *callable.children.at(0);
       int args  = helper::integer(integer);
       int spill = 8; // return address!
       if (args  > 6) spill += 8 * (args - 6);
       os << "subq $" << spill << ", %rsp\n  ";
       os << "jmp ";
-      if (callable_subtype.is<register_set::usable>()) {
+      if (value.is<grammar::operand::assignable>()) {
         os << "*"; // at&t indirect jump
-        helper::gas_register(callable, os);
+        helper::gas_register(value, os);
         return;
       }
-      if (callable_subtype.is<identifier::label>()) {
-        label(callable, os);
+      if (value.is<identifier::label>()) {
+        label(value, os);
         return;
       }
       assert(false && "invoke::call::callable: unreachable!");
@@ -525,7 +537,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::arithmetic::increment>()) {
+    if (n.is<update::assignable::arithmetic::increment>()) {
       assert(n.children.size() == 2); // ignore '++'
       const node & dest = *n.children.at(0);
       os << "inc ";
@@ -533,7 +545,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<update::usable::arithmetic::decrement>()) {
+    if (n.is<update::assignable::arithmetic::decrement>()) {
       assert(n.children.size() == 2); // ignore '--'
       const node & dest = *n.children.at(0);
       os << "dec ";
@@ -541,7 +553,7 @@ namespace L1::codegen::ast::generate {
       return;
     }
 
-    if (n.is<assign::usable::gets_address>()) {
+    if (n.is<assign::assignable::gets_address>()) {
       assert(n.children.size() == 5);
       const node & dest   = *n.children.at(0);
       const node & _op    = *n.children.at(1); // ignore '@'

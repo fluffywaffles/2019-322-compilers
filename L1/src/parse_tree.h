@@ -5,7 +5,7 @@
 
 namespace peg = tao::pegtl;
 
-namespace parse_tree {
+namespace L1::parse_tree {
   using namespace peg::parse_tree;
 
   void print_node (const node & n, const std::string & indent = "") {
@@ -25,56 +25,55 @@ namespace parse_tree {
 
   namespace filter {
     using namespace L1::grammar;
-    template< typename Rule >
+    template <typename Rule>
       using selector = selector<
         Rule,
         apply_store_content::to<
-          function::arg_count,
-          function::local_count,
-          identifier::label,
-          register_set::any,
-          register_set::shift,
-          register_set::usable,
-          register_set::memory,
-          op::add,
-          op::less,
-          op::equal,
-          op::subtract,
-          op::multiply,
-          op::less_equal,
-          op::shift_left,
-          op::bitwise_and,
-          op::shift_right,
-          operand::movable,
-          operand::callable,
-          operand::comparable,
           literal::number::integer::any,
           literal::number::integer::positive,
           literal::number::integer::negative,
-          instruction::invoke::call::arity,
           literal::number::special::scale,
-          literal::number::special::divisible_by8>,
+          literal::number::special::divisible_by8,
+          identifier::name,
+          op::less,
+          op::equal,
+          op::less_equal,
+          operand::shift,
+          operand::assignable,
+          operand::memory,
+          operand::movable,
+          operand::callable,
+          operand::comparable,
+          function::arg_count,
+          function::local_count>,
         apply_remove_content::to<
-          expression::mem,
-          expression::cmp,
-          op::increment,
-          op::decrement,
-          op::address_at,
           literal::intrinsic::print,
           literal::intrinsic::allocate,
           literal::intrinsic::array_error,
+          identifier::label,
+          op::add,
+          op::subtract,
+          op::multiply,
+          op::increment,
+          op::decrement,
+          op::address_at,
+          op::shift_left,
+          op::bitwise_and,
+          op::shift_right,
+          expression::mem,
+          expression::cmp,
           instruction::any,
-          instruction::assign::usable::gets_movable,
-          instruction::assign::usable::gets_relative,
+          instruction::assign::assignable::gets_movable,
+          instruction::assign::assignable::gets_relative,
           instruction::assign::relative::gets_movable,
-          instruction::update::usable::arithmetic::comparable,
-          instruction::update::usable::shift::shift_register,
-          instruction::update::usable::shift::number,
+          instruction::update::assignable::arithmetic::comparable,
+          instruction::update::assignable::shift::shift,
+          instruction::update::assignable::shift::number,
           instruction::update::relative::arithmetic::add_comparable,
           instruction::update::relative::arithmetic::subtract_comparable,
-          instruction::update::usable::arithmetic::add_relative,
-          instruction::update::usable::arithmetic::subtract_relative,
-          instruction::assign::usable::gets_comparison,
+          instruction::update::assignable::arithmetic::add_relative,
+          instruction::update::assignable::arithmetic::subtract_relative,
+          instruction::assign::assignable::gets_comparison,
           instruction::jump::cjump::if_else,
           instruction::jump::cjump::when,
           instruction::define::label,
@@ -84,12 +83,12 @@ namespace parse_tree {
           instruction::invoke::call::intrinsic::print,
           instruction::invoke::call::intrinsic::allocate,
           instruction::invoke::call::intrinsic::array_error,
-          instruction::update::usable::arithmetic::increment,
-          instruction::update::usable::arithmetic::decrement,
-          instruction::assign::usable::gets_address,
-          program::define,
-          program::functions,
+          instruction::update::assignable::arithmetic::increment,
+          instruction::update::assignable::arithmetic::decrement,
+          instruction::assign::assignable::gets_address,
+          function::instructions,
           function::define,
-          function::instructions>>;
+          program::functions,
+          program::define>>;
   }
 }
