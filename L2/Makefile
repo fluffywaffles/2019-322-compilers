@@ -42,6 +42,9 @@ oracle_interference: L2
 test: dirs $(PL_CLASS)
 	../scripts/test.sh $(EXT_CLASS) $(CC_CLASS)
 
+time_test_liveness: L2
+	./scripts/testLiveness.zsh
+
 test_liveness: L2
 	./scripts/testLiveness.sh
 
