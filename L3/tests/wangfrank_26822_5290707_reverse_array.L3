@@ -114,21 +114,22 @@
         %new_vec <- call allocate(size_e, %init_v)
         // allocate second array with same %size and init with zero
         
-        new_ptr <- %new_vec
+        %new_ptr <- %new_vec
         off <- %size * 8
-        new_ptr <- new_ptr + off
+        %new_ptr <- %new_ptr + off
         %ptr <- %vec_ptr
         
         :loop
         %ptr += 8
-        over <- %size = 0
-        br over :finish :cont
+        %over <- %size = 0
+        br %over :finish
+        br :cont
 
         :cont
         v <- load %ptr
-        store new_ptr <- v
+        store %new_ptr <- v
         %size <- %size - 1
-        new_ptr <- -= 8
+        %new_ptr <- -= 8
         br :loop
 
         :finish

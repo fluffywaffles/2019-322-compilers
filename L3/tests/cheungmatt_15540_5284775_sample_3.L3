@@ -87,7 +87,8 @@ define :zip(%arr1, %arr2) {
   %len1 <- load %arr1
   %len2 <- load %arr2
   %comp <- %len1 = %len2
-  br %comp :succeed :fail
+  br %comp :succeed
+  br :fail
   :fail
   return
 
@@ -118,7 +119,8 @@ define :zip(%arr1, %arr2) {
  
   %count <- %count + 1
   %cont <- %count < %len1
-  br %cont :loop :exit
+  br %cont :loop
+  br :exit
 
   :exit 
   return %newArr

@@ -6,7 +6,8 @@ define :main () {
  :myLabel1
  %v3 <- %v1 + %v2
  %check <- %v3 > 1
- br %check :true :false 
+ br %check :true 
+ br :false 
  :true
  call print (%v3)
  return 

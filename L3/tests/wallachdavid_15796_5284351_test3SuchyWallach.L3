@@ -23,7 +23,8 @@ define :fillArray (%arr, %end) {
 	%checkParams <- %arr
     %checkParams <- 1 & %arr
     %arrayCondition <- %checkParams
-    br %arrayCondition :isArray :error
+    br %arrayCondition :isArray
+    br :error
     
     :error
     	return
@@ -34,14 +35,17 @@ define :fillArray (%arr, %end) {
 	:check
 	%condition <- %i <= %end
 
-	br %condition :loop :%end
+	br %condition :loop
+  br :end
 
 	%zeroCondition <- %i = 0
-	br %zeroCondition :zero :cont
+	br %zeroCondition :zero
+  br :cont
 
 	:cont
 	%oneCondition <- %i = 1
-	br %oneCondition :one :normal
+	br %oneCondition :one
+  br :normal
 	
 	:zero
 		// one of the %first two values so we just store 1
@@ -97,7 +101,7 @@ define :fillArray (%arr, %end) {
 
 		:check
 
-	:%end 
+	:end 
 		return
 }
 

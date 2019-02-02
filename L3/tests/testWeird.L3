@@ -33,7 +33,8 @@ define :print_array (%vec_ptr) {
     :loop
     %ptr <- %ptr + 8
     %over <- %size = 0
-    br %over :finish :cont
+    br %over :finish 
+    br :cont
 
     :cont
     %ele <- load %ptr

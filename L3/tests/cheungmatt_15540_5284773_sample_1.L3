@@ -77,7 +77,8 @@ define :reverse (%arr) {
   store %newArrVal <- %currVal 
   %count <- %count + 1
   %cont <- %count < %len
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
 
   return %newArr
@@ -98,7 +99,8 @@ define :printArr (%arr) {
 
   %count <- %count + 1
   %cont <- %count < %len 
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
 
   return

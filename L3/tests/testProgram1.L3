@@ -34,7 +34,8 @@ define :printArray (%array){
 
   // Check if the %array is an actual %array
   %tempArrayPointer <- %array & 1
-  br %tempArrayPointer :isAnInt :isAnArray
+  br %tempArrayPointer :isAnInt 
+  br :isAnArray
   :isAnInt
   return 0
   :isAnArray
@@ -42,7 +43,8 @@ define :printArray (%array){
   // Header of the loop
   :check
   %continueToExecute <- %index < %arrayLength
-  br %continueToExecute :true :false
+  br %continueToExecute :true 
+  br :false
 
   // Body of the loop
   :true
@@ -70,9 +72,10 @@ define :printData (%array, %indexToPrintEncoded){
 
   // Check that %array is big enough
   %isArrayBigEnough <- %indexToPrintEncoded < %arrayLengthEncoded
-  br %isArrayBigEnough :correct :wrong
+  br %isArrayBigEnough :correct 
+  br :wrong
   :wrong
-  call %array-error(%array, %indexToPrintEncoded)
+  call array-error(%array, %indexToPrintEncoded)
 
   // Compute the %offset of the specified element in the %array given as input
   :correct
@@ -91,7 +94,8 @@ define :printData (%array, %indexToPrintEncoded){
 
   // Print the specified element of the %array
   %isArrayElementAnInt <- %arrayElement & 1
-  br %isArrayElementAnInt :isAnInt2 :isAnArray2
+  br %isArrayElementAnInt :isAnInt2 
+  br :isAnArray2
   :isAnInt2
   call print(%arrayElement)
   br :exitFunction

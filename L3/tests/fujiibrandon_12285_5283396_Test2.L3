@@ -3,7 +3,8 @@
 
 define :generateFibonacciSequence(%n) {
     %isNZero <- %n = 0
-    br %isNZero :zero :general
+    br %isNZero :zero
+    br :general
 
     :zero
         return 1
@@ -28,7 +29,8 @@ define :generateFibonacciSequence(%n) {
         %tableLength <- %tableLength + 8
 
         %nIsOne <- %n = 2
-        br %nIsOne :one :loop
+        br %nIsOne :one
+        br :loop
 
      :loop
         %tablePointer <- %originalTablePointer
@@ -51,7 +53,8 @@ define :generateFibonacciSequence(%n) {
 
         %offset <- %offset + 8
         %isIteratorLessThanLength <- %offset <= %tableLength
-        br %isIteratorLessThanLength :loop :terminate
+        br %isIteratorLessThanLength :loop
+        br :terminate
 
       :terminate
         return %originalTablePointer
@@ -60,7 +63,8 @@ define :generateFibonacciSequence(%n) {
 define :getNthFibonacciNumber(%n) {
     %fibonacciSequence <- call :generateFibonacciSequence(%n)
     %isIntOrArray <- %fibonacciSequence & 1
-    br %isIntOrArray :isAnInt :isAnArray
+    br %isIntOrArray :isAnInt
+    br :isAnArray
 
     :isAnInt
         return 3

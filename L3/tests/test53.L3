@@ -131,13 +131,15 @@ define :checkMatrix (%m, %v) {
  br :header
  :header
  %check <- %index < %l1
- br %check :outerBody :leave 
+ br %check :outerBody 
+ br :leave 
  :outerBody
  %index2 <- 0
  br :header2
  :header2
  %check2 <- %index2 < %l2
- br %check2 :innerBody :endOuterBody 
+ br %check2 :innerBody 
+ br :endOuterBody 
  :innerBody
  %newVar7 <- 0
  %newVar8 <- %m + 24
@@ -153,7 +155,8 @@ define :checkMatrix (%m, %v) {
  %newVar13 <- %m + %newVar6
  %e <- load %newVar13
  %sameE <- %e = %v
- br %sameE :setAndLeave :endInnerBody 
+ br %sameE :setAndLeave 
+ br :endInnerBody 
  :endInnerBody
  %index2 <- %index2 + 1
  br :header2

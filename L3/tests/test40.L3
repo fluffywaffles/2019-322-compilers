@@ -179,22 +179,25 @@ define :findArrayValue (%A, %v) {
  br :nested_for_loops
  :nested_for_loops
  %i <- 0
- br :%check_loop_1
- :%check_loop_1
+ br :check_loop_1
+ :check_loop_1
  %check_loop_1 <- %i < %first_dimension_length
- br %check_loop_1 :loop_1_body :exit_loop1 
+ br %check_loop_1 :loop_1_body
+ br :exit_loop1 
  :loop_1_body
  %j <- 0
- br :%check_loop_2
- :%check_loop_2
+ br :check_loop_2
+ :check_loop_2
  %check_loop_2 <- %j < %second_dimension_length
- br %check_loop_2 :loop_2_body :exit_loop2 
+ br %check_loop_2 :loop_2_body
+ br :exit_loop2 
  :loop_2_body
  %k <- 0
- br :%check_loop_3
- :%check_loop_3
+ br :check_loop_3
+ :check_loop_3
  %check_loop_3 <- %k < %third_dimension_length
- br %check_loop_3 :loop_3_body :exit_loop3 
+ br %check_loop_3 :loop_3_body
+ br :exit_loop3 
  :loop_3_body
  %newVar10 <- 0
  %newVar11 <- %A + 24
@@ -216,16 +219,17 @@ define :findArrayValue (%A, %v) {
  %newVar20 <- %A + %newVar9
  %current_value <- load %newVar20
  %check_value_equality <- %current_value = %v
- br %check_value_equality :return_true :continue 
+ br %check_value_equality :return_true
+ br :continue 
  :continue
  %k <- %k + 1
- br :%check_loop_3
+ br :check_loop_3
  :exit_loop3
  %j <- %j + 1
- br :%check_loop_2
+ br :check_loop_2
  :exit_loop2
  %i <- %i + 1
- br :%check_loop_1
+ br :check_loop_1
  :exit_loop1
  return 1
  :return_true

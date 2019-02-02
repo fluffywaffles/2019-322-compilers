@@ -15,7 +15,8 @@ define :make_pos(%n){
 	%n <- %n + %increm
 	%counter <- %counter + 1
 	%check <- %counter < %iterations
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	
 	// Print out absolute value
 	:finish	
@@ -38,7 +39,8 @@ define :make_neg(%n){
 	%n <- %n - %increm
 	%counter <- %counter + 1
 	%check <- %counter < %iterations
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	
 	// Print out absolute value
 	:finish
@@ -51,7 +53,8 @@ define :pos_or_neg(%n){
 	// Determine whether %n is pos or neg
 	%check <- %n < 0
 	// Call corresponding function
-	br %check :pos :neg
+	br %check :pos
+  br :neg
 	:pos
 	call :make_pos(%n)
 	return
@@ -71,7 +74,8 @@ define :initialize_array(%p){
 	%check <- %index < 10
 	%index <- %index + 1
 	%ptr <- %ptr + 8
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	:finish
 	return
 }
@@ -94,7 +98,8 @@ define :main(){
 	%check <- %index < 10
 	%index <- %index + 1
 	%new_ptr <- %new_ptr + 8
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	:finish
 	return	
 }

@@ -128,7 +128,8 @@ define :print_A_and_B_oneline (){
 	%offset <- 0
 	:one_line_loop_start
 	%i <- %offset >= 56
-	br %i :one_line_loop_end :one_line_loop
+	br %i :one_line_loop_end
+  br :one_line_loop
 
 	:one_line_loop
 	%offset <- %offset + 8

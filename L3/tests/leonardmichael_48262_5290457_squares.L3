@@ -91,7 +91,8 @@ define :refill_stack(%new_stack_ptr, %old_stack_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: stack has been fully reconstructed. Return the pointer
 :base_case
@@ -131,7 +132,8 @@ define :refill_queue(%new_queue_ptr, %old_queue_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: queue has been fully reconstructed. Return the pointer
 :base_case
@@ -174,7 +176,8 @@ define :dequeue(%queue_ptr) {
   // But this is the best we can do in this language
   %old_size <- load %queue_ptr // This should load the %size
   %not_empty <- %old_size > 0
-  br %not_empty :do_dequeue :abort
+  br %not_empty :do_dequeue
+  br :abort
 
 :abort
   call array-error(%queue_ptr, 0)
@@ -226,7 +229,8 @@ define :do_shrink_queue(%new_queue_ptr, %old_queue_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: queue has been fully reconstructed. Return the pointer
 :base_case
@@ -264,7 +268,8 @@ define :pop(%stack_ptr) {
   // But this is the best we can do in this language
   %old_size <- load %stack_ptr // This should load the %size
   %not_empty <- %old_size > 0
-  br %not_empty :do_pop :abort
+  br %not_empty :do_pop
+  br :abort
 
 :abort
   call array-error(%stack_ptr, 0)
@@ -316,7 +321,8 @@ define :do_shrink_stack(%new_stack_ptr, %old_stack_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: stack has been fully reconstructed. Return the pointer
 :base_case
@@ -359,7 +365,8 @@ define :main() {
   %stack_ptr <- call :push(%stack_ptr, %next_sum)
   %count <- %count - 1
   %more_to_fib <- %count > 0
-  br %more_to_fib :keep_fibbing :print_arrays
+  br %more_to_fib :keep_fibbing
+  br :print_arrays
 
 :print_arrays
   call print(%queue_ptr)
@@ -392,7 +399,8 @@ define :main() {
   // Loop until the queue is empty
   %queue_size <- load %queue_ptr
   %more_to_dequeue <- %queue_size > 0
-  br %more_to_dequeue :do_printing :out
+  br %more_to_dequeue :do_printing
+  br :out
 
 :out
   return

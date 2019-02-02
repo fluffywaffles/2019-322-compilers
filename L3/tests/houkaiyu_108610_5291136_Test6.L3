@@ -44,7 +44,8 @@ define :sqrt (%var){
 	%i <- %i + 1
 	%i2 <- %i * %i
 	%sqrt_flag <- %i2 <= %var
-	br %sqrt_flag :start_label :ret_label
+	br %sqrt_flag :start_label
+  br :ret_label
 	
 	:ret_label
 	return %i
@@ -55,7 +56,8 @@ define :divisible (%dividend, %divisor){
 
 	//expect_dividend <- ratio * %divisor
 	//div_flag <- expect_dividend = %dividend
-	//br div_flag :div_true :div_false
+	//br div_flag :div_true
+  //br :div_false
 
 	//:div_true
 	//return 1
@@ -65,14 +67,16 @@ define :divisible (%dividend, %divisor){
 
 	:div_loop_start
 	%i <- %dividend < %divisor
-	br %i :div_ret_no :div_to_equal
+	br %i :div_ret_no
+  br :div_to_equal
 
 	:div_ret_no
 	return 0
 
 	:div_to_equal
 	%i <- %divisor = %dividend
-	br %i :div_ret_true :div_to_loop
+	br %i :div_ret_true
+  br :div_to_loop
 
 	:div_ret_true
 	return 1
@@ -86,7 +90,8 @@ define :divisible (%dividend, %divisor){
 
 define :greater (%foo, %bar){
 	%flag <- %foo >= %bar
-	br %flag :foogeqbar :nfoogeqbar
+	br %flag :foogeqbar
+  br :nfoogeqbar
 	:nfoogeqbar
 	return %bar
 	:foogeqbar
@@ -99,7 +104,8 @@ define :customer_divide(%dividend, %divisor){
 	%dividend <- %dividend - %divisor
 	%ret <- %ret + 1
 	%flg <- %dividend = 0
-	br %flg :cus_ret :cus_start
+	br %flg :cus_ret
+  br :cus_start
 
 	:cus_ret
 	return %ret
@@ -111,7 +117,8 @@ define :common_divisor (%foo,%bar){
 	%com_div <- 1
 	%cd <- 2
 	%com_g <- %foo < %bar
-	br %com_g :exchange :step_over
+	br %com_g :exchange
+  br :step_over
 
 	:exchange
 	%temp <- %foo
@@ -127,7 +134,8 @@ define :common_divisor (%foo,%bar){
 	
 	%both <- %div_foo * %div_bar
 
-	br %both :com_cont :com_inc
+	br %both :com_cont
+  br :com_inc
 
 	:com_cont
 	%com_div <- %com_div * %cd
@@ -140,7 +148,8 @@ define :common_divisor (%foo,%bar){
 	%cd <- %cd + 1
 
 	%last_flag <- %cd > %com_sqrt
-	br %last_flag :com_ret :com_start_2
+	br %last_flag :com_ret
+  br :com_start_2
 
 	:com_start_2	
 

@@ -88,7 +88,8 @@ define :gimmeACall (%jennysNumber) {
     %count <- 0
     :top
     %compVal <- %count = 7 
-    br %compVal :donezo :printANum 
+    br %compVal :donezo
+    br :printANum 
     :printANum
     %number <- load %jennysNumber
     %number <- %number << 1

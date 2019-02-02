@@ -107,27 +107,31 @@ define :find (%A, %v) {
  %newVar20 <- %A + %newVar9
  %val <- load %newVar20
  %val_cmp <- %val = %v
- br %val_cmp :found :inc 
+ br %val_cmp :found 
+ br :inc 
  :inc
  br :inck
  :inck
  %k <- %k + 1
  %over <- %k >= %dim2
- br %over :resetk :loop 
+ br %over :resetk 
+ br :loop 
  :resetk
  %k <- 0
  br :incj
  :incj
  %j <- %j + 1
  %over <- %j >= %dim1
- br %over :resetj :loop 
+ br %over :resetj 
+ br :loop 
  :resetj
  %j <- 0
  br :inci
  :inci
  %i <- %i + 1
  %over <- %i >= %dim0
- br %over :not_found :loop 
+ br %over :not_found 
+ br :loop 
  :found
  return 3
  :not_found

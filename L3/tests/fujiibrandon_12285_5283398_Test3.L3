@@ -8,14 +8,16 @@ define :insertionSort(%array) {
 
     :outer_loop
         %shouldOuterLoopTerminate <- %arrayLength < %i
-        br %shouldOuterLoopTerminate :terminate :outer_step
+        br %shouldOuterLoopTerminate :terminate
+        br :outer_step
 
         :outer_step
             %j <- %i
 
             :inner_loop
                 %iteratorHasExhaustedAllPairs <- %j <= 1
-                br %iteratorHasExhaustedAllPairs :pass :inner_step
+                br %iteratorHasExhaustedAllPairs :pass
+                br :inner_step
 
                 :inner_step
                     %prevValueAddress <- %j
@@ -31,7 +33,8 @@ define :insertionSort(%array) {
                     %prevValue <- load %prevValueAddress
 
                     %isCurrValueLessThanPrevValue <- %currValue < %prevValue
-                    br %isCurrValueLessThanPrevValue :swap :pass
+                    br %isCurrValueLessThanPrevValue :swap
+                    br :pass
 
                 :swap
                     store %currValueAddress <- %prevValue

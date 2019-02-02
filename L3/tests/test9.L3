@@ -4,7 +4,8 @@ define :main ( ){
 
   %v4 <- %v1 < %v2
 
-  br %v4 :true :false
+  br %v4 :true 
+  br :false
 
   :true
   return 0

@@ -112,8 +112,9 @@
 
         :loop
         %ptr <- %ptr + 8
-        over <- %size = 0
-        br over :finish :cont
+        %over <- %size = 0
+        br %over :finish
+        br :cont
 
         :cont
         v <- load %ptr

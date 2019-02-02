@@ -8,7 +8,8 @@ define :main() {
     %index <- 1
     :loop_start
     %sign <- %index <= %length
-    br %sign :loop_next :loop_end
+    br %sign :loop_next
+    br :loop_end
     :loop_next
     %element <- call :getArrayElementByIndexPlusOne(%array, %index)
     call print(%element)
@@ -20,7 +21,8 @@ define :main() {
 define :isAddress (%p1){
     %p2 <- %p1 & 1
     %p2 <- %p2 = 0
-    br %p2 :isAddress :isNumber
+    br %p2 :isAddress
+    br :isNumber
     :isAddress
     return 1
     :isNumber
@@ -56,13 +58,15 @@ define :printArrayElementByIndex(%array, %index) {
 }
 define :printArrayBackwards (%array) {
     %is_A1_address <- call :isAddress(%A1)
-    br %is_A1_address :is_array_label :not_array_label
+    br %is_A1_address :is_array_label
+    br :not_array_label
     :is_array_label
     %length <- load %array
     %index <- %length - 1
     :loop_start
     %tmp <- %index >= 0
-    br %tmp :loop_next :loop_end
+    br %tmp :loop_next
+    br :loop_end
     :loop_next
     call :printArrayElementByIndex(%array, %index)
     %index <- %index - 1
@@ -73,7 +77,8 @@ define :printArrayBackwards (%array) {
 }
 define :isEqual (%p1, %p2){
     %p3 <- %p1 = %P2
-    br %p3 :equal :not_equal
+    br %p3 :equal
+    br :not_equal
     :equal
     return 1
     :not_equal
@@ -81,7 +86,8 @@ define :isEqual (%p1, %p2){
 }
 define :getSamller(%p1, %p2) {
     %sign <- call :isSmallerAndEqual (%p1, %p2)
-    br %sign :p1_smaller :p2_smaller
+    br %sign :p1_smaller
+    br :p2_smaller
     :p1_smaller
     return %p1
     :p2_smaller
@@ -89,7 +95,8 @@ define :getSamller(%p1, %p2) {
 }
 define :isSmaller (%p1, %p2){
     %p3 <- %p1 < 1
-    br %p3 :smaller :larger
+    br %p3 :smaller
+    br :larger
     :smaller
     return 1
     :larger
@@ -97,7 +104,8 @@ define :isSmaller (%p1, %p2){
 }
 define :isSmallerAndEqual (%p1, %p2){
     %p3 <- %p1 <= 1
-    br %p3 :smaller :larger
+    br %p3 :smaller
+    br :larger
     :smaller
     return 1
     :larger

@@ -113,12 +113,13 @@
         
         :loop
         %ptr < %ptr + 8
-        over <- %size = 0
-        br over :finish :cont
+        %over <- %size = 0
+        br %over :finish
+        br :cont
 
         :cont
-        ele <- load %ptr
-        call print (ele)
+        %ele <- load %ptr
+        call print (%ele)
         %size <- %size - 1
         br :loop
 

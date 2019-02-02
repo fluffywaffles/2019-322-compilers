@@ -108,16 +108,20 @@ define :find (%A, %v) {
  %newVar20 <- %A + %newVar9
  %check_value <- load %newVar20
  %equal <- %check_value = %v
- br %equal :did_find :third_inc 
+ br %equal :did_find
+ br :third_inc 
  :third_cond
  %check_index <- %k < %length3
- br %check_index :third_body :second_inc 
+ br %check_index :third_body
+ br :second_inc 
  :second_cond
  %check_index <- %j < %length2
- br %check_index :third_cond :first_inc 
+ br %check_index :third_cond
+ br :first_inc 
  :first_cond
  %check_index <- %i < %length1
- br %check_index :second_cond :end 
+ br %check_index :second_cond
+ br :end 
  :did_find
  %found <- 3
  br :end

@@ -61,7 +61,8 @@ define :printArr (%arr) {
 
   %count <- %count + 1
   %cont <- %count < %len 
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
 
   return
@@ -72,7 +73,8 @@ define :dotProduct(%v1, %v2) {
   %len1 <- load %v1
   %len2 <- load %v2
   %comp <- %len1 = %len2
-  br %comp :succeed :fail
+  br %comp :succeed
+  br :fail
   :fail
   return
 
@@ -94,7 +96,8 @@ define :dotProduct(%v1, %v2) {
  
   %count <- %count + 1
   %cont <- %count < %len1
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
   return %result
 }

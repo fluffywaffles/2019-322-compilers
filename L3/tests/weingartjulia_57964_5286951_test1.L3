@@ -27,7 +27,8 @@ define :fill_array(%a, %m){
 	%counter <- %counter+8
         %check <- %index < %m
         %index <- %index + 1
-        br %check :loop :finish
+        br %check :loop
+        br :finish
         :finish
         return
  }
@@ -65,7 +66,8 @@ define :fill_array(%a, %m){
 	%check <-  %index = %m
         %index <- %index + 1
 	
-        br %check :finish :loop
+        br %check :finish
+        br :loop
         :finish
         return
 }	

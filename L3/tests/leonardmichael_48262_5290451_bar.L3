@@ -34,13 +34,15 @@ define :parity(%addr, %count){
        %par <- 0
        :par_c
       %par_b <- %idx < %count
-       br %par_b :par_i :par_o
+       br %par_b :par_i
+       br :par_o
       :par_i
        %par_ir <- %idx + 8
        %par_ir <- %addr + %idx
        %par_ir <- load %par_ir
        %par_res <- %par_ir = 1
-       br %par_res :par_y :par_n
+       br %par_res :par_y
+       br :par_n
        :par_y
 	%par <- %par + 1
        :par_n
@@ -100,13 +102,15 @@ define :load_stuff(){
        %var3 <- %var2
        %var3 <- %var3 - %var2
        %load_stuff_res <- %var3 = 8
-       br %load_stuff_res :load_stuff_1 :load_stuff_2
+       br %load_stuff_res :load_stuff_1
+       br :load_stuff_2
        :load_stuff_1
        :load_stuff_2
 
        %count <- 0
        %load_stuff_res <- 1 = 1
-       br %load_stuff_res :jk :load_stuff_1
+       br %load_stuff_res :jk
+       br :load_stuff_1
        :jk
        %count <- %count << 4       
        call print(%addr)
@@ -131,7 +135,8 @@ define :load_stuff(){
 define :fun_f(%a,%b,%c,%d,%e,%f){
        :fun_fun_compare
        %res <- %f = 1
-       br %res :fun_fun_out :fun_fun_in
+       br %res :fun_fun_out
+       br :fun_fun_in
        :fun_fun_in
        %var1 <- %a
        %var2 <- %b

@@ -44,7 +44,8 @@ define :sqrt (%var){
 	%i <- %i + 1
 	%i2 <- %i * %i
 	%sqrt_flag <- %i2 <= %var
-	br %sqrt_flag :start_label :ret_label
+	br %sqrt_flag :start_label
+  br :ret_label
 	
 	:ret_label
 	return %i
@@ -55,7 +56,8 @@ define :divisible (%dividend, %divisor){
 
 	//expect_dividend <- ratio * %divisor
 	//div_flag <- expect_dividend = %dividend
-	//br div_flag :div_true :div_false
+	//br div_flag :div_true
+  //br :div_false
 
 	//:div_true
 	//return 1
@@ -65,14 +67,16 @@ define :divisible (%dividend, %divisor){
 
 	:div_loop_start
 	%i <- %dividend < %divisor
-	br %i :div_ret_no :div_to_equal
+	br %i :div_ret_no
+  br :div_to_equal
 
 	:div_ret_no
 	return 0
 
 	:div_to_equal
 	%i <- %divisor = %dividend
-	br %i :div_ret_true :div_to_loop
+	br %i :div_ret_true
+  br :div_to_loop
 
 	:div_ret_true
 	return 1
@@ -86,7 +90,8 @@ define :divisible (%dividend, %divisor){
 
 define :greater (%foo, %bar){
 	%flag <- %foo >= %bar
-	br %flag :foogeqbar :nfoogeqbar
+	br %flag :foogeqbar
+  br :nfoogeqbar
 	:nfoogeqbar
 	return %bar
 	:foogeqbar
@@ -99,7 +104,8 @@ define :customer_divide(%dividend, %divisor){
 	%dividend <- %dividend - %divisor
 	%ret <- %ret + 1
 	%flg <- %dividend = 0
-	br %flg :cus_ret :cus_start
+	br %flg :cus_ret
+  br :cus_start
 
 	:cus_ret
 	return %ret
@@ -119,12 +125,14 @@ define :print_primes (%num){
 	:init
 
 	%ini_ret <- %d > %orig_num
-	br %ini_ret :ini_return :ini_cont
+	br %ini_ret :ini_return
+  br :ini_cont
 
 	:ini_cont
 
 	%divisible_flag <- call :divisible (%num,%d)
-	br %divisible_flag :to_print :not_to_print
+	br %divisible_flag :to_print
+  br :not_to_print
 
 	:to_print
 	call :encode_print (%d)
@@ -136,7 +144,8 @@ define :print_primes (%num){
 	:not_to_print
 	%d <- %d + 1
 	%curr_most <- %curr_freq > %most_freq
-	br %curr_most :update :do_not_update
+	br %curr_most :update
+  br :do_not_update
 	:update
 	%most_freq <- %curr_freq
 	:do_not_update

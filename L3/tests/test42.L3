@@ -72,19 +72,22 @@ define :search (%m, %v) {
  br :outerHeader
  :outerHeader
  %checki <- %i < %length1
- br %checki :outerBody :return 
+ br %checki :outerBody
+ br :return 
  :outerBody
  %j <- 0
  br :middleHeader
  :middleHeader
  %checkj <- %j < %length2
- br %checkj :middleBody :outerFooter 
+ br %checkj :middleBody
+ br :outerFooter 
  :middleBody
  %k <- 0
  br :innerHeader
  :innerHeader
  %checkk <- %k < %length3
- br %checkk :innerBody :middleFooter 
+ br %checkk :innerBody
+ br :middleFooter 
  :innerBody
  %newVar10 <- 0
  %newVar11 <- %m + 24
@@ -106,7 +109,8 @@ define :search (%m, %v) {
  %newVar20 <- %m + %newVar9
  %e <- load %newVar20
  %same <- %e = %v
- br %same :setFound :innerFooter 
+ br %same :setFound
+ br :innerFooter 
  :innerFooter
  %k <- %k + 1
  br :innerHeader

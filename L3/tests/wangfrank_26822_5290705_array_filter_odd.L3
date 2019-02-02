@@ -114,14 +114,16 @@
         
         :loop
         %ptr < %ptr + 8
-        over <- %size = 0
-        br over :finish :cont
+        %over <- %size = 0
+        br %over :finish
+        br :cont
 
         :cont
-        ele <- load %ptr
-        ele <- ele >> 1 // decode
-        odd <- ele & 1
-        br odd :filter :nop
+        %ele <- load %ptr
+        %ele <- %ele >> 1 // decode
+        %odd <- %ele & 1
+        br %odd :filter
+        br :nop
         :filter
         store %ptr <- 0
         :nop

@@ -61,7 +61,8 @@ define :refill_stack(%new_stack_ptr, %old_stack_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: stack has been fully reconstructed. Return the pointer
 :base_case
@@ -103,7 +104,8 @@ define :pop(%stack_ptr) {
   // But this is the best we can do in this language
   %old_size <- load %stack_ptr // This should load the %size
   %not_empty <- %old_size > 0
-  br %not_empty :do_pop :abort
+  br %not_empty :do_pop
+  br :abort
 
 :abort
   call array-error(%stack_ptr, 0)
@@ -155,7 +157,8 @@ define :do_shrink_stack(%new_stack_ptr, %old_stack_ptr, %num_remaining) {
 
   // First, check if we're done
   %more_to_write <- %num_remaining > 0
-  br %more_to_write :write_another :base_case
+  br %more_to_write :write_another
+  br :base_case
 
 // Base case: stack has been fully reconstructed. Return the pointer
 :base_case
@@ -207,7 +210,8 @@ define :main() {
   // Loop until the stack is empty
   %stack_size <- load %stack_ptr
   %more_to_pop <- %stack_size > 0
-  br %more_to_pop :pop_from_stack :out
+  br %more_to_pop :pop_from_stack
+  br :out
 
 :out
 

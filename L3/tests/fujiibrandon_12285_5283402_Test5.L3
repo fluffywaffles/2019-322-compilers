@@ -2,7 +2,8 @@
 
 define :firstNPrimes(%n) {
   %isLessThanZero <- %n < 1
-  br %isLessThanZero :undefined :general
+  br %isLessThanZero :undefined
+  br :general
 
   :undefined
     return -1
@@ -18,14 +19,16 @@ define :firstNPrimes(%n) {
 
   :loop
     %isNotDone <- %numPrimes < %n
-    br %isNotDone :notDoneYet :ret
+    br %isNotDone :notDoneYet
+    br :ret
     :notDoneYet
       %encodedI <- %i << 1
       %encodedI <- %encodedI + 1
       %numIsPrime <- call :isPrime(%encodedI)
       %numIsPrime <- %numIsPrime - 1
       %numIsPrime <- %numIsPrime >> 1
-      br %numIsPrime :addToArray :continue
+      br %numIsPrime :addToArray
+      br :continue
 
       :addToArray
         %address <- %arr + %offset
@@ -47,7 +50,8 @@ define :isPrime(%n) {
     %n <- %n >> 1
 
     %isNLessThan2 <- %n < 2
-    br %isNLessThan2 :false :check
+    br %isNLessThan2 :false
+    br :check
 
     :false
         return 1
@@ -58,7 +62,8 @@ define :isPrime(%n) {
 
         :loop
             %isIteratorLessThanEnd <- %i < %end
-            br %isIteratorLessThanEnd :continue :true
+            br %isIteratorLessThanEnd :continue
+            br :true
 
             :continue
                 %encodedI <- %i << 1
@@ -68,7 +73,8 @@ define :isPrime(%n) {
                 %remainder <- call :modulo(%encodedN, %encodedI)
                 %i <- %i + 1
                 %isDivisible <- %remainder = 1
-                br %isDivisible :false :loop
+                br %isDivisible :false
+                br :loop
 
     :true
         return 3
@@ -79,14 +85,16 @@ define :modulo(%a, %b) {
     %result <- %a
 
     %isBLessThanZero <- %b <= 1
-    br %isBLessThanZero :undefined :defined
+    br %isBLessThanZero :undefined
+    br :defined
 
     :undefined
         return -1
 
     :defined
         %isALessThanB <- %a < %b
-        br %isALessThanB :terminate :continue
+        br %isALessThanB :terminate
+        br :continue
 
         :terminate
             return %result
@@ -107,7 +115,8 @@ define :modulo(%a, %b) {
             %b <- %b + 1
 
             %isResultLessThanB <- %result < %b
-            br %isResultLessThanB :terminate :continue
+            br %isResultLessThanB :terminate
+            br :continue
 }
 
 define :main() {

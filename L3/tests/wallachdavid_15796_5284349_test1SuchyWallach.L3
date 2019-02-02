@@ -52,7 +52,8 @@ define :hello (%arr, %len){
 		call :printEntry (%subarr)
 		%arr <- %arr + 8
 		%compare <- %len = 0
-		br %compare :done :preLoop
+		br %compare :done
+    br :preLoop
 	:preLoop
 		%len <- %len - 1
 		br :loop

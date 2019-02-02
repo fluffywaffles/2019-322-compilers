@@ -10,7 +10,8 @@ define :getMax(%array) {
         %currPointer <- %currPointer + 8
         %currValue <- load %currPointer
         %isGreaterThanMaxValue <- %maxValue < %currValue
-        br %isGreaterThanMaxValue :assign :continue
+        br %isGreaterThanMaxValue :assign
+        br :continue
 
     :assign
         %maxValue <- %currValue
@@ -18,7 +19,8 @@ define :getMax(%array) {
     :continue
         %i <- %i + 1
         %isIteratorLessThanArrayLength <- %i < %arrayLength
-        br %isIteratorLessThanArrayLength :loop :terminate
+        br %isIteratorLessThanArrayLength :loop
+        br :terminate
 
     :terminate
         return %maxValue
@@ -34,7 +36,8 @@ define :getMin(%array) {
         %currPointer <- %currPointer + 8
         %currValue <- load %currPointer
         %isLessThanMinValue <- %currValue < %minValue
-        br %isLessThanMinValue :assign :continue
+        br %isLessThanMinValue :assign
+        br :continue
 
     :assign
         %minValue <- %currValue
@@ -42,7 +45,8 @@ define :getMin(%array) {
     :continue
         %i <- %i + 1
         %isIteratorLessThanArrayLength <- %i < %arrayLength
-        br %isIteratorLessThanArrayLength :loop :terminate
+        br %isIteratorLessThanArrayLength :loop
+        br :terminate
 
     :terminate
         return %minValue
@@ -70,7 +74,8 @@ define :getSum(%array) {
     :continue
         %i <- %i + 1
         %isIteratorLessThanArrayLength <- %i < %arrayLength
-        br %isIteratorLessThanArrayLength :loop :terminate
+        br %isIteratorLessThanArrayLength :loop
+        br :terminate
 
     :terminate
         return %sum

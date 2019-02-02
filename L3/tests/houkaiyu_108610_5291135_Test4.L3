@@ -29,11 +29,13 @@ define :euclid (%i0, %i1){
 
 	:start
 	%flag3 <- %foo = %bar
-	br %flag3 :%ret :cont
+	br %flag3 :ret
+  br :cont
 	:cont
 
 	%flag <- %foo > %bar
-	br %flag :foogbar :cont2
+	br %flag :foogbar
+  br :cont2
 	:cont2
 	%temp <- %foo
 	%foo <- %bar
@@ -45,9 +47,10 @@ define :euclid (%i0, %i1){
 	%bar <- %temp
 
 	%flag2 <- 1
-	br %flag2 :start :%ret
+	br %flag2 :start
+  br :ret
 
-	:%ret
+	:ret
 	return %foo
 }
 
@@ -104,29 +107,34 @@ define :main (){
 	%f <- call :greater (%f1, %f2)
 
 	%flag <- %f1 = %f
-	br %flag :pf1 :contf1
+	br %flag :pf1
+  br :contf1
 	:contf1
 
 	%flag <- %f2 = %f
-	br %flag :pf2 :contf2
+	br %flag :pf2
+  br :contf2
 	:contf2
 
 	%f <- call :greater (%f, %f3)
 
 	%flag <- %f3 = %f
-	br %flag :pf3 :contf3
+	br %flag :pf3
+  br :contf3
 	:contf3
 
 	%f <- call :greater (%f, %f4)
 
 	%flag <- %f4 = %f
-	br %flag :pf4 :contf4
+	br %flag :pf4
+  br :contf4
 	:contf4
 
 	%f <- call :greater (%f, %f5)
 
 	%flag <- %f5 = %f
-	br %flag :pf5 :contf5
+	br %flag :pf5
+  br :contf5
 	:contf5
 
 	:pf1
@@ -180,7 +188,8 @@ define :main (){
 
 define :greater (%foo, %bar){
 	%flag <- %foo >= %bar
-	br %flag :foogeqbar :nfoogeqbar
+	br %flag :foogeqbar
+  br :nfoogeqbar
 	:nfoogeqbar
 	return %bar
 	:foogeqbar

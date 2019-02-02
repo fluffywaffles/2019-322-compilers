@@ -57,7 +57,8 @@ define :acc(%s,%n) {
 
 :acc_comp
 %res <- %refcount <= 0
-br %res :acc_out :in_out
+br %res :acc_out
+br :in_out
 :in_out
 %val1 <- load %addr
 %a <- %a + %val1
@@ -79,12 +80,14 @@ define :filter(%s, %n, %w){
 :comp
 
 %res <- %refcount <= 0
-br %res :out :in
+br %res :out
+br :in
 :in
 %val1 <- load %addr
 
 %val2 <- %switch = 0
-br %val2 :even :odd
+br %val2 :even
+br :odd
 :even
 %val2 <- call :even_nil(%val1)
 br :out_1
@@ -126,7 +129,8 @@ define :map(%s, %n){
 
 :compare
 %res <- %refcount <= 0
-br %res :done :another_one
+br %res :done
+br :another_one
 :another_one
 %val1 <- load %addr
 %val2 <- call :i_wish(%val1, %refcount)
@@ -155,7 +159,8 @@ define :i_wish(%val, %scaler){
 
 %result <- %x = 0
 
-br %result :inc :none
+br %result :inc
+br :none
 :inc
 %out_val <- %out_val + 1
 :none

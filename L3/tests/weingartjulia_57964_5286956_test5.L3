@@ -23,7 +23,8 @@ define :initialize_array(%a, %m){
 	%index <- %index + 1
 	
 	// branch if reach end of array given by %m
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	:finish
 	return	
 }
@@ -65,7 +66,8 @@ define :flip_array(%p1, %p2, %max){
 	%index <- %index + 1
 
 	// %check if done
-	br %check :loop :finish
+	br %check :loop
+  br :finish
 	:finish
 	return
 }

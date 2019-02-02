@@ -8,7 +8,8 @@ define :main () {
 	%var6 <- %var << %var2
 	%var7 <- call :isNumber(%var6)
 	%var8 <- call :isAddress(%var5)
-	br %var8 :isAddress :isNotAddress
+	br %var8 :isAddress
+  br :isNotAddress
 	:isNotAddress	
 	%var9 <- %var8 * 3
 	%var9 <- %var9 + 2
@@ -31,7 +32,8 @@ define :main () {
 	%var15 <- call :aop_minus(%var1, %var13)
 	%var16 <- call :aop_and(%var11, %var12)
 	%var <- call :isAddress(%var16)
-	br %var :isVarAddress :isVarNotAddress
+	br %var :isVarAddress
+  br :isVarNotAddress
 	:isVarNotAddress	
 	%var17 <- call :increaseOne(%var9)
 	%var18 <- call :aop_product(%var2, %var13)
@@ -55,7 +57,8 @@ define :main () {
 define :isNumber (%p1){
 	%p2 <- %p1 & 1
 	%p2 <- %p2 = 0
-	br %p2 :isAddress :isNumber
+	br %p2 :isAddress
+  br :isNumber
 	:isAddress
 	return 0
 	:isNumber
@@ -64,7 +67,8 @@ define :isNumber (%p1){
 define :isAddress (%p1){
 	%p2 <- %p1 & 1
 	%p2 <- %p2 = 0
-	br %p2 :isAddress :isNumber
+	br %p2 :isAddress
+  br :isNumber
 	:isAddress
 	return 1
 	:isNumber
@@ -109,7 +113,8 @@ define :aop_product (%p1, %p2){
 }
 define :isSmaller (%p1, %p2){
 	%p3 <- %p1 < 1
-	br %p3 :smaller :larger
+	br %p3 :smaller
+  br :larger
 	:smaller
 	return 1
 	:larger
@@ -117,7 +122,8 @@ define :isSmaller (%p1, %p2){
 }
 define :isSmallerAndEqual (%p1, %p2){
 	%p3 <- %p1 <= 1
-	br %p3 :smaller :larger
+	br %p3 :smaller
+  br :larger
 	:smaller
 	return 1
 	:larger
@@ -125,7 +131,8 @@ define :isSmallerAndEqual (%p1, %p2){
 }
 define :isEqual (%p1, %p2){
 	%p3 <- %p1 = %P2
-	br %p3 :smaller :larger
+	br %p3 :smaller
+  br :larger
 	:smaller
 	return 1
 	:larger

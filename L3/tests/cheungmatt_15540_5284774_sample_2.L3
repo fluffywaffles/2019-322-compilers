@@ -69,7 +69,8 @@ define :printArr (%arr) {
 
   %count <- %count + 1
   %cont <- %count < %len 
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
 
   return
@@ -93,7 +94,8 @@ define :sumArr(%arr) {
 
   %count <- %count + 1
   %cont <- %count < %len
-  br %cont :loop :stop
+  br %cont :loop
+  br :stop
   :stop
 
   return %sum

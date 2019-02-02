@@ -41,7 +41,8 @@ define :callMyClosure (%c, %argClosure) {
  %newVar5 <- %c + %newVar3
  %arityOfC <- load %newVar5
  %checkArgs <- %arityOfC = 1
- br %checkArgs :true :false 
+ br %checkArgs :true 
+ br :false 
  :true
  %finalResult <- call %fp (%c, %argClosure)
  %finalResultEncoded <- call :encodeValue (%finalResult)

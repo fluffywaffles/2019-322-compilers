@@ -25,7 +25,8 @@ define :printArrayGT (%p) {
  br :begin_loop
  :begin_loop
  %keepExecuting <- 0 < %i
- br %keepExecuting :body :exit 
+ br %keepExecuting :body
+ br :exit 
  :body
  %encodedI <- call :encodedValue (%i)
  call print (%encodedI)
@@ -43,7 +44,8 @@ define :printArrayGE (%p) {
  br :begin_loop
  :begin_loop
  %keepExecuting <- 0 <= %i
- br %keepExecuting :body :exit 
+ br %keepExecuting :body
+ br :exit 
  :body
  %encodedI <- call :encodedValue (%i)
  call print (%encodedI)
@@ -61,7 +63,8 @@ define :printArrayE (%p) {
  br :begin_loop
  :begin_loop
  %keepExecuting <- 5 = %i
- br %keepExecuting :body :exit 
+ br %keepExecuting :body
+ br :exit 
  :body
  %encodedI <- call :encodedValue (%i)
  call print (%encodedI)

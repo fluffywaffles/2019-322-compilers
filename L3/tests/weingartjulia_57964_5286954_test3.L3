@@ -46,13 +46,15 @@ define :main () {
 define :myF(%x)
 {
 	%pos <- %x > 0
-	br %pos :poVs :neg
+	br %pos :poVs
+  br :neg
 	:neg
 	%x <- %x * -1
 	:poVs
 	%divBy2 <- %x & 1
 	%e <- %divBy2 = 0
-	br %e :even :odd
+	br %e :even
+  br :odd
 	:even
 	return 1
 	:odd
@@ -79,7 +81,8 @@ define :randomize(%x) {
 
 	// check if new value is greater than 10
 	%greater10 <- %x > 10
-	br %greater10 :g :le
+	br %greater10 :g
+  br :le
 
 	// if greater than 10, multiply by 2 and print
 	:g
