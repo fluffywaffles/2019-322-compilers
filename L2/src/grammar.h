@@ -426,8 +426,8 @@ namespace L2::grammar {
       using cjump = meta::statement::cjump::s<cmp, labels...>;
     // call {u,intrinsic} N
     namespace call {
-      template <typename fn, char n>
-        struct intrinsic : meta::statement::call::s<fn, util::a<n>> {};
+      template <typename fn, typename n>
+        struct intrinsic : meta::statement::call::s<fn, n> {};
       template <typename fn, typename n>
         struct defined   : meta::statement::call::s<fn, n> {};
     }
@@ -441,7 +441,7 @@ namespace L2::grammar {
   //
 
   namespace instruction::define {
-    struct label : spaced<literal::identifier::label> {};
+    struct label : spaced<operand::label> {};
   }
 
   // Assignment
@@ -492,7 +492,7 @@ namespace L2::grammar {
   // Shifts on assignable registers
   namespace instruction::update::assignable::shift {
     using w  = operand::assignable;
-    using N  = literal::number::integer::any;
+    using N  = operand::number;
     using sx = operand::shift;
     struct shift  : meta::statement::shift::all<w, sx> {}; // w sop sx
     struct number : meta::statement::shift::all<w,  N> {}; // w sop N
@@ -528,19 +528,19 @@ namespace L2::grammar {
   //
   namespace instruction::invoke {
     namespace call::intrinsic {
-      template <typename i, char c >
-        using call = statement::call::intrinsic<i, c>;
+      template <typename i, typename n>
+        using call = statement::call::intrinsic<i, n>;
       namespace literal = literal::intrinsic;
       struct print                              // call print 1
-        : call<literal::print, '1'> {};
+        : call<literal::print, operand::number> {};
       struct allocate                           // call allocate 2
-        : call<literal::allocate, '2'> {};
+        : call<literal::allocate, operand::number> {};
       struct array_error                        // call array-error 2
-        : call<literal::array_error, '2'> {};
+        : call<literal::array_error, operand::number> {};
     }
     namespace call {
       using u = operand::callable;
-      using N = literal::number::integer::positive;
+      using N = operand::number;
       struct callable : statement::call::defined<u, N> {}; // call u N
     }
     struct ret : spaced<literal::instruction::ret> {};
