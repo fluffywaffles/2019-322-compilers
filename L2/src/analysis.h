@@ -576,7 +576,7 @@ namespace L2::analysis::ast::liveness { // {{{
     bool fixed_state;
     do {
       fixed_state = true;
-      for (int index = 0; index < instructions.size(); index++) {
+      for (int index = instructions.size() - 1; index >= 0; index--) {
         const node & instruction = *instructions.at(index);
         // load gen, kill sets and successors
         auto & gen        = result.gen [&instruction];
