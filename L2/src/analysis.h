@@ -52,11 +52,11 @@ namespace L2::analysis::ast::liveness {
     using string  = std::string;
     // NOTE(jordan): delete the default converter to prevent use!
     template <typename Register> string to_string () = delete;
-    #define handle(R) template<> string to_string<reg::R>(){ return #R; }
-    handle(rax) handle(rbx) handle(rcx) handle(rdx) handle(rsi)
-    handle(rdi) handle(rbp) handle(rsp) handle(r8 ) handle(r9 )
-    handle(r10) handle(r11) handle(r12) handle(r13) handle(r14)
-    handle(r15)
+    #define mkreg2s(R) template<> string to_string<reg::R>(){ return #R; }
+    mkreg2s(rax) mkreg2s(rbx) mkreg2s(rcx) mkreg2s(rdx) mkreg2s(rsi)
+    mkreg2s(rdi) mkreg2s(rbp) mkreg2s(rsp) mkreg2s(r8 ) mkreg2s(r9 )
+    mkreg2s(r10) mkreg2s(r11) mkreg2s(r12) mkreg2s(r13) mkreg2s(r14)
+    mkreg2s(r15)
   } // }}}
 
   namespace helper::variable { // {{{
@@ -172,42 +172,14 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
     using label  = grammar::operand::label;
     using number = grammar::operand::number;
     operand_gen_kill_filter(!v.is<label>() && !helper::matches<number>(v))
-    /* bool filter (const node & g) { */
-    /*   const node & value = *g.children.at(0); */
-    /*   return true */
-    /*     && !value.is<grammar::operand::label>() */
-    /*     && !helper::matches<grammar::operand::number>(value); */
-    /* } */
     implement_operand_gen_kill(gen, memory::gen(n, value, result))
     implement_operand_gen_kill(kill, memory::kill(n, value, result))
-    /* void gen (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & memory = *g.children.at(0); */
-    /*     return memory::gen(n, memory, result); */
-    /*   } */
-    /* } */
-    /* void kill (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & memory = *g.children.at(0); */
-    /*     return memory::kill(n, memory, result); */
-    /*   } */
-    /* } */
   }
 
   namespace helper::operand::relative {
     operand_gen_kill_filter(true)
     implement_operand_gen_kill(gen, memory::gen(n, value, result))
     implement_operand_gen_kill(kill, memory::kill(n, value, result))
-    /* void gen (const node & n, const node & g, liveness::result & result) { */
-    /*   assert(g.children.size() == 2); */
-    /*   const node & base = *g.children.at(0); */
-    /*   return memory::gen(n, base, result); */
-    /* } */
-    /* void kill (const node & n, const node & g, liveness::result & result) { */
-    /*   assert(g.children.size() == 2); */
-    /*   const node & base = *g.children.at(0); */
-    /*   return memory::kill(n, base, result); */
-    /* } */
   }
 
   namespace helper::operand::comparable {
@@ -215,43 +187,12 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
     operand_gen_kill_filter(!helper::matches<number>(v))
     implement_operand_gen_kill(gen, memory::gen(n, value, result))
     implement_operand_gen_kill(kill, memory::kill(n, value, result))
-    /* bool filter (const node & g) { */
-    /*   return !helper::matches<grammar::operand::number>(g); */
-    /* } */
-    /* void gen (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & memory = *g.children.at(0); */
-    /*     return memory::gen(n, memory, result); */
-    /*   } */
-    /* } */
-    /* void kill (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & memory = *g.children.at(0); */
-    /*     return memory::gen(n, memory, result); */
-    /*   } */
-    /* } */
   }
 
   namespace helper::operand::callable {
     operand_gen_kill_filter(!v.is<grammar::operand::label>())
     implement_operand_gen_kill(gen, assignable::gen(n, value, result))
     implement_operand_gen_kill(kill, assignable::kill(n, value, result))
-    /* bool filter (const node & g) { */
-    /*   const node & value = *g.children.at(0); */
-    /*   return !value.is<grammar::operand::label>(); */
-    /* } */
-    /* void gen (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & assignable = *g.children.at(0); */
-    /*     return assignable::gen(n, assignable, result); */
-    /*   } */
-    /* } */
-    /* void kill (const node & n, const node & g, liveness::result & result) { */
-    /*   if (filter(g)) { */
-    /*     const node & assignable = *g.children.at(0); */
-    /*     return assignable::gen(n, assignable, result); */
-    /*   } */
-    /* } */
   }
   // }}}
 
@@ -596,7 +537,7 @@ namespace L2::analysis::ast::successor { // {{{
  * OUT[i] = U(s : successor of(i)) IN[s]
  *
  */
-namespace L2::analysis::ast::liveness {
+namespace L2::analysis::ast::liveness { // {{{
   using nodes = std::vector<std::shared_ptr<const node>>;
 
   nodes collect_instructions (const node & function) { // {{{
@@ -746,7 +687,7 @@ namespace L2::analysis::ast::liveness {
 
     return;
   }
-}
+} // }}}
 
 namespace L2::analysis::liveness {
   using result = ast::liveness::result;
@@ -755,7 +696,6 @@ namespace L2::analysis::liveness {
   result compute (const parse_tree::node & root) {
     assert(root.is_root() && "generate: got a non-root node!");
     assert(!root.children.empty() && "generate: got an empty AST!");
-
     result result = {};
     ast::liveness::root(root, result);
     return result;
