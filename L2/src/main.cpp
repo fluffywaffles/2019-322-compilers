@@ -6,6 +6,7 @@
 #include "tao/pegtl/contrib/tracer.hpp"
 
 #include "grammar.h"
+#include "analysis.h"
 //#include "codegen.h"
 #include "parse_tree.h"
 
@@ -79,8 +80,8 @@ int main (int argc, char ** argv) {
   } else if (opt.mode == Options::Mode::liveness) {
     auto root = ast::parse<function, ast::filter::selector>(in);
     if (opt.print_ast) { ast::print_node(*root); }
-    /* namespace analysis = L2::analysis; */
-    /* analysis::liveness_result result = analysis::liveness(*root, true); */
+    namespace analysis = L2::analysis;
+    analysis::liveness_result result = analysis::liveness(*root, true);
   }
 
   return 0;
