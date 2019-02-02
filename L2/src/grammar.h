@@ -152,6 +152,40 @@ namespace L2::grammar {
     struct any : memory {};
   }
 
+  namespace register_group::callee_save {
+    namespace x86_64_register = literal::identifier::x86_64_register;
+    using r12 = x86_64_register::r12;
+    using r13 = x86_64_register::r13;
+    using r14 = x86_64_register::r14;
+    using r15 = x86_64_register::r15;
+    using rbp = x86_64_register::rbp;
+    using rbx = x86_64_register::rbx;
+  }
+
+  namespace register_group::caller_save {
+    namespace x86_64_register = literal::identifier::x86_64_register;
+    using r8  = x86_64_register::r8;
+    using r9  = x86_64_register::r9;
+    using r10 = x86_64_register::r10;
+    using r11 = x86_64_register::r11;
+    using rax = x86_64_register::rax;
+    using rcx = x86_64_register::rcx;
+    using rdi = x86_64_register::rdi;
+    using rdx = x86_64_register::rdx;
+    using rsi = x86_64_register::rsi;
+  }
+
+  namespace register_group::argument {
+    namespace x86_64_register = literal::identifier::x86_64_register;
+    // NOTE(jordan): this is the correct order
+    using rdi = x86_64_register::rdi;
+    using rsi = x86_64_register::rsi;
+    using rdx = x86_64_register::rdx;
+    using rcx = x86_64_register::rcx;
+    using r8  = x86_64_register::r8;
+    using r9  = x86_64_register::r9;
+  }
+
   //
   // Operators
   //
