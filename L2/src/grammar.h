@@ -49,6 +49,7 @@ namespace L2::grammar {
     using plus         = util::a<'+'>;
     using colon        = util::a<':'>;
     using minus        = util::a<'-'>;
+    using percent      = util::a<'%'>;
     using numeric      = peg::range<'0', '9'>;
     using lowercase    = peg::range<'a', 'z'>;
     using uppercase    = peg::range<'A', 'Z'>;
@@ -99,8 +100,10 @@ namespace L2::grammar {
       struct gte1 : peg::sor<alphanumeric, underscore> {};
     }
     struct name  : peg::seq<at::zero, peg::star<at::gte1>> {};
-    // label ::= :[a-zA-Z_][a-zA-Z_0=9]*
+    // label ::= :[a-zA-Z_][a-zA-Z_0-9]*
     struct label : peg::seq<colon, name> {};
+    // var   ::= %[a-zA-Z_][a-zA-Z_0-9]*
+    struct variable : peg::seq<percent, name> {};
   }
 
   // Registers
@@ -252,19 +255,20 @@ namespace L2::grammar {
   //
 
   namespace operand {
-    using label  = literal::identifier::label;
-    using number = literal::number::integer::any;
+    using label    = literal::identifier::label;
+    using number   = literal::number::integer::any;
+    using variable = literal::identifier::variable;
     /* NOTE: there is no 'argument' operand because production 'a' is
      * never used as an operand for an instruction in the grammar.
      */
-    // Register-only operands
-    // sx ::= rcx
+    // Register-or-variable operands
+    // sx ::= rcx | var
     // w  ::= a   | rax | rbx | rbp | r10 | r11 | r12 | r13 | r14 | r15
     // x  ::= w   | rsp
-    struct shift      : register_set::shift  {};
-    struct memory     : register_set::memory {};
-    struct assignable : register_set::assignable {};
-    // Register-or-value operands
+    struct shift      : peg::sor<register_set::shift, variable> {};
+    struct memory     : peg::sor<register_set::memory, variable> {};
+    struct assignable : peg::sor<register_set::assignable, variable> {};
+    // Register-variable-or-value operands
     // s ::= t | label
     // u ::= w | label
     // t ::= x | N
@@ -295,12 +299,13 @@ namespace L2::grammar {
   //
 
   namespace literal::instruction {
-    struct go2   : TAO_PEGTL_STRING("goto")   {};
-    struct mem   : TAO_PEGTL_STRING("mem")    {};
-    struct ret   : TAO_PEGTL_STRING("return") {};
-    struct call  : TAO_PEGTL_STRING("call")   {};
-    struct gets  : TAO_PEGTL_STRING("<-")     {};
-    struct cjump : TAO_PEGTL_STRING("cjump")  {};
+    struct go2       : TAO_PEGTL_STRING("goto")      {};
+    struct mem       : TAO_PEGTL_STRING("mem")       {};
+    struct ret       : TAO_PEGTL_STRING("return")    {};
+    struct call      : TAO_PEGTL_STRING("call")      {};
+    struct gets      : TAO_PEGTL_STRING("<-")        {};
+    struct cjump     : TAO_PEGTL_STRING("cjump")     {};
+    struct stack_arg : TAO_PEGTL_STRING("stack-arg") {};
   }
 
   //
@@ -319,6 +324,11 @@ namespace L2::grammar {
       template <typename t>
       struct e : spaced<t, cmp, t> {};
     }
+    namespace stack_arg {
+      using M = literal::number::special::divisible_by8;
+      using stack_arg = literal::instruction::stack_arg;
+      struct e : spaced<stack_arg, M> {};
+    }
   }
 
   namespace expression {
@@ -326,6 +336,8 @@ namespace L2::grammar {
     using mem = meta::expression::mem::e<operand::memory>;
     // t cmp t
     using cmp = meta::expression::cmp::e<operand::comparable>;
+    // stack-arg M
+    using stack_arg = meta::expression::stack_arg::e;
   }
 
   //
@@ -413,6 +425,8 @@ namespace L2::grammar {
     struct gets_movable    : stmt::gets<w, s> {};         // w <- s
     struct gets_relative   : stmt::gets<w, expr::mem> {}; // w <- mem x M
     struct gets_comparison : stmt::gets<w, expr::cmp> {}; // w <- t cmp t
+    struct gets_stack_arg
+      : stmt::gets<w, expr::stack_arg> {}; // w <- stack-arg M
   }
 
   // To relative memory locations
@@ -507,6 +521,8 @@ namespace L2::grammar {
       assign::assignable::gets_movable,
       // w <- mem x M
       assign::assignable::gets_relative,
+      // w <- stack-arg M
+      assign::assignable::gets_stack_arg,
       // mem x M <- s
       assign::relative::gets_movable,
       // w aop t
