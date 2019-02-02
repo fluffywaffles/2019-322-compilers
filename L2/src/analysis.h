@@ -16,6 +16,12 @@
         false
 #define OP_GEN_KILL_FILTER_DEBUG \
         GEN_KILL_DEBUG
+#define DBG_SUCC                        0b000001
+#define DBG_PRINT                       0b000010
+#define DBG_GEN_KILL                    0b000100
+#define DBG_IN_OUT_LOOP_CND             0b001000
+#define DBG_IN_OUT_LOOP_ORIG            0b010000
+#define DBG_IN_OUT_LOOP_OUT_MINUS_KILL  0b100000
 
 namespace L2::analysis::ast::liveness {
   using namespace L2::grammar;
@@ -564,7 +570,7 @@ namespace L2::analysis::ast::liveness { // {{{
    * suspect the code would be cleaner if we didn't use std-library set
    * operations and just iterated over things.
    */
-  void in_out (result & result, nodes instructions) {
+  void in_out (result & result, nodes instructions, unsigned debug) {
     // QUESTION: uh... what's our efficiency here? This code is gross.
     int iteration_limit = -1;
     bool fixed_state;
@@ -585,13 +591,13 @@ namespace L2::analysis::ast::liveness { // {{{
           out.begin(), out.end(),
           kill.begin(), kill.end(),
           std::inserter(out_minus_kill, out_minus_kill.begin()));
-        /* { */
-        /*   std::cout << "OUT[" << index << "] - KILL[" << index << "] = "; */
-        /*   for (auto x : out_minus_kill) { */
-        /*     std::cout << x << " "; */
-        /*   } */
-        /*   std::cout << "\n"; */
-        /* } */
+        if (debug & DBG_IN_OUT_LOOP_OUT_MINUS_KILL) {
+          std::cout << "OUT[" << index << "] - KILL[" << index << "] = ";
+          for (auto x : out_minus_kill) {
+            std::cout << x << " ";
+          }
+          std::cout << "\n";
+        }
         // IN[i] = GEN[i] U (out_minus_kill)
         std::set_union(
           gen.begin(), gen.end(),
@@ -608,20 +614,20 @@ namespace L2::analysis::ast::liveness { // {{{
 
         const auto & in_original  = result.in [&instruction];
         const auto & out_original = result.out[&instruction];
-        /* { */
-        /*   std::cout << "in_original[" << index << "]  = "; */
-        /*   for (auto i : in_original) std::cout << i << " "; */
-        /*   std::cout << "\n"; */
-        /*   std::cout << "out_original[" << index << "] = "; */
-        /*   for (auto o : out_original) std::cout << o << " "; */
-        /*   std::cout << "\n"; */
-        /*   std::cout << "in[" << index << "]  = "; */
-        /*   for (auto i : in) std::cout << i << " "; */
-        /*   std::cout << "\n"; */
-        /*   std::cout << "out[" << index << "] = "; */
-        /*   for (auto o : out) std::cout << o << " "; */
-        /*   std::cout << "\n"; */
-        /* } */
+        if (debug & DBG_IN_OUT_LOOP_ORIG) {
+          std::cout << "in_original[" << index << "]  = ";
+          for (auto i : in_original) std::cout << i << " ";
+          std::cout << "\n";
+          std::cout << "out_original[" << index << "] = ";
+          for (auto o : out_original) std::cout << o << " ";
+          std::cout << "\n";
+          std::cout << "in[" << index << "]  = ";
+          for (auto i : in) std::cout << i << " ";
+          std::cout << "\n";
+          std::cout << "out[" << index << "] = ";
+          for (auto o : out) std::cout << o << " ";
+          std::cout << "\n";
+        }
         fixed_state = fixed_state
           && std::equal(in_original.begin(), in_original.end(), in.begin(), in.end())
           && std::equal(out_original.begin(), out_original.end(), out.begin(), out.end());
@@ -629,61 +635,63 @@ namespace L2::analysis::ast::liveness { // {{{
         result.in [&instruction] = in;
         result.out[&instruction] = out;
       }
-      /* { */
-      /*   std::cout << "fixed_state?    " << fixed_state << "\n"; */
-      /*   std::cout << "hit iter limit? " << ((iteration_limit - 1) > 0) << "\n"; */
-      /*   std::cout << "cond: " << (!fixed_state || ((iteration_limit - 1) > 0)) << "\n"; */
-      /* } */
+      if (debug & DBG_IN_OUT_LOOP_CND) {
+        std::cout << "fixed_state?    " << fixed_state << "\n";
+        std::cout << "hit iter limit? " << ((iteration_limit - 1) > 0) << "\n";
+        std::cout << "cond: " << (!fixed_state || ((iteration_limit - 1) > 0)) << "\n";
+      }
     } while (!fixed_state || (--iteration_limit > 0));
   }
-  void in_out (result & result) {
-    in_out(result, result.instructions);
+  void in_out (result & result, unsigned debug) {
+    in_out(result, result.instructions, debug);
   }
 
-  void root (const node & root, liveness::result & result) {
+  void root (const node & root, liveness::result & result, unsigned debug) {
     // 1. Compute GEN, KILL
     collect_instructions(*root.children.at(0), result);
 
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
       analysis::ast::liveness::gen_kill::instruction(instruction, result);
-      /* { */
-      /*   std::cout << "gen[" << index << "]  = "; */
-      /*   for (auto g : result.gen[&instruction]) std::cout << g << " "; */
-      /*   std::cout << "\n"; */
-      /*   std::cout << "kill[" << index << "] = "; */
-      /*   for (auto r : result.kill[&instruction]) std::cout << r << " "; */
-      /*   std::cout << "\n"; */
-      /* } */
+      if (debug & DBG_GEN_KILL) {
+        std::cout << "gen[" << index << "]  = ";
+        for (auto g : result.gen[&instruction]) std::cout << g << " ";
+        std::cout << "\n";
+        std::cout << "kill[" << index << "] = ";
+        for (auto r : result.kill[&instruction]) std::cout << r << " ";
+        std::cout << "\n";
+      }
     }
-    /* std::cout << "\n"; */
+    if (debug & DBG_GEN_KILL) std::cout << "\n";
 
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
       analysis::ast::successor::instruction(instruction, index, result);
-      /* { */
-      /*   std::cout << "succ[" << index << "] = "; */
-      /*   for (auto successor : result.successor[&instruction]) { */
-      /*     std::cout << successor->name(); */
-      /*   } */
-      /*   std::cout << "\n"; */
-      /* } */
+      if (debug & DBG_SUCC) {
+        std::cout << "succ[" << index << "] = ";
+        for (auto successor : result.successor[&instruction]) {
+          std::cout << successor->name();
+        }
+        std::cout << "\n";
+      }
     }
-    /* std::cout << "\n"; */
+    if (debug & DBG_SUCC) std::cout << "\n";
 
-    in_out(result);
+    in_out(result, debug);
 
-    /* std::cout << "\n"; */
-    /* for (int index = 0; index < instructions.size(); index++) { */
-    /*   const node & instruction = *instructions.at(index); */
-    /*   std::cout << "in[" << index << "]  = "; */
-    /*   for (auto i : result.in[&instruction]) std::cout << i << " "; */
-    /*   std::cout << "\n"; */
-    /*   std::cout << "out[" << index << "] = "; */
-    /*   for (auto o : result.out[&instruction]) std::cout << o << " "; */
-    /*   std::cout << "\n"; */
-    /* } */
-    /* std::cout << "\n"; */
+    if (debug & DBG_PRINT) {
+      std::cout << "\n";
+      for (int index = 0; index < result.instructions.size(); index++) {
+        const node & instruction = *result.instructions.at(index);
+        std::cout << "in[" << index << "]  = ";
+        for (auto i : result.in[&instruction]) std::cout << i << " ";
+        std::cout << "\n";
+        std::cout << "out[" << index << "] = ";
+        for (auto o : result.out[&instruction]) std::cout << o << " ";
+        std::cout << "\n";
+      }
+      std::cout << "\n";
+    }
 
     return;
   }
@@ -693,11 +701,11 @@ namespace L2::analysis::liveness {
   using result = ast::liveness::result;
   using nodes = std::vector<std::shared_ptr<const parse_tree::node>>;
 
-  result compute (const parse_tree::node & root) {
+  result compute (const parse_tree::node & root, unsigned debug = 0) {
     assert(root.is_root() && "generate: got a non-root node!");
     assert(!root.children.empty() && "generate: got an empty AST!");
     result result = {};
-    ast::liveness::root(root, result);
+    ast::liveness::root(root, result, debug);
     return result;
   }
 
