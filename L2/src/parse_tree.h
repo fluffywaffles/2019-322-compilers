@@ -1,6 +1,9 @@
 #pragma once
 #include <iostream>
+
 #include "tao/pegtl/contrib/parse_tree.hpp"
+#include "tao/pegtl/contrib/tracer.hpp"
+
 #include "grammar.h"
 
 /*
@@ -104,3 +107,13 @@ namespace L2::parse_tree {
           program::define>>;
   }
 }
+
+namespace L2::parse_tree::debug {
+  template <
+    typename Entry,
+    template <typename...> typename Selector = filter::selector
+  > auto trace (peg::file_input<> & in) {
+    return parse<Entry, Selector, peg::nothing, peg::tracer>(in);
+  }
+}
+

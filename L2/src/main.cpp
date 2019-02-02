@@ -1,11 +1,10 @@
 // vim: foldmethod=marker
 #include <cassert>
-#include <unistd.h>
 #include <iostream>
 
 #include "tao/pegtl.hpp"
-#include "tao/pegtl/contrib/tracer.hpp"
 
+#include "options.h"
 #include "grammar.h"
 #include "analysis.h"
 //#include "codegen.h"
@@ -16,75 +15,46 @@ namespace ast = L2::parse_tree;
 using grammar  = peg::must<L2::grammar::entry>;
 using function = peg::must<L2::grammar::function::define>;
 
-namespace debug {
-  void trace_parse (peg::file_input<> & in) {
-    peg::parse<grammar, peg::nothing, peg::tracer>(in);
+template <Options::Mode mode, typename Entry, typename Input>
+std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
+  if (opt.print_trace) {
+    ast::debug::trace<Entry>(in);
+    std::cerr << "Trace attempted. Exiting.\n";
+    exit(-1);
   }
-  auto trace_ast (peg::file_input<> & in) {
-    return ast::parse<
-      grammar,
-      ast::filter::selector,
-      peg::nothing,
-      peg::tracer
-    >(in);
-  }
+  auto root = ast::parse<Entry, ast::filter::selector>(in);
+  if (opt.print_ast) { ast::print_node(*root); }
+  return root;
 }
 
-/* TODO(jordan):
- *
- * Support new command-line arguments that we're required to understand.
- *
- */
-struct Options {
-  enum Mode {
-    x86,
-    liveness,
-  } mode = Mode::x86;
-  bool print_trace = false;
-  bool print_ast   = false;
-  char * input_name;
-};
+template <typename Input>
+std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
+  if (Options::Mode::x86 == opt.mode)
+    return parse<Options::Mode::x86, grammar, Input>(opt, in);
+  if (Options::Mode::liveness == opt.mode)
+    return parse<Options::Mode::liveness, function, Input>(opt, in);
+  assert(false && "parse: unreachable! Mode unrecognized.");
+}
 
 int main (int argc, char ** argv) {
   assert(argc > 1 && "Wrong number of arguments passed to compiler.");
 
-  // {{{ options parsing
-  Options opt;
-  int c;
-
-  while ((c = getopt(argc, argv, "pl:g:O:")) != -1)
-    switch (c) {
-      case 'g':
-        opt.mode = Options::Mode::x86;
-        break;
-      case 'l':
-        opt.mode = Options::Mode::liveness;
-        break;
-      case 'O':
-        // TODO(jordan): maybe we should care about opt level later.
-        break;
-      case 'p':
-        opt.print_ast = true;
-        break;
-    }
-  opt.input_name = argv[optind];
-  // }}}
-
+  Options opt(argc, argv);
   peg::file_input<> in(opt.input_name);
 
+  auto root = parse(opt, in);
+
   if (opt.mode == Options::Mode::x86) {
-    auto root = ast::parse<grammar, ast::filter::selector>(in);
-    if (opt.print_ast) { ast::print_node(*root); }
     /* L2::codegen::generate(*root); */
     std::cerr << "Error: cannot generate code for L2 yet.\n";
     return -1;
-  } else if (opt.mode == Options::Mode::liveness) {
-    auto root = ast::parse<function, ast::filter::selector>(in);
-    if (opt.print_ast) { ast::print_node(*root); }
+  }
+  if (opt.mode == Options::Mode::liveness) {
     namespace liveness = L2::analysis::liveness;
     liveness::result result = liveness::compute(*root);
     liveness::print(std::cout, result);
+    return 0;
   }
 
-  return 0;
+  assert(false && "main: unreachable! Unrecognized mode.");
 }
