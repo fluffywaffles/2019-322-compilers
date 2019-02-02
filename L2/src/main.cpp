@@ -11,7 +11,8 @@
 
 namespace peg = tao::pegtl;
 namespace ast = L2::parse_tree;
-using grammar = peg::must<L2::grammar::entry>;
+using grammar  = peg::must<L2::grammar::entry>;
+using function = peg::must<L2::grammar::function::define>;
 
 namespace debug {
   void trace_parse (peg::file_input<> & in) {
@@ -49,7 +50,7 @@ int main (int argc, char ** argv) {
   Options opt;
   int c;
 
-  while ((c = getopt(argc, argv, "lg:O:")) != -1)
+  while ((c = getopt(argc, argv, "pl:g:O:")) != -1)
     switch (c) {
       case 'g':
         opt.mode = Options::Mode::x86;
@@ -60,30 +61,26 @@ int main (int argc, char ** argv) {
       case 'O':
         // TODO(jordan): maybe we should care about opt level later.
         break;
+      case 'p':
+        opt.print_ast = true;
+        break;
     }
   opt.input_name = argv[optind];
   // }}}
 
   peg::file_input<> in(opt.input_name);
 
-  std::unique_ptr<ast::node> root;
-  if (opt.print_trace) {
-    root = debug::trace_ast(in);
-  } else {
-    root = ast::parse<grammar, ast::filter::selector>(in);
-  }
-
-  if (opt.print_ast) {
-    ast::print_node(*root);
-  }
-
   if (opt.mode == Options::Mode::x86) {
+    auto root = ast::parse<grammar, ast::filter::selector>(in);
+    if (opt.print_ast) { ast::print_node(*root); }
+    /* L2::codegen::generate(*root); */
     std::cerr << "Error: cannot generate code for L2 yet.\n";
     return -1;
-    /* L2::codegen::generate(*root); */
   } else if (opt.mode == Options::Mode::liveness) {
-    return 0;
-    /* L2::analysis::liveness(*root); */
+    auto root = ast::parse<function, ast::filter::selector>(in);
+    if (opt.print_ast) { ast::print_node(*root); }
+    /* namespace analysis = L2::analysis; */
+    /* analysis::liveness_result result = analysis::liveness(*root, true); */
   }
 
   return 0;
