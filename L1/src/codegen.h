@@ -1,7 +1,12 @@
+#pragma once
+
 #include <cassert>
 #include <fstream>
 #include <iostream>
+
 #include "tao/pegtl.hpp"
+
+#include "grammar.h"
 #include "parse_tree.h"
 
 namespace L1::codegen::ast::generate {
