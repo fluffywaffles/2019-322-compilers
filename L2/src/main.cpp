@@ -61,10 +61,9 @@ int main (int argc, char ** argv) {
         // TODO(jordan): maybe we should care about opt level later.
         break;
     }
-  opt.input_name = argv[1];
+  opt.input_name = argv[optind];
   // }}}
 
-  // NOTE(jordan): getopt will eat the options from argv.
   peg::file_input<> in(opt.input_name);
 
   std::unique_ptr<ast::node> root;
