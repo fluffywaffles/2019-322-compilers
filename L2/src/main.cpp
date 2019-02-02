@@ -1,6 +1,7 @@
 // vim: foldmethod=marker
 #include <cassert>
 #include <unistd.h>
+#include <iostream>
 
 #include "tao/pegtl.hpp"
 #include "tao/pegtl/contrib/tracer.hpp"
@@ -80,8 +81,9 @@ int main (int argc, char ** argv) {
   } else if (opt.mode == Options::Mode::liveness) {
     auto root = ast::parse<function, ast::filter::selector>(in);
     if (opt.print_ast) { ast::print_node(*root); }
-    namespace analysis = L2::analysis;
-    analysis::liveness_result result = analysis::liveness(*root, true);
+    namespace liveness = L2::analysis::liveness;
+    liveness::result result = liveness::compute(*root);
+    liveness::print(std::cout, result);
   }
 
   return 0;

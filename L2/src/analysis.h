@@ -8,15 +8,24 @@
 #include <algorithm>
 
 #include "L1/codegen.h"
+#include "util.h"
 #include "grammar.h"
 #include "parse_tree.h"
 
+#define GEN_KILL_DEBUG \
+        false
+#define OP_GEN_KILL_FILTER_DEBUG \
+        GEN_KILL_DEBUG
+
 namespace L2::analysis::ast::liveness {
+  using namespace L2::grammar;
   using namespace L2::parse_tree;
 
   using liveness_map  = std::map<const node *, std::set<std::string>>;
   using successor_map = std::map<const node *, std::set<const node *>>;
+  using nodes = std::vector<std::shared_ptr<const node>>;
   struct result {
+    nodes instructions;
     liveness_map in;
     liveness_map out;
     liveness_map gen;
@@ -25,14 +34,9 @@ namespace L2::analysis::ast::liveness {
   };
 
   namespace helper { // {{{
-    template <typename Rule>
-      bool matches (const node & n) {
-        return L1::codegen::ast::generate::helper::matches<Rule>(n);
-      }
-    template <typename Rule>
-      bool matches (std::string s) {
-        return L1::codegen::ast::generate::helper::matches<Rule>(s);
-      }
+    #define L1 L1::codegen::ast::generate::helper::matches
+    template <class R> bool matches (const node & n) { return L1<R>(n); }
+    template <class R> bool matches (std::string  s) { return L1<R>(s); }
   }
 
   namespace helper {
@@ -43,27 +47,25 @@ namespace L2::analysis::ast::liveness {
   }
 
   // NOTE(jordan): woof. Template specialization, amirite?
-  namespace helper {
-    namespace reg = L2::grammar::literal::identifier::x86_64_register;
+  namespace helper::x86_64_register {
+    namespace reg = identifier::x86_64_register;
     using string  = std::string;
     // NOTE(jordan): delete the default converter to prevent use!
-    template <typename Register> string register_to_string () = delete;
-    template <> string register_to_string <reg::rax> () { return "rax"; }
-    template <> string register_to_string <reg::rbx> () { return "rbx"; }
-    template <> string register_to_string <reg::rcx> () { return "rcx"; }
-    template <> string register_to_string <reg::rdx> () { return "rdx"; }
-    template <> string register_to_string <reg::rsi> () { return "rsi"; }
-    template <> string register_to_string <reg::rdi> () { return "rdi"; }
-    template <> string register_to_string <reg::rbp> () { return "rbp"; }
-    template <> string register_to_string <reg::rsp> () { return "rsp"; }
-    template <> string register_to_string <reg::r8 > () { return  "r8"; }
-    template <> string register_to_string <reg::r9 > () { return  "r9"; }
-    template <> string register_to_string <reg::r10> () { return "r10"; }
-    template <> string register_to_string <reg::r11> () { return "r11"; }
-    template <> string register_to_string <reg::r12> () { return "r12"; }
-    template <> string register_to_string <reg::r13> () { return "r13"; }
-    template <> string register_to_string <reg::r14> () { return "r14"; }
-    template <> string register_to_string <reg::r15> () { return "r15"; }
+    template <typename Register> string to_string () = delete;
+    #define handle(R) template<> string to_string<reg::R>(){ return #R; }
+    handle(rax) handle(rbx) handle(rcx) handle(rdx) handle(rsi)
+    handle(rdi) handle(rbp) handle(rsp) handle(r8 ) handle(r9 )
+    handle(r10) handle(r11) handle(r12) handle(r13) handle(r14)
+    handle(r15)
+  } // }}}
+
+  namespace helper::variable { // {{{
+    std::string get_name (const node & variable) {
+      assert(variable.children.size() == 1 && "missing child!");
+      const node & name = *variable.children.at(0);
+      assert(name.is<identifier::name>() && "child is not a 'name'!");
+      return name.content();
+    }
   } // }}}
 }
 
@@ -77,168 +79,181 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
   using namespace L2::parse_tree;
   using namespace L2::grammar;
 
-  namespace helper::variable { // {{{
-    std::string get_name (const node & variable) {
-      assert(variable.children.size() == 1
-          && "helper::variable: missing child!");
-      const node & name = *variable.children.at(0);
-      assert(name.is<identifier::name>()
-          && "helper::variable: child is not a 'name'!");
-      return name.content();
-    }
-  } // }}}
-
   // NOTE(jordan): import helpers from outer scope.
   namespace helper { using namespace liveness::helper; } // {{{
 
   namespace helper {
-    void gen (const node & i, const node & g, liveness::result & result) {
-      /* std::cout << "hi you " << g.name() << "\n"; */
-      assert(
-        g.is<identifier::variable>() || matches<register_set::any>(g)
-        && "helper::gen: 'gen' is neither register nor variable!"
-      );
-      std::string name
-        = g.is<identifier::variable>()
-        ? helper::variable::get_name(g)
-        : g.content();
-      /* std::cout << "hi you " << name << "\n"; */
-      // FIXME(jordan): include x86_64_register in AST & check type
-      if (name != "rsp") result.gen[&i].insert(name);
-      return;
+    // NOTE(jordan): macros are a dangerous, beautiful weapon
+    #define implement_default_gen_kill(WHICH, DEBUG)                     \
+    static_assert(                                                       \
+      static_string_eq   (#WHICH, "gen")                                 \
+      || static_string_eq(#WHICH, "kill")                                \
+    );                                                                   \
+    /* standard version */                                               \
+    void WHICH (const node & i, const node & g, result & result) {       \
+      if (DEBUG) std::cout << #WHICH " name() " << g.name() << "\n";     \
+      bool is_variable = g.is<identifier::variable>();                   \
+      assert(                                                            \
+        is_variable || matches<register_set::any>(g)                     \
+        && "helper::" #WHICH ": '" #WHICH "' not register or variable!"  \
+      );                                                                 \
+      if (matches<identifier::x86_64_register::rsp>(g)) {                \
+        if (DEBUG) std::cout << #WHICH ": ignoring rsp.\n";              \
+        return;                                                          \
+      }                                                                  \
+      auto s = is_variable ? helper::variable::get_name(g) : g.content();\
+      if (DEBUG) std::cout << #WHICH " content" << s << "\n";            \
+      result.WHICH[&i].insert(s);                                        \
+      return;                                                            \
+    }                                                                    \
+    /* register-type-templated version */                                \
+    template <typename R>                                                \
+    void WHICH (const node & i, liveness::result & result) {             \
+      assert(!matches<R>("rsp") && "helper::" #WHICH " cannot gen rsp!");\
+      std::string reg_string = helper::x86_64_register::to_string<R>();  \
+      if (DEBUG) std::cout << #WHICH"<Register>: " << reg_string << "\n";\
+      result.WHICH[&i].insert(reg_string);                               \
+      return;                                                            \
     }
-    template <typename Register>
-    void gen (const node & i, liveness::result & result) {
-      assert(!matches<Register>("rsp") && "helper::gen: cannot gen 'rsp'!");
-      result.gen[&i].insert(helper::register_to_string<Register>());
-      return;
-    }
-  }
-
-  namespace helper {
-    void kill (const node & i, const node & g, liveness::result & result) {
-      /* std::cout << "fuck you " << g.name() << "\n"; */
-      assert(
-        g.is<identifier::variable>() || matches<register_set::any>(g)
-        && "helper::kill: 'kill' is neither register nor variable!"
-      );
-      std::string name
-        = g.is<identifier::variable>()
-        ? helper::variable::get_name(g)
-        : g.content();
-      /* std::cout << "fuck you " << name << "\n"; */
-      result.kill[&i].insert(name);
-      return;
-    }
-    template <typename Register>
-    void kill (const node & i, liveness::result & result) {
-      result.kill[&i].insert(helper::register_to_string<Register>());
-      return;
-    }
+    implement_default_gen_kill(gen,  GEN_KILL_DEBUG)
+    implement_default_gen_kill(kill, GEN_KILL_DEBUG)
   }
   // }}}
 
   namespace helper::operand { // {{{
-    void gen (const node & n, const node & g, liveness::result & result) {
-      const node & value = g.children.size() == 1 ? *g.children.at(0) : g;
-      return helper::gen(n, value, result);
+    const node & unwrap_first_child_if_exists (const node & parent) {
+      return parent.children.size() > 0 ? *parent.children.at(0) : parent;
     }
-    void kill (const node & n, const node & g, liveness::result & result) {
-      const node & value = g.children.size() == 1 ? *g.children.at(0) : g;
-      return helper::kill(n, value, result);
+    #define implement_default_operand_gen_kill(WHICH)                    \
+    static_assert(                                                       \
+      static_string_eq   (#WHICH, "gen")                                 \
+      || static_string_eq(#WHICH, "kill")                                \
+    );                                                                   \
+    void WHICH (const node & n, const node & g, result & result) {       \
+      const node & value = unwrap_first_child_if_exists(g);              \
+      return helper::WHICH(n, value, result);                            \
     }
-    namespace shift {
-      void gen (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::gen(n, g, result);
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::kill(n, g, result);
-      }
+    implement_default_operand_gen_kill(gen)
+    implement_default_operand_gen_kill(kill)
+    // NOTE(jordan): the 2 "basic" operand types just alias the defaults.
+    namespace assignable { using namespace helper::operand; }
+    namespace memory     { using namespace helper::operand; }
+    #define operand_gen_kill_filter(predicate)                           \
+    bool filter (const node & g) {                                       \
+      const node & v = unwrap_first_child_if_exists(g);                  \
+      bool accept = predicate;                                           \
+      if (OP_GEN_KILL_FILTER_DEBUG) {                                    \
+        std::cout << "filter on: '" << v.name() << "'"                   \
+                  << " accept? " << accept << "\n";                      \
+      }                                                                  \
+      return accept;                                                     \
     }
-    namespace assignable {
-      void gen (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::gen(n, g, result);
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::kill(n, g, result);
-      }
+    #define implement_operand_gen_kill(WHICH, ACTION)                    \
+    static_assert(                                                       \
+      static_string_eq   (#WHICH, "gen")                                 \
+      || static_string_eq(#WHICH, "kill")                                \
+    );                                                                   \
+    void WHICH (const node & n, const node & g, result & result) {       \
+      if (filter(g)) {                                                   \
+        const node & value = unwrap_first_child_if_exists(g);            \
+        return ACTION;                                                   \
+      }                                                                  \
     }
-    namespace memory {
-      void gen (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::gen(n, g, result);
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        return helper::operand::kill(n, g, result);
-      }
-    }
-    namespace movable {
-      bool filter (const node & g) {
-        const node & value = *g.children.at(0);
-        return true
-          && !value.is<grammar::operand::label>()
-          && !helper::matches<grammar::operand::number>(value);
-      }
-      void gen (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & memory = *g.children.at(0);
-          return memory::gen(n, memory, result);
-        }
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & memory = *g.children.at(0);
-          return memory::kill(n, memory, result);
-        }
-      }
-    }
-    namespace relative {
-      void gen (const node & n, const node & g, liveness::result & result) {
-        assert(g.children.size() == 2);
-        const node & base = *g.children.at(0);
-        return memory::gen(n, base, result);
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        assert(g.children.size() == 2);
-        const node & base = *g.children.at(0);
-        return memory::kill(n, base, result);
-      }
-    }
-    namespace comparable {
-      bool filter (const node & g) {
-        return !helper::matches<grammar::operand::number>(g);
-      }
-      void gen (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & memory = *g.children.at(0);
-          return memory::gen(n, memory, result);
-        }
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & memory = *g.children.at(0);
-          return memory::gen(n, memory, result);
-        }
-      }
-    }
-    namespace callable {
-      bool filter (const node & g) {
-        const node & value = *g.children.at(0);
-        return !value.is<grammar::operand::label>();
-      }
-      void gen (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & assignable = *g.children.at(0);
-          return assignable::gen(n, assignable, result);
-        }
-      }
-      void kill (const node & n, const node & g, liveness::result & result) {
-        if (filter(g)) {
-          const node & assignable = *g.children.at(0);
-          return assignable::gen(n, assignable, result);
-        }
-      }
-    }
-  } // }}}
+  }
+
+  namespace helper::operand::shift {
+    using number = grammar::operand::number;
+    operand_gen_kill_filter(!helper::matches<number>(v))
+    implement_operand_gen_kill(gen, operand::gen(n, value, result))
+    implement_operand_gen_kill(kill, operand::kill(n, value, result))
+  }
+
+  namespace helper::operand::movable {
+    using label  = grammar::operand::label;
+    using number = grammar::operand::number;
+    operand_gen_kill_filter(!v.is<label>() && !helper::matches<number>(v))
+    /* bool filter (const node & g) { */
+    /*   const node & value = *g.children.at(0); */
+    /*   return true */
+    /*     && !value.is<grammar::operand::label>() */
+    /*     && !helper::matches<grammar::operand::number>(value); */
+    /* } */
+    implement_operand_gen_kill(gen, memory::gen(n, value, result))
+    implement_operand_gen_kill(kill, memory::kill(n, value, result))
+    /* void gen (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & memory = *g.children.at(0); */
+    /*     return memory::gen(n, memory, result); */
+    /*   } */
+    /* } */
+    /* void kill (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & memory = *g.children.at(0); */
+    /*     return memory::kill(n, memory, result); */
+    /*   } */
+    /* } */
+  }
+
+  namespace helper::operand::relative {
+    operand_gen_kill_filter(true)
+    implement_operand_gen_kill(gen, memory::gen(n, value, result))
+    implement_operand_gen_kill(kill, memory::kill(n, value, result))
+    /* void gen (const node & n, const node & g, liveness::result & result) { */
+    /*   assert(g.children.size() == 2); */
+    /*   const node & base = *g.children.at(0); */
+    /*   return memory::gen(n, base, result); */
+    /* } */
+    /* void kill (const node & n, const node & g, liveness::result & result) { */
+    /*   assert(g.children.size() == 2); */
+    /*   const node & base = *g.children.at(0); */
+    /*   return memory::kill(n, base, result); */
+    /* } */
+  }
+
+  namespace helper::operand::comparable {
+    using number = grammar::operand::number;
+    operand_gen_kill_filter(!helper::matches<number>(v))
+    implement_operand_gen_kill(gen, memory::gen(n, value, result))
+    implement_operand_gen_kill(kill, memory::kill(n, value, result))
+    /* bool filter (const node & g) { */
+    /*   return !helper::matches<grammar::operand::number>(g); */
+    /* } */
+    /* void gen (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & memory = *g.children.at(0); */
+    /*     return memory::gen(n, memory, result); */
+    /*   } */
+    /* } */
+    /* void kill (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & memory = *g.children.at(0); */
+    /*     return memory::gen(n, memory, result); */
+    /*   } */
+    /* } */
+  }
+
+  namespace helper::operand::callable {
+    operand_gen_kill_filter(!v.is<grammar::operand::label>())
+    implement_operand_gen_kill(gen, assignable::gen(n, value, result))
+    implement_operand_gen_kill(kill, assignable::kill(n, value, result))
+    /* bool filter (const node & g) { */
+    /*   const node & value = *g.children.at(0); */
+    /*   return !value.is<grammar::operand::label>(); */
+    /* } */
+    /* void gen (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & assignable = *g.children.at(0); */
+    /*     return assignable::gen(n, assignable, result); */
+    /*   } */
+    /* } */
+    /* void kill (const node & n, const node & g, liveness::result & result) { */
+    /*   if (filter(g)) { */
+    /*     const node & assignable = *g.children.at(0); */
+    /*     return assignable::gen(n, assignable, result); */
+    /*   } */
+    /* } */
+  }
+  // }}}
 
   void instruction (const node & n, liveness::result & result) {
     using namespace L2::grammar::instruction;
@@ -251,89 +266,119 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       return gen_kill::instruction(actual_instruction, result);
     }
 
+    #define assign_instruction_gen_kill(DEST, SRC)                       \
+      assert(n.children.size() == 2);                                    \
+      const node & dest = *n.children.at(0);                             \
+      const node & src  = *n.children.at(1);                             \
+      helper::operand::SRC::gen(n, src, result);                         \
+      helper::operand::DEST::kill(n, dest, result);                      \
+      return
+
+    #define update_binary_instruction_gen_kill(DEST, SRC)                \
+      assert(n.children.size() == 3);                                    \
+      const node & dest = *n.children.at(0);                             \
+      /* const node & op   = *n.children.at(1); */                       \
+      const node & src  = *n.children.at(2);                             \
+      helper::operand::SRC::gen(n, src, result);                         \
+      helper::operand::DEST::gen(n, dest, result);                       \
+      helper::operand::DEST::kill(n, dest, result);                      \
+      return
+
+    #define update_unary_instruction_gen_kill(DEST)                      \
+      assert(n.children.size() == 2);                                    \
+      const node & dest = *n.children.at(0);                             \
+      /* const node & op   = *n.children.at(1); */                       \
+      helper::operand::DEST::gen(n, dest, result);                       \
+      helper::operand::DEST::kill(n, dest, result);                      \
+      return
+
+    #define cmp_gen_kill(CMP)                                            \
+      assert(CMP.children.size() == 3);                                  \
+      const node & lhs = *CMP.children.at(0);                            \
+      /* const node & op  = *CMP.children.at(1); */                      \
+      const node & rhs = *CMP.children.at(2);                            \
+      helper::operand::comparable::gen(n, lhs, result);                  \
+      helper::operand::comparable::gen(n, rhs, result);                  \
+      return
+
     if (n.is<assign::assignable::gets_movable>()) {
-      assert(n.children.size() == 2);
-      const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
-      helper::operand::movable::gen(n, src, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
+      assign_instruction_gen_kill(assignable, movable);
     }
 
     if (n.is<assign::assignable::gets_relative>()) {
-      assert(n.children.size() == 2);
-      const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
-      helper::operand::relative::gen(n, src, result);
-      helper::operand::kill(n, dest, result);
-      return;
+      assign_instruction_gen_kill(assignable, relative);
     }
 
     if (n.is<assign::relative::gets_movable>()) {
-      assert(n.children.size() == 2);
-      const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
-      helper::operand::movable::gen(n, src, result);
-      helper::operand::relative::kill(n, dest, result);
-      return;
+      assign_instruction_gen_kill(relative, movable);
     }
 
     if (n.is<update::assignable::arithmetic::comparable>()) {
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op   = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      helper::operand::comparable::gen(n, src, result);
-      helper::operand::assignable::gen(n, dest, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
+      update_binary_instruction_gen_kill(assignable, comparable);
     }
 
     if (n.is<update::assignable::shift::shift>()) {
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op   = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      /* auto src8 = helper::register_to_lower8(src); */
-      helper::operand::shift::gen(n, src, result);
-      helper::operand::assignable::gen(n, dest, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
+      update_binary_instruction_gen_kill(assignable, shift);
     }
 
     if (n.is<update::assignable::shift::number>()) {
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op   = *n.children.at(1); */
-      /* const node & num  = *n.children.at(2); */
-      helper::operand::assignable::gen(n, dest, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
+      update_binary_instruction_gen_kill(assignable, shift);
     }
 
     if (false
       || n.is<update::relative::arithmetic::add_comparable>()
       || n.is<update::relative::arithmetic::subtract_comparable>()
     ) {
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op   = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      helper::operand::comparable::gen(n, src, result);
-      helper::operand::relative::kill(n, dest, result);
-      return;
+      update_binary_instruction_gen_kill(relative, comparable);
     }
 
     if (false
       || n.is<update::assignable::arithmetic::add_relative>()
-      || n.is<update::assignable::arithmetic::subtract_relative>() 
+      || n.is<update::assignable::arithmetic::subtract_relative>()
     ) {
+      update_binary_instruction_gen_kill(assignable, relative);
+    }
+
+    if (n.is<update::assignable::arithmetic::increment>()) {
+      update_unary_instruction_gen_kill(assignable);
+    }
+
+    if (n.is<update::assignable::arithmetic::decrement>()) {
+      update_unary_instruction_gen_kill(assignable);
+    }
+
+    if (n.is<jump::cjump::if_else>()) {
       assert(n.children.size() == 3);
+      const node & cmp  = *n.children.at(0);
+      /* const node & then = *n.children.at(1); */
+      /* const node & els  = *n.children.at(2); */
+      cmp_gen_kill(cmp);
+    }
+
+    if (n.is<jump::cjump::when>()) {
+      /* namespace predicate = helper::cmp::predicate; */
+      assert(n.children.size() == 2);
+      const node & cmp  = *n.children.at(0);
+      /* const node & then = *n.children.at(1); */
+      cmp_gen_kill(cmp);
+    }
+
+    if (n.is<define::label>()) {
+      assert(n.children.size() == 1);
+      /* const node & label = *n.children.at(0); */
+      return;
+    }
+
+    if (n.is<jump::go2>()) {
+      assert(n.children.size() == 1);
+      /* const node & label = *n.children.at(0); */
+      return;
+    }
+
+    if (n.is<assign::assignable::gets_stack_arg>()) {
+      assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
-      /* const node & op   = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      helper::operand::relative::gen(n, src, result);
-      helper::operand::assignable::gen(n, dest, result);
+      /* const node & stack_arg = *n.children.at(1); */
       helper::operand::assignable::kill(n, dest, result);
       return;
     }
@@ -342,65 +387,25 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       /* namespace predicate = helper::cmp::predicate; */
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
+      helper::operand::assignable::kill(n, dest, result);
       const node & cmp  = *n.children.at(1);
-      assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      /* const node & op   = *cmp.children.at(1); */
-      const node & rhs  = *cmp.children.at(2);
-      helper::operand::comparable::gen(n, lhs, result);
-      helper::operand::comparable::gen(n, rhs, result);
+      cmp_gen_kill(cmp);
+    }
+
+    if (n.is<assign::assignable::gets_address>()) {
+      assert(n.children.size() == 5);
+      const node & dest   = *n.children.at(0);
+      /* const node & _op    = *n.children.at(1); // ignore '@' */
+      const node & base   = *n.children.at(2);
+      const node & offset = *n.children.at(3);
+      /* const node & scale  = *n.children.at(4); */
+      helper::operand::assignable::gen(n, base, result);
+      helper::operand::assignable::gen(n, offset, result);
       helper::operand::assignable::kill(n, dest, result);
       return;
     }
 
-    if (n.is<jump::cjump::if_else>()) {
-      /* namespace predicate = helper::cmp::predicate; */
-      assert(n.children.size() == 3);
-      const node & cmp  = *n.children.at(0);
-      assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      /* const node & op   = *cmp.children.at(1); */
-      const node & rhs  = *cmp.children.at(2);
-      /* const node & then = *n.children.at(1); */
-      /* const node & els  = *n.children.at(2); */
-      helper::operand::comparable::gen(n, lhs, result);
-      helper::operand::comparable::gen(n, rhs, result);
-      return;
-    }
-
-    if (n.is<jump::cjump::when>()) {
-      /* namespace predicate = helper::cmp::predicate; */
-      assert(n.children.size() == 2);
-      const node & cmp  = *n.children.at(0);
-      assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      /* const node & op   = *cmp.children.at(1); */
-      const node & rhs  = *cmp.children.at(2);
-      /* const node & then = *n.children.at(1); */
-      helper::operand::comparable::gen(n, lhs, result);
-      helper::operand::comparable::gen(n, rhs, result);
-      return;
-    }
-
-    if (n.is<define::label>()) {
-      assert(n.children.size() == 1);
-      /* const node & label = *n.children.at(0); */
-      /* liveness::label(label, os); */
-      return;
-    }
-
-    if (n.is<jump::go2>()) {
-      assert(n.children.size() == 1);
-      /* const node & label = *n.children.at(0); */
-      /* liveness::label(label, os); */
-      return;
-    }
-
     if (n.is<invoke::ret>()) {
-      /* int stack = 8 * locals; */
-      /* if (args  > 6) stack += 8 * (args - 6); */
-      /* if (stack > 0) { */
-      /* } */
       helper::gen<identifier::x86_64_register::rax>(n, result);
       namespace callee = register_group::callee_save;
       helper::gen<callee::r12>(n, result);
@@ -438,8 +443,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       helper::kill<caller::r9 >(n, result);
       helper::kill<caller::r10>(n, result);
       helper::kill<caller::r11>(n, result);
-      // NOTE(jordan: already added rax above.
-      /* helper::kill<caller::rax>(n, result); */
+      helper::kill<caller::rax>(n, result);
       helper::kill<caller::rcx>(n, result);
       helper::kill<caller::rdi>(n, result);
       helper::kill<caller::rdx>(n, result);
@@ -451,88 +455,9 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       return;
     }
 
-    if (n.is<update::assignable::arithmetic::increment>()) {
-      assert(n.children.size() == 2); // ignore '++'
-      const node & dest = *n.children.at(0);
-      helper::operand::assignable::gen(n, dest, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
-    }
-
-    if (n.is<update::assignable::arithmetic::decrement>()) {
-      assert(n.children.size() == 2); // ignore '--'
-      const node & dest = *n.children.at(0);
-      helper::operand::assignable::gen(n, dest, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
-    }
-
-    if (n.is<assign::assignable::gets_address>()) {
-      assert(n.children.size() == 5);
-      const node & dest   = *n.children.at(0);
-      /* const node & _op    = *n.children.at(1); // ignore '@' */
-      const node & base   = *n.children.at(2);
-      const node & offset = *n.children.at(3);
-      /* const node & scale  = *n.children.at(4); */
-      helper::operand::assignable::gen(n, base, result);
-      helper::operand::assignable::gen(n, offset, result);
-      helper::operand::assignable::kill(n, dest, result);
-      return;
-    }
-
-    if (n.is<assign::assignable::gets_stack_arg>()) {
-      assert(n.children.size() == 2);
-      const node & dest = *n.children.at(0);
-      /* const node & stack_arg = *n.children.at(1); */
-      helper::operand::assignable::kill(n, dest, result);
-      return;
-    }
-
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::instruction: unreachable!");
   }
-
-  /* void instructions (const node & n, liveness::result & result) { */
-  /*   for (auto & child : n.children) { */
-  /*     assert(child->is<grammar::instruction::any>() */
-  /*         && "instructions: got non-instruction!"); */
-  /*     gen_kill::instruction(*child, result); */
-  /*   } */
-  /*   return; */
-  /* } */
-
-  /* void function (const node & n, liveness::result & result) { */
-  /*   assert(n.children.size() == 4); */
-  /*   // NOTE(jordan): ignore name, arg_count, and local_count */
-  /*   /1* const node & name         = *n.children.at(0); *1/ */
-  /*   /1* const node & arg_count    = *n.children.at(1); *1/ */
-  /*   /1* const node & local_count  = *n.children.at(2); *1/ */
-  /*   const node & instructions = *n.children.at(3); */
-  /*   return gen_kill::instructions(instructions, result); */
-  /* } */
-
-  /* void functions (const node & n, liveness::result & result) { */
-  /*   for (auto & child : n.children) { */
-  /*     assert(child->is<grammar::function::define>() */
-  /*         && "functions: got non-function!"); */
-  /*     gen_kill::function(*child, result); */
-  /*   } */
-  /*   return; */
-  /* } */
-
-  /* void program (const node & n, liveness::result & result) { */
-  /*   assert(n.children.size() == 2); */
-  /*   assert(n.is<grammar::program::define>() && "top is not a program!"); */
-  /*   // NOTE(jordan): ignore entry */
-  /*   /1* const node & entry     = *n.children.at(0); *1/ */
-  /*   const node & functions = *n.children.at(1); */
-  /*   return gen_kill::functions(functions, result); */
-  /* } */
-
-  /* void root (const node & n, liveness::result & result) { */
-  /*   assert(n.children.size() == 1); */
-  /*   return gen_kill::program(*n.children.at(0), result); */
-  /* } */
 } // }}}
 
 /**
@@ -547,6 +472,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
 namespace L2::analysis::ast::successor { // {{{
   using namespace L2::parse_tree;
   using namespace L2::grammar;
+  using nodes = std::vector<std::shared_ptr<const node>>;
 
   // NOTE(jordan): import helpers from outer scope.
   namespace helper { using namespace liveness::helper; }
@@ -555,17 +481,14 @@ namespace L2::analysis::ast::successor { // {{{
     void set (const node & n, const node & s, liveness::result & result) {
       result.successor[&n].insert(&s);
     }
-    const node & definition_for (
-      const node & label,
-      std::vector<std::shared_ptr<const node>> instructions
-    ) {
-      assert(label.is<identifier::label>()
+    const node & definition_for (const node & label, nodes instructions) {
+      assert(label.is<operand::label>()
           && "definition_for: called on a non-label!");
       for (auto & instruction_ptr : instructions) {
         const node & instruction = *instruction_ptr;
         if (instruction.is<instruction::define::label>()) {
           const node & defined_label = *instruction.children.at(0);
-          assert(defined_label.is<identifier::label>());
+          assert(defined_label.is<operand::label>());
           if (defined_label.content() == label.content())
             return instruction;
         }
@@ -576,84 +499,11 @@ namespace L2::analysis::ast::successor { // {{{
 
   void instruction (
     const node & n,
-    std::vector<std::shared_ptr<const node>> siblings,
     int index,
-    liveness::result & result
+    liveness::result & result,
+    nodes siblings
   ) {
     using namespace L2::grammar::instruction;
-
-    // {{{ assertions
-    if (false
-      || n.is<define::label>()
-      || n.is<jump::go2>()
-    ) {
-      assert(n.children.size() == 1);
-    }
-    if (false
-      || n.is<assign::assignable::gets_movable>()
-      || n.is<assign::assignable::gets_relative>()
-      || n.is<assign::relative::gets_movable>()
-      || n.is<assign::assignable::gets_comparison>()
-      || n.is<jump::cjump::when>()
-      || n.is<update::assignable::arithmetic::increment>()
-      || n.is<update::assignable::arithmetic::decrement>()
-    ) {
-      assert(n.children.size() == 2);
-    }
-    if (false
-      || n.is<update::assignable::arithmetic::comparable>()
-      || n.is<update::assignable::shift::shift>()
-      || n.is<update::assignable::shift::number>()
-      || n.is<update::relative::arithmetic::add_comparable>()
-      || n.is<update::relative::arithmetic::subtract_comparable>()
-      || n.is<update::assignable::arithmetic::add_relative>()
-      || n.is<update::assignable::arithmetic::subtract_relative>()
-      || n.is<jump::cjump::if_else>()
-    ) {
-      assert(n.children.size() == 3);
-    }
-    if (false
-      || n.is<assign::assignable::gets_address>()
-    ) {
-      assert(n.children.size() == 5);
-    }
-
-    if (false
-      || n.is<assign::assignable::gets_comparison>()
-    ) {
-      const node & cmp  = *n.children.at(1);
-      assert(cmp.children.size() == 3);
-    }
-
-    if (false
-      || n.is<jump::cjump::if_else>()
-      || n.is<jump::cjump::when>()
-    ) {
-      const node & cmp  = *n.children.at(0);
-      assert(cmp.children.size() == 3);
-    }
-
-    if (false
-      || n.is<invoke::call::callable>()
-      || n.is<invoke::call::intrinsic::print>()
-      || n.is<invoke::call::intrinsic::allocate>()
-      || n.is<invoke::call::intrinsic::array_error>()
-    ) {
-      assert(n.children.size() == 2);
-      const node & integer  = *n.children.at(1);
-      int args  = helper::integer(integer);
-    }
-
-    if (n.is<invoke::call::callable>()) {
-      const node & callable = *n.children.at(0);
-      assert(callable.children.size() == 1);
-      const node & value = *callable.children.at(0);
-      assert(false
-          || value.is<grammar::operand::assignable>()
-          || value.is<identifier::label>()
-          && "value must be either assignable or label");
-    }
-    // }}}
 
     if (false
       || n.is<assign::assignable::gets_movable>()
@@ -733,52 +583,11 @@ namespace L2::analysis::ast::successor { // {{{
     }
 
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
-    assert(false && "liveness::instruction: unreachable!");
+    assert(false && "liveness::successor: unreachable!");
   }
-
-/*   void instructions (const node & n, liveness::result & result) { */
-/*     // NOTE(jordan): use an iterator so we can look ahead */
-/*     for (int index = 0; index < n.children.size(); index++) { */
-/*       const node & child = *n.children.at(index); */
-/*       assert(child.is<grammar::instruction::any>() */
-/*           && "instructions: got non-instruction!"); */
-/*       successor::instruction(child, n.children, index, result); */
-/*     } */
-/*     return; */
-/*   } */
-
-/*   void function (const node & n, liveness::result & result) { */
-/*     assert(n.children.size() == 4); */
-/*     // NOTE(jordan): ignore name, arg_count, and local_count */
-/*     /1* const node & name         = *n.children.at(0); *1/ */
-/*     /1* const node & arg_count    = *n.children.at(1); *1/ */
-/*     /1* const node & local_count  = *n.children.at(2); *1/ */
-/*     const node & instructions = *n.children.at(3); */
-/*     return successor::instructions(instructions, result); */
-/*   } */
-
-/*   void functions (const node & n, liveness::result & result) { */
-/*     for (auto & child : n.children) { */
-/*       assert(child->is<grammar::function::define>() */
-/*           && "functions: got non-function!"); */
-/*       successor::function(*child, result); */
-/*     } */
-/*     return; */
-/*   } */
-
-/*   void program (const node & n, liveness::result & result) { */
-/*     assert(n.children.size() == 2); */
-/*     assert(n.is<grammar::program::define>() && "top is not a program!"); */
-/*     // NOTE(jordan): ignore entry */
-/*     /1* const node & entry     = *n.children.at(0); *1/ */
-/*     const node & functions = *n.children.at(1); */
-/*     return successor::functions(functions, result); */
-/*   } */
-
-/*   void root (const node & n, liveness::result & result) { */
-/*     assert(n.children.size() == 1); */
-/*     return successor::program(*n.children.at(0), result); */
-/*   } */
+  void instruction (const node & n, int index, liveness::result & res) {
+    return instruction(n, index, res, res.instructions);
+  }
 } // }}}
 
 /**
@@ -788,37 +597,10 @@ namespace L2::analysis::ast::successor { // {{{
  *
  */
 namespace L2::analysis::ast::liveness {
-  /* std::vector<std::shared_ptr<const node>> collect_instructions (const node & n) { // {{{ */
-  /*   assert(n.is_root()); */
+  using nodes = std::vector<std::shared_ptr<const node>>;
 
-  /*   const node & program = *n.children.at(0); */
-  /*   assert(program.is<L2::grammar::program::define>()); */
-  /*   assert(program.children.size() == 2); */
-
-  /*   const node & functions = *program.children.at(1); */
-  /*   assert(functions.is<L2::grammar::program::functions>()); */
-  /*   assert(functions.children.size() > 1); */
-
-  /*   std::vector<std::shared_ptr<const node>> result; */
-  /*   for (auto & function : functions.children) { */
-  /*     assert(function->is<L2::grammar::function::define>()); */
-  /*     assert(function->children.size() == 4); */
-  /*     const node & instructions = *function->children.at(3); */
-  /*     for (auto & instruction : instructions.children) { */
-  /*       assert(instruction->is<L2::grammar::instruction::any>()); */
-  /*       assert(instruction->children.size() == 1); */
-  /*       auto shared_instruction = std::shared_ptr<const node>( */
-  /*         std::move(instruction->children.at(0)) */
-  /*       ); */
-  /*       result.push_back(shared_instruction); */
-  /*     } */
-  /*   } */
-
-  /*   return result; */
-  /* } // }}} */
-
-  std::vector<std::shared_ptr<const node>> collect_instructions (const node & function) { // {{{
-    std::vector<std::shared_ptr<const node>> result;
+  nodes collect_instructions (const node & function) { // {{{
+    nodes result;
     assert(function.is<L2::grammar::function::define>());
     assert(function.children.size() == 4);
     const node & instructions = *function.children.at(3);
@@ -831,13 +613,17 @@ namespace L2::analysis::ast::liveness {
       result.push_back(shared_instruction);
     }
     return result;
+  }
+
+  void collect_instructions (const node & function, result & result) {
+    result.instructions = collect_instructions(function);
   } // }}}
 
   /* FIXME(jordan): this code is kinda gross. Refactor? I honestly
    * suspect the code would be cleaner if we didn't use std-library set
    * operations and just iterated over things.
    */
-  void in_out (std::vector<std::shared_ptr<const node>> instructions, result & result) {
+  void in_out (result & result, nodes instructions) {
     // QUESTION: uh... what's our efficiency here? This code is gross.
     int iteration_limit = -1;
     bool fixed_state;
@@ -909,14 +695,16 @@ namespace L2::analysis::ast::liveness {
       /* } */
     } while (!fixed_state || (--iteration_limit > 0));
   }
+  void in_out (result & result) {
+    in_out(result, result.instructions);
+  }
 
-  void root (const node & root, liveness::result & result, bool print = false) {
+  void root (const node & root, liveness::result & result) {
     // 1. Compute GEN, KILL
-    std::vector<std::shared_ptr<const node>> instructions
-      = collect_instructions(*root.children.at(0));
+    collect_instructions(*root.children.at(0), result);
 
-    for (int index = 0; index < instructions.size(); index++) {
-      const node & instruction = *instructions.at(index);
+    for (int index = 0; index < result.instructions.size(); index++) {
+      const node & instruction = *result.instructions.at(index);
       analysis::ast::liveness::gen_kill::instruction(instruction, result);
       /* { */
       /*   std::cout << "gen[" << index << "]  = "; */
@@ -929,13 +717,9 @@ namespace L2::analysis::ast::liveness {
     }
     /* std::cout << "\n"; */
 
-    for (int index = 0; index < instructions.size(); index++) {
-      const node & instruction = *instructions.at(index);
-      analysis::ast::successor::instruction(
-        instruction,
-        instructions,
-        index,
-        result);
+    for (int index = 0; index < result.instructions.size(); index++) {
+      const node & instruction = *result.instructions.at(index);
+      analysis::ast::successor::instruction(instruction, index, result);
       /* { */
       /*   std::cout << "succ[" << index << "] = "; */
       /*   for (auto successor : result.successor[&instruction]) { */
@@ -946,31 +730,7 @@ namespace L2::analysis::ast::liveness {
     }
     /* std::cout << "\n"; */
 
-    in_out(instructions, result);
-
-    #define pretty false
-    if (print) {
-      std::cout << (pretty ? "((in\n" : "(\n(in");
-      for (int index = 0; index < instructions.size(); index++) {
-        const node & instruction = *instructions.at(index);
-        auto in = result.in[&instruction];
-        std::cout << (pretty ? "  (" : "\n(");
-        for (auto var : in) std::cout << var << " ";
-        std::cout << (pretty ? ")\n" : ")");
-      }
-      //backspace thru: " )\n"
-      std::cout << (pretty ? "\b\b\b))\n" : "\n)");
-      std::cout << (pretty ? "(out\n"     : "\n\n(out");
-      for (int index = 0; index < instructions.size(); index++) {
-        const node & instruction = *instructions.at(index);
-        auto out = result.out[&instruction];
-        std::cout << (pretty ? "  (" : "\n(");
-        for (auto var : out) std::cout << var << " ";
-        std::cout << (pretty ? ")\n" : ")");
-      }
-      //backspace thru: " )\n"
-      std::cout << (pretty ? "\b\b\b))\n" : "\n)\n\n)\n");
-    }
+    in_out(result);
 
     /* std::cout << "\n"; */
     /* for (int index = 0; index < instructions.size(); index++) { */
@@ -988,14 +748,47 @@ namespace L2::analysis::ast::liveness {
   }
 }
 
-namespace L2::analysis {
-  using liveness_result = ast::liveness::result;
-  liveness_result liveness (const parse_tree::node & root, bool print = false) {
+namespace L2::analysis::liveness {
+  using result = ast::liveness::result;
+  using nodes = std::vector<std::shared_ptr<const parse_tree::node>>;
+
+  result compute (const parse_tree::node & root) {
     assert(root.is_root() && "generate: got a non-root node!");
     assert(!root.children.empty() && "generate: got an empty AST!");
 
-    liveness_result result = {};
-    ast::liveness::root(root, result, print);
+    result result = {};
+    ast::liveness::root(root, result);
     return result;
+  }
+
+  void print (
+    std::ostream& os,
+    result & result,
+    nodes instructions,
+    bool pretty = false
+  ) {
+    os << (pretty ? "((in\n" : "(\n(in");
+    for (int index = 0; index < instructions.size(); index++) {
+      const parse_tree::node & instruction = *instructions.at(index);
+      auto in = result.in[&instruction];
+      os << (pretty ? "  (" : "\n(");
+      for (auto var : in) os << var << " ";
+      os << (pretty ? ")\n" : ")");
+    }
+    //backspace thru: " )\n"
+    os << (pretty ? "\b\b\b))\n" : "\n)");
+    os << (pretty ? "(out\n"     : "\n\n(out");
+    for (int index = 0; index < instructions.size(); index++) {
+      const parse_tree::node & instruction = *instructions.at(index);
+      auto out = result.out[&instruction];
+      os << (pretty ? "  (" : "\n(");
+      for (auto var : out) os << var << " ";
+      os << (pretty ? ")\n" : ")");
+    }
+    //backspace thru: " )\n"
+    os << (pretty ? "\b\b\b))\n" : "\n)\n\n)\n");
+  }
+  void print (std::ostream& os, result & result, bool pretty = false) {
+    return print(os, result, result.instructions, pretty);
   }
 }

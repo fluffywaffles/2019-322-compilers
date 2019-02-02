@@ -68,8 +68,11 @@ namespace L2::grammar {
   namespace literal::number::integer {
     using plus    = character::plus;
     using minus   = character::minus;
-    using numeric = character::numeric;
-    struct positive : peg::seq<peg::opt<plus>, peg::plus<numeric>> {};
+    namespace part {
+      using numeric = character::numeric;
+      struct digits : peg::plus<numeric> {};
+    }
+    struct positive : peg::seq<peg::opt<plus>, part::digits> {};
     struct negative : peg::seq<minus, positive> {};
     // NOTE: try to match negative first to short-circuit
     // N ::= <a literal number>
@@ -81,7 +84,7 @@ namespace L2::grammar {
 
   namespace literal::number::special {
     // E ::= 1 | 2 | 4 | 8
-    struct scale : peg::one<'1', '2', '4', '8'> {};
+    struct scale : peg::must<peg::one<'1', '2', '4', '8'>> {};
     // M ::= N times 8
     struct divisible_by8 : integer::any {};
   }
@@ -90,16 +93,15 @@ namespace L2::grammar {
   // Identifiers
   //
 
-  // Labels
+  // Labels & Variables
   //
 
   namespace literal::identifier {
     using namespace character;
-    namespace at {
-      struct zero : peg::sor<alphabetic, underscore>   {};
-      struct gte1 : peg::sor<alphanumeric, underscore> {};
-    }
-    struct name  : peg::seq<at::zero, peg::star<at::gte1>> {};
+    template <bool after_zero> struct at;
+    template <> struct at<0> : peg::sor<alphabetic, underscore> {};
+    template <> struct at<1> : peg::sor<alphanumeric, underscore> {};
+    struct name  : peg::seq<at<0>, peg::star<at<1>>> {};
     // label ::= :[a-zA-Z_][a-zA-Z_0-9]*
     struct label : peg::seq<colon, name> {};
     // var   ::= %[a-zA-Z_][a-zA-Z_0-9]*
@@ -149,7 +151,9 @@ namespace L2::grammar {
     struct assignable : peg::sor<argument, rax, rbx, rbp, r10_15> {};
     struct memory     : peg::sor<assignable, rsp> {};
     // NOTE: utility for matching any register
-    struct any : memory {};
+    using any = memory;
+    // NOTE: utility for matching registers we aren't allowed to analyze
+    using unanalyzable = rsp;
   }
 
   namespace register_group::callee_save {
