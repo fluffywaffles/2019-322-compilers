@@ -14,16 +14,23 @@ namespace L1::codegen::ast::generate {
   using namespace L1::grammar;
 
   namespace helper {
+    /* NOTE(jordan): nothing about this helper is L1-specific due to
+     * templating; should move it into a common utils?
+     */
+    template <typename Rule>
+    bool matches (const std::string string) {
+      // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
+      using namespace tao::pegtl;
+      memory_input<> string_input (string, "");
+      return normal<Rule>::template
+        match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
+        (string_input);
+    }
     template <typename Rule>
     bool matches (const node & n) {
       assert(n.has_content() && "matches: must have content!");
       const std::string & content = n.content();
-      // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
-      using namespace tao::pegtl;
-      memory_input<> content_input (content, "");
-      return normal<Rule>::template
-        match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
-        (content_input);
+      return matches<Rule>(content);
     }
   }
 
