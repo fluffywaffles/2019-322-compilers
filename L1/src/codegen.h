@@ -10,7 +10,7 @@
 #include "parse_tree.h"
 
 namespace L1::codegen::ast::generate {
-  using namespace parse_tree;
+  using namespace L1::parse_tree;
   using namespace L1::grammar;
 
   namespace helper {
@@ -54,7 +54,8 @@ namespace L1::codegen::ast::generate {
       assert(false && "register_to_lower8: unreachable!");
     }
     std::string register_to_lower8 (const node & n) {
-      assert(n.has_content() && "helper::register_to_lower8: no content!");
+      assert(n.has_content()
+          && "helper::register_to_lower8: no content!");
       return register_to_lower8(n.content());
     }
   }
@@ -144,13 +145,21 @@ namespace L1::codegen::ast::generate {
       assert(n.has_content() && "helper::cmp::op_g_suffix: no content!");
       return op_g_suffix(n.content());
     }
-    void setl_le_e (const node & dest, const node & op, std::ostream & os) {
+    void setl_le_e (
+      const node & dest,
+      const node & op,
+      std::ostream & os
+    ) {
       std::string d8 = helper::register_to_lower8(dest);
       os << "set" << helper::cmp::op_l_suffix(op);
       os  << " ";
       helper::gas_register(d8, os);
     }
-    void setg_ge_e (const node & dest, const node & op, std::ostream & os) {
+    void setg_ge_e (
+      const node & dest,
+      const node & op,
+      std::ostream & os
+    ) {
       std::string d8 = helper::register_to_lower8(dest);
       os << "set" << helper::cmp::op_g_suffix(op);
       os << " ";
@@ -237,7 +246,12 @@ namespace L1::codegen::ast::generate {
     }
   }
 
-  void instruction (const node & n, int args, int locals, std::ostream & os) {
+  void instruction (
+    const node & n,
+    int args,
+    int locals,
+    std::ostream & os
+  ) {
     using namespace L1::grammar::instruction;
 
     if (n.is<instruction::any>()) {
@@ -388,7 +402,8 @@ namespace L1::codegen::ast::generate {
         helper::cmp::movzbq(dest, os);
         return;
       }
-      assert(false && "assign::assignable::gets_comparison: unreachable!");
+      assert(false
+          && "assign::assignable::gets_comparison: unreachable!");
     }
 
     if (n.is<jump::cjump::if_else>()) {
@@ -586,7 +601,12 @@ namespace L1::codegen::ast::generate {
     assert(false && "generate::instruction: unreachable!");
   }
 
-  void instructions (const node & n, int args, int locals, std::ostream & os) {
+  void instructions (
+    const node & n,
+    int args,
+    int locals,
+    std::ostream & os
+  ) {
     for (auto & child : n.children) {
       assert(child->is<grammar::instruction::any>()
           && "instructions: got non-instruction!");
