@@ -16,6 +16,7 @@
         false
 #define OP_GEN_KILL_FILTER_DEBUG \
         GEN_KILL_DEBUG
+
 #define DBG_SUCC                        0b000001
 #define DBG_PRINT                       0b000010
 #define DBG_GEN_KILL                    0b000100
