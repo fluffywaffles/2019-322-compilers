@@ -12,14 +12,14 @@
 
 namespace peg = tao::pegtl;
 namespace ast = L2::parse_tree;
-using grammar  = peg::must<L2::grammar::entry>;
+using program  = peg::must<L2::grammar::entry>;
 using function = peg::must<L2::grammar::function::define>;
 
-template <Options::Mode mode, typename Entry, typename Input>
+template <typename Entry, typename Options, typename Input>
 std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
   if (opt.print_trace) {
     ast::debug::trace<Entry>(in);
-    std::cerr << "Trace attempted. Exiting.\n";
+    std::cerr << "Parse trace written. Exiting.\n";
     exit(-1);
   }
   auto root = ast::parse<Entry, ast::filter::selector>(in);
@@ -29,10 +29,11 @@ std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
 
 template <typename Input>
 std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
-  if (Options::Mode::x86 == opt.mode)
-    return parse<Options::Mode::x86, grammar, Input>(opt, in);
-  if (Options::Mode::liveness == opt.mode)
-    return parse<Options::Mode::liveness, function, Input>(opt, in);
+  using Mode = Options::Mode;
+  switch (opt.mode) {
+    case Mode::x86      : return parse<program >(opt, in);
+    case Mode::liveness : return parse<function>(opt, in);
+  }
   assert(false && "parse: unreachable! Mode unrecognized.");
 }
 
