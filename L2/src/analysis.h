@@ -221,8 +221,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       const node & dest = *n.children.at(0);                             \
       const node & src  = *n.children.at(1);                             \
       helper::operand::SRC::gen(n, src, result);                         \
-      helper::operand::DEST::kill(n, dest, result);                      \
-      return
+      helper::operand::DEST::kill(n, dest, result)
 
     #define update_binary_instruction_gen_kill(DEST, SRC)                \
       assert(n.children.size() == 3);                                    \
@@ -231,16 +230,14 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       const node & src  = *n.children.at(2);                             \
       helper::operand::SRC::gen(n, src, result);                         \
       helper::operand::DEST::gen(n, dest, result);                       \
-      helper::operand::DEST::kill(n, dest, result);                      \
-      return
+      helper::operand::DEST::kill(n, dest, result)
 
     #define update_unary_instruction_gen_kill(DEST)                      \
       assert(n.children.size() == 2);                                    \
       const node & dest = *n.children.at(0);                             \
       /* const node & op   = *n.children.at(1); */                       \
       helper::operand::DEST::gen(n, dest, result);                       \
-      helper::operand::DEST::kill(n, dest, result);                      \
-      return
+      helper::operand::DEST::kill(n, dest, result)
 
     #define cmp_gen_kill(CMP)                                            \
       assert(CMP.children.size() == 3);                                  \
@@ -248,31 +245,36 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       /* const node & op  = *CMP.children.at(1); */                      \
       const node & rhs = *CMP.children.at(2);                            \
       helper::operand::comparable::gen(n, lhs, result);                  \
-      helper::operand::comparable::gen(n, rhs, result);                  \
-      return
+      helper::operand::comparable::gen(n, rhs, result)
 
     if (n.is<assign::assignable::gets_movable>()) {
       assign_instruction_gen_kill(assignable, movable);
+      return;
     }
 
     if (n.is<assign::assignable::gets_relative>()) {
       assign_instruction_gen_kill(assignable, relative);
+      return;
     }
 
     if (n.is<assign::relative::gets_movable>()) {
       assign_instruction_gen_kill(relative, movable);
+      return;
     }
 
     if (n.is<update::assignable::arithmetic::comparable>()) {
       update_binary_instruction_gen_kill(assignable, comparable);
+      return;
     }
 
     if (n.is<update::assignable::shift::shift>()) {
       update_binary_instruction_gen_kill(assignable, shift);
+      return;
     }
 
     if (n.is<update::assignable::shift::number>()) {
       update_binary_instruction_gen_kill(assignable, shift);
+      return;
     }
 
     if (false
@@ -280,6 +282,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       || n.is<update::relative::arithmetic::subtract_comparable>()
     ) {
       update_binary_instruction_gen_kill(relative, comparable);
+      return;
     }
 
     if (false
@@ -287,14 +290,17 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       || n.is<update::assignable::arithmetic::subtract_relative>()
     ) {
       update_binary_instruction_gen_kill(assignable, relative);
+      return;
     }
 
     if (n.is<update::assignable::arithmetic::increment>()) {
       update_unary_instruction_gen_kill(assignable);
+      return;
     }
 
     if (n.is<update::assignable::arithmetic::decrement>()) {
       update_unary_instruction_gen_kill(assignable);
+      return;
     }
 
     if (n.is<jump::cjump::if_else>()) {
@@ -303,6 +309,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       /* const node & then = *n.children.at(1); */
       /* const node & els  = *n.children.at(2); */
       cmp_gen_kill(cmp);
+      return;
     }
 
     if (n.is<jump::cjump::when>()) {
@@ -311,6 +318,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       const node & cmp  = *n.children.at(0);
       /* const node & then = *n.children.at(1); */
       cmp_gen_kill(cmp);
+      return;
     }
 
     if (n.is<define::label>()) {
@@ -340,6 +348,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
       helper::operand::assignable::kill(n, dest, result);
       const node & cmp  = *n.children.at(1);
       cmp_gen_kill(cmp);
+      return;
     }
 
     if (n.is<assign::assignable::gets_address>()) {
