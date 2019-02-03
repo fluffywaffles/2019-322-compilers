@@ -41,9 +41,11 @@ namespace L2::analysis::ast::liveness {
   };
 
   namespace helper { // {{{
-    #define L1 L1::codegen::ast::generate::helper::matches
-    template <class R> bool matches (const node & n) { return L1<R>(n); }
-    template <class R> bool matches (std::string  s) { return L1<R>(s); }
+    namespace L1_helper = L1::codegen::ast::generate::helper;
+    template <class R>
+    bool matches (const node & n) { return L1_helper::matches<R>(n); }
+    template <class R>
+    bool matches (std::string  s) { return L1_helper::matches<R>(s); }
   }
 
   namespace helper {
