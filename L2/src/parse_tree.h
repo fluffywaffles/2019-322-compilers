@@ -111,7 +111,7 @@ namespace L2::parse_tree {
 namespace L2::parse_tree::debug {
   template <
     typename Entry,
-    template <typename...> typename Selector = filter::selector
+    template <typename...> class Selector = filter::selector
   > auto trace (peg::file_input<> & in) {
     return parse<Entry, Selector, peg::nothing, peg::tracer>(in);
   }

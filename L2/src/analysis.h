@@ -97,6 +97,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
     static_assert(                                                       \
       static_string_eq   (#WHICH, "gen")                                 \
       || static_string_eq(#WHICH, "kill")                                \
+      , "Macro error! " #WHICH " must be either 'gen' or 'kill'!"        \
     );                                                                   \
     /* standard version */                                               \
     void WHICH (const node & i, const node & g, result & result) {       \
@@ -137,6 +138,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
     static_assert(                                                       \
       static_string_eq   (#WHICH, "gen")                                 \
       || static_string_eq(#WHICH, "kill")                                \
+      , "Macro error! " #WHICH " must be either 'gen' or 'kill'!"        \
     );                                                                   \
     void WHICH (const node & n, const node & g, result & result) {       \
       const node & value = unwrap_first_child_if_exists(g);              \
@@ -161,6 +163,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
     static_assert(                                                       \
       static_string_eq   (#WHICH, "gen")                                 \
       || static_string_eq(#WHICH, "kill")                                \
+      , "Macro error! " #WHICH " must be either 'gen' or 'kill'!"        \
     );                                                                   \
     void WHICH (const node & n, const node & g, result & result) {       \
       if (filter(g)) {                                                   \
