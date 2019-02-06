@@ -614,10 +614,6 @@ namespace analysis::L2::liveness::successor { // {{{
  *
  */
 namespace analysis::L2::liveness { // {{{
-  /* FIXME(jordan): this code is kinda gross. Refactor? I honestly
-   * suspect the code would be cleaner if we didn't use std-library set
-   * operations and just iterated over things.
-   */
   void in_out (result & result, unsigned debug) {
     nodes instructions = result.instructions;
     // QUESTION: uh... what's our efficiency here? This code is gross.
@@ -763,8 +759,8 @@ namespace analysis::L2::liveness {
     assert(root.is_root() && "liveness: got a non-root node!");
     assert(!root.children.empty() && "liveness: got an empty AST!");
     liveness::result result = {};
-    const node & first = *root.children.at(0);
-    result.instructions = helper::collect_instructions(first);
+    const node & function = *root.children.at(0);
+    result.instructions = helper::collect_instructions(function);
     liveness::compute(result, debug);
     return result;
   }
@@ -873,7 +869,7 @@ namespace analysis::L2::interference {
   } // }}}
 }
 
-namespace analysis::L2::interference {
+namespace analysis::L2::interference { // {{{
   void compute (
     interference::result & result,
     unsigned debug = 0 // TODO(jordan): add debug flags for interference
@@ -958,7 +954,7 @@ namespace analysis::L2::interference {
       }
     }
   }
-}
+} // }}}
 
 namespace analysis::L2::interference {
   result compute (const ast::node & root, unsigned debug = 0) {
