@@ -627,4 +627,10 @@ namespace grammar::L2 {
   }
 
   struct entry : spaced<program::define> {};
+
+  struct spiller : spaced<
+    function::define,
+    identifier::variable,
+    identifier::variable
+  > {};
 }

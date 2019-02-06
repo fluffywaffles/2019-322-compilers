@@ -7,6 +7,7 @@ namespace driver::L2 {
   struct Options {
     enum Mode {
       x86,
+      spill,
       liveness,
       interference,
     } mode = Mode::x86;
@@ -52,7 +53,7 @@ namespace driver::L2 {
   Options Options::argv (int argc, char ** argv) {
     int c;
     Options opt;
-    while ((c = getopt(argc, argv, "tpil:g:O:")) != -1)
+    while ((c = getopt(argc, argv, "tpisl:g:O:")) != -1)
       switch (c) {
       /*
        * ----------------------------------------------------------------
@@ -74,6 +75,10 @@ namespace driver::L2 {
         case 'i':
           assert_single_mode(opt);
           opt.mode = Options::Mode::interference;
+          break;
+        case 's':
+          assert_single_mode(opt);
+          opt.mode = Options::Mode::spill;
           break;
       /*
        * ----------------------------------------------------------------
