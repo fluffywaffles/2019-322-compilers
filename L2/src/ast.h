@@ -17,7 +17,7 @@
 
 namespace peg = tao::pegtl;
 
-namespace L2::parse_tree {
+namespace ast::L2 {
   using namespace peg::parse_tree;
 
   void print_node (const node & n, const std::string & indent = "") {
@@ -36,7 +36,7 @@ namespace L2::parse_tree {
   }
 
   namespace filter {
-    using namespace L2::grammar;
+    using namespace grammar::L2;
     template <typename Rule>
       using selector = selector<
         Rule,
@@ -108,7 +108,7 @@ namespace L2::parse_tree {
   }
 }
 
-namespace L2::parse_tree::debug {
+namespace ast::L2::debug {
   template <
     typename Entry,
     template <typename...> class Selector = filter::selector

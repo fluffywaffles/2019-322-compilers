@@ -2,7 +2,7 @@
 
 #include "tao/pegtl.hpp"
 
-namespace L1::grammar {
+namespace grammar::L1 {
   namespace peg = tao::pegtl;
 
   //

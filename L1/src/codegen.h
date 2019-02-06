@@ -7,11 +7,12 @@
 #include "tao/pegtl.hpp"
 
 #include "grammar.h"
-#include "parse_tree.h"
+#include "ast.h"
 
-namespace L1::codegen::ast::generate {
-  using namespace L1::parse_tree;
-  using namespace L1::grammar;
+namespace codegen::L1::generate {
+  namespace grammar = grammar::L1;
+  namespace ast = ast::L1;
+  using namespace ast;
 
   namespace helper {
     /* NOTE(jordan): nothing about this helper is L1-specific due to
@@ -111,15 +112,15 @@ namespace L1::codegen::ast::generate {
 
   namespace helper::op {
     void aop (const node & n, std::ostream & os) {
-      if (n.is<L1::grammar::op::add>())         { os <<  "addq"; return; }
-      if (n.is<L1::grammar::op::subtract>())    { os <<  "subq"; return; }
-      if (n.is<L1::grammar::op::multiply>())    { os << "imulq"; return; }
-      if (n.is<L1::grammar::op::bitwise_and>()) { os <<  "andq"; return; }
+      if (n.is<grammar::op::add>())         { os <<  "addq"; return; }
+      if (n.is<grammar::op::subtract>())    { os <<  "subq"; return; }
+      if (n.is<grammar::op::multiply>())    { os << "imulq"; return; }
+      if (n.is<grammar::op::bitwise_and>()) { os <<  "andq"; return; }
       assert(false && "op::aop: unreachable!");
     }
     void sop (const node & n, std::ostream & os) {
-      if (n.is<L1::grammar::op::shift_left>())  { os << "salq"; return; }
-      if (n.is<L1::grammar::op::shift_right>()) { os << "sarq"; return; }
+      if (n.is<grammar::op::shift_left>())  { os << "salq"; return; }
+      if (n.is<grammar::op::shift_right>()) { os << "sarq"; return; }
       assert(false && "op::sop: unreachable!");
     }
   }
@@ -198,13 +199,13 @@ namespace L1::codegen::ast::generate {
       assert(n.children.size() == 1);
       const node & value = *n.children.at(0);
       return n.is<grammar::operand::comparable>()
-        && helper::matches<literal::number::integer::any>(value);
+        && helper::matches<grammar::literal::number::integer::any>(value);
     }
     bool reg (const node & n) {
       assert(n.children.size() == 1);
       const node & value = *n.children.at(0);
       return n.is<grammar::operand::comparable>()
-        && helper::matches<register_set::any>(value);
+        && helper::matches<grammar::register_set::any>(value);
     }
   }
 
@@ -216,16 +217,16 @@ namespace L1::codegen::ast::generate {
     void movable (const node & n, std::ostream & os) {
       assert(n.children.size() == 1);
       const node & value = *n.children.at(0);
-      if (value.is<literal::number::integer::any>()) {
+      if (value.is<grammar::literal::number::integer::any>()) {
         helper::constant(value, os);
         return;
       }
-      if (value.is<identifier::label>()) {
+      if (value.is<grammar::identifier::label>()) {
         os << helper::constant_prefix;
         generate::label(value, os);
         return;
       }
-      if (helper::matches<register_set::any>(value)) {
+      if (helper::matches<grammar::register_set::any>(value)) {
         helper::gas_register(value, os);
         return;
       }
@@ -234,11 +235,11 @@ namespace L1::codegen::ast::generate {
     void comparable (const node & n, std::ostream & os) {
       assert(n.children.size() == 1);
       const node & value = *n.children.at(0);
-      if (value.is<literal::number::integer::any>()) {
+      if (value.is<grammar::literal::number::integer::any>()) {
         helper::constant(value, os);
         return;
       }
-      if (helper::matches<register_set::any>(value)) {
+      if (helper::matches<grammar::register_set::any>(value)) {
         helper::gas_register(value, os);
         return;
       }
@@ -252,9 +253,9 @@ namespace L1::codegen::ast::generate {
     int locals,
     std::ostream & os
   ) {
-    using namespace L1::grammar::instruction;
+    using namespace grammar::instruction;
 
-    if (n.is<instruction::any>()) {
+    if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
       const node & actual_instruction = *n.children.at(0);
       generate::instruction(actual_instruction, args, locals, os);
@@ -542,7 +543,7 @@ namespace L1::codegen::ast::generate {
         helper::gas_register(value, os);
         return;
       }
-      if (value.is<identifier::label>()) {
+      if (value.is<grammar::identifier::label>()) {
         label(value, os);
         return;
       }
@@ -664,20 +665,17 @@ namespace L1::codegen::ast::generate {
     return generate::functions(functions, os);
   }
 
-  void root (const node & n, std::ostream & os) {
-    assert(n.children.size() == 1);
-    return generate::program(*n.children.at(0), os);
-  }
-}
-
-namespace L1::codegen {
-  void generate (const parse_tree::node & root) {
+  void root (const node & root, std::ostream & os) {
     assert(root.is_root() && "generate: got a non-root node!");
     assert(!root.children.empty() && "generate: got an empty AST!");
+    assert(root.children.size() == 1);
+    return generate::program(*root.children.at(0), os);
+  }
 
+  void to_file (std::string file_name, const node & root) {
     std::ofstream out;
-    out.open("prog.S");
-    ast::generate::root(root, out);
+    out.open(file_name);
+    generate::root(root, out);
     out.close();
   }
 }

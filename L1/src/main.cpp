@@ -5,20 +5,19 @@
 
 #include "grammar.h"
 #include "codegen.h"
-#include "parse_tree.h"
+#include "ast.h"
 
 namespace peg = tao::pegtl;
-namespace ast = L1::parse_tree;
-using grammar = peg::must<L1::grammar::entry>;
+using entry = peg::must<grammar::L1::entry>;
 
 namespace debug {
   void trace_parse (peg::file_input<> & in) {
-    peg::parse<grammar, peg::nothing, peg::tracer>(in);
+    peg::parse<entry, peg::nothing, peg::tracer>(in);
   }
   void trace_parse_tree (peg::file_input<> & in) {
-    ast::parse<
-      grammar,
-      ast::filter::selector,
+    ast::L1::parse<
+      entry,
+      ast::L1::filter::selector,
       peg::nothing,
       peg::tracer
     >(in);
@@ -30,8 +29,8 @@ int main (int argc, char ** argv) {
   peg::file_input<> in(argv[1]);
   /* debug::trace_parse(in); */
   /* debug::trace_parse_tree(in); */
-  auto root = ast::parse<grammar, ast::filter::selector>(in);
+  auto root = ast::L1::parse<entry, ast::L1::filter::selector>(in);
   /* ast::print_node(*root); */
-  L1::codegen::generate(*root);
+  codegen::L1::generate::to_file("prog.S", *root);
   return 0;
 }

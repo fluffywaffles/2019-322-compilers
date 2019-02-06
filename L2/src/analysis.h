@@ -10,7 +10,7 @@
 #include "L1/codegen.h"
 #include "util.h"
 #include "grammar.h"
-#include "parse_tree.h"
+#include "ast.h"
 
 #define GEN_KILL_DEBUG \
         false
@@ -24,13 +24,18 @@
 #define DBG_IN_OUT_LOOP_ORIG            0b010000
 #define DBG_IN_OUT_LOOP_OUT_MINUS_KILL  0b100000
 
-namespace L2::analysis::ast::liveness {
-  using namespace L2::grammar;
-  using namespace L2::parse_tree;
+namespace analysis::L2 {
+  namespace ast     = ::ast::L2;
+  namespace grammar = ::grammar::L2;
+  using namespace ast;
+  using namespace grammar;
 
   using liveness_map  = std::map<const node *, std::set<std::string>>;
   using successor_map = std::map<const node *, std::set<const node *>>;
   using nodes = std::vector<std::shared_ptr<const node>>;
+}
+
+namespace analysis::L2::liveness {
   struct result {
     nodes instructions;
     liveness_map in;
@@ -41,7 +46,7 @@ namespace L2::analysis::ast::liveness {
   };
 
   namespace helper { // {{{
-    namespace L1_helper = L1::codegen::ast::generate::helper;
+    namespace L1_helper = codegen::L1::generate::helper;
     template <class R>
     bool matches (const node & n) { return L1_helper::matches<R>(n); }
     template <class R>
@@ -84,10 +89,7 @@ namespace L2::analysis::ast::liveness {
  * KILL[i] = { <defined variables> }
  *
  */
-namespace L2::analysis::ast::liveness::gen_kill { // {{{
-  using namespace L2::parse_tree;
-  using namespace L2::grammar;
-
+namespace analysis::L2::liveness::gen_kill { // {{{
   // NOTE(jordan): import helpers from outer scope.
   namespace helper { using namespace liveness::helper; } // {{{
 
@@ -209,7 +211,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
   // }}}
 
   void instruction (const node & n, liveness::result & result) {
-    using namespace L2::grammar::instruction;
+    using namespace grammar::instruction;
 
     /* std::cout << "gen/kill on: " << n.name() << "\n"; */
 
@@ -431,11 +433,7 @@ namespace L2::analysis::ast::liveness::gen_kill { // {{{
  * succ[<else>...     ] = i + i
  *
  */
-namespace L2::analysis::ast::successor { // {{{
-  using namespace L2::parse_tree;
-  using namespace L2::grammar;
-  using nodes = std::vector<std::shared_ptr<const node>>;
-
+namespace analysis::L2::successor { // {{{
   // NOTE(jordan): import helpers from outer scope.
   namespace helper { using namespace liveness::helper; }
 
@@ -465,7 +463,7 @@ namespace L2::analysis::ast::successor { // {{{
     liveness::result & result,
     nodes siblings
   ) {
-    using namespace L2::grammar::instruction;
+    using namespace grammar::instruction;
 
     if (false
       || n.is<assign::assignable::gets_movable>()
@@ -558,16 +556,16 @@ namespace L2::analysis::ast::successor { // {{{
  * OUT[i] = U(s : successor of(i)) IN[s]
  *
  */
-namespace L2::analysis::ast::liveness { // {{{
+namespace analysis::L2::liveness { // {{{
   using nodes = std::vector<std::shared_ptr<const node>>;
 
   nodes collect_instructions (const node & function) { // {{{
     nodes result;
-    assert(function.is<L2::grammar::function::define>());
+    assert(function.is<grammar::function::define>());
     assert(function.children.size() == 4);
     const node & instructions = *function.children.at(3);
     for (auto & instruction : instructions.children) {
-      assert(instruction->is<L2::grammar::instruction::any>());
+      assert(instruction->is<grammar::instruction::any>());
       assert(instruction->children.size() == 1);
       auto shared_instruction = std::shared_ptr<const node>(
         std::move(instruction->children.at(0))
@@ -667,7 +665,7 @@ namespace L2::analysis::ast::liveness { // {{{
 
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
-      analysis::ast::liveness::gen_kill::instruction(instruction, result);
+      analysis::L2::liveness::gen_kill::instruction(instruction, result);
       if (debug & DBG_GEN_KILL) {
         std::cout << "gen[" << index << "]  = ";
         for (auto g : result.gen[&instruction]) std::cout << g << " ";
@@ -681,7 +679,7 @@ namespace L2::analysis::ast::liveness { // {{{
 
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
-      analysis::ast::successor::instruction(instruction, index, result);
+      analysis::L2::successor::instruction(instruction, index, result);
       if (debug & DBG_SUCC) {
         std::cout << "succ[" << index << "] = ";
         for (auto successor : result.successor[&instruction]) {
@@ -712,15 +710,12 @@ namespace L2::analysis::ast::liveness { // {{{
   }
 } // }}}
 
-namespace L2::analysis::liveness {
-  using result = ast::liveness::result;
-  using nodes = std::vector<std::shared_ptr<const parse_tree::node>>;
-
-  result compute (const parse_tree::node & root, unsigned debug = 0) {
+namespace analysis::L2::liveness {
+  result compute (const ast::node & root, unsigned debug = 0) {
     assert(root.is_root() && "generate: got a non-root node!");
     assert(!root.children.empty() && "generate: got an empty AST!");
     result result = {};
-    ast::liveness::root(root, result, debug);
+    liveness::root(root, result, debug);
     return result;
   }
 
@@ -732,7 +727,7 @@ namespace L2::analysis::liveness {
   ) {
     os << (pretty ? "((in\n" : "(\n(in");
     for (int index = 0; index < instructions.size(); index++) {
-      const parse_tree::node & instruction = *instructions.at(index);
+      const ast::node & instruction = *instructions.at(index);
       auto in = result.in[&instruction];
       os << (pretty ? "  (" : "\n(");
       for (auto var : in) os << var << " ";
@@ -742,7 +737,7 @@ namespace L2::analysis::liveness {
     os << (pretty ? "\b\b\b))\n" : "\n)");
     os << (pretty ? "(out\n"     : "\n\n(out");
     for (int index = 0; index < instructions.size(); index++) {
-      const parse_tree::node & instruction = *instructions.at(index);
+      const ast::node & instruction = *instructions.at(index);
       auto out = result.out[&instruction];
       os << (pretty ? "  (" : "\n(");
       for (auto var : out) os << var << " ";

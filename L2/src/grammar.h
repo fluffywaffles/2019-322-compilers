@@ -10,7 +10,7 @@
  * abandoned that effort for now in the interest of time.
  */
 
-namespace L2::grammar {
+namespace grammar::L2 {
   namespace peg = tao::pegtl;
 
   //

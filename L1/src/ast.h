@@ -5,7 +5,7 @@
 
 namespace peg = tao::pegtl;
 
-namespace L1::parse_tree {
+namespace ast::L1 {
   using namespace peg::parse_tree;
 
   void print_node (const node & n, const std::string & indent = "") {
@@ -24,7 +24,7 @@ namespace L1::parse_tree {
   }
 
   namespace filter {
-    using namespace L1::grammar;
+    using namespace grammar::L1;
     template <typename Rule>
       using selector = selector<
         Rule,
