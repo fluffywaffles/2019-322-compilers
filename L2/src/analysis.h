@@ -134,6 +134,7 @@ namespace analysis::L2 {
   // }}}
 }
 
+// liveness {{{
 namespace analysis::L2::liveness {
   struct result {
     nodes instructions;
@@ -796,7 +797,9 @@ namespace analysis::L2::liveness {
     os << (pretty ? "\b\b\b))\n" : "\n)\n\n)\n");
   }
 }
+// }}}
 
+// interference {{{
 namespace analysis::L2::interference {
   struct result {
     nodes instructions;
@@ -990,3 +993,4 @@ namespace analysis::L2::interference {
     return;
   }
 }
+// }}}
