@@ -12,27 +12,45 @@
 #include "grammar.h"
 #include "ast.h"
 
-#define GEN_KILL_DEBUG \
-        false
-#define OP_GEN_KILL_FILTER_DEBUG \
-        GEN_KILL_DEBUG
-
-#define DBG_SUCC                        0b000001
-#define DBG_PRINT                       0b000010
-#define DBG_GEN_KILL                    0b000100
-#define DBG_IN_OUT_LOOP_CND             0b001000
-#define DBG_IN_OUT_LOOP_ORIG            0b010000
-#define DBG_IN_OUT_LOOP_OUT_MINUS_KILL  0b100000
-
 namespace analysis::L2 {
-  namespace ast     = ::ast::L2;
-  namespace grammar = ::grammar::L2;
+  namespace ast     = ast::L2;
+  namespace grammar = grammar::L2;
   using namespace ast;
   using namespace grammar;
 
-  using liveness_map  = std::map<const node *, std::set<std::string>>;
-  using successor_map = std::map<const node *, std::set<const node *>>;
+  // debug constants {{{
+  const int DBG_SUCC                       = 0b000001;
+  const int DBG_PRINT                      = 0b000010;
+  const int DBG_GEN_KILL                   = 0b000100;
+  const int DBG_IN_OUT_LOOP_CND            = 0b001000;
+  const int DBG_IN_OUT_LOOP_ORIG           = 0b010000;
+  const int DBG_IN_OUT_LOOP_OUT_MINUS_KILL = 0b100000;
+
+  const bool DBG_EACH_GEN_KILL        = false;
+  const bool DBG_EACH_GEN_KILL_FILTER = false;
+  // }}}
+
+  // TODO(jordan): make this a set of Register instead of std::string
+  using liveness_map     = std::map<const node *, std::set<std::string>>;
+  using successor_map    = std::map<const node *, std::set<const node *>>;
+  using interference_map = std::map<const node *, std::set<const node *>>;
   using nodes = std::vector<std::shared_ptr<const node>>;
+
+  nodes collect_instructions (const node & function) { // {{{
+    nodes result;
+    assert(function.is<grammar::function::define>());
+    assert(function.children.size() == 4);
+    const node & instructions = *function.children.at(3);
+    for (auto & instruction : instructions.children) {
+      assert(instruction->is<grammar::instruction::any>());
+      assert(instruction->children.size() == 1);
+      auto shared_instruction = std::shared_ptr<const node>(
+        std::move(instruction->children.at(0))
+      );
+      result.push_back(shared_instruction);
+    }
+    return result;
+  } // }}}
 }
 
 namespace analysis::L2::liveness {
@@ -127,8 +145,8 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       result.WHICH[&i].insert(reg_string);                               \
       return;                                                            \
     }
-    implement_default_gen_kill(gen,  GEN_KILL_DEBUG)
-    implement_default_gen_kill(kill, GEN_KILL_DEBUG)
+    implement_default_gen_kill(gen,  DBG_EACH_GEN_KILL)
+    implement_default_gen_kill(kill, DBG_EACH_GEN_KILL)
   }
   // }}}
 
@@ -155,7 +173,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     bool filter (const node & g) {                                       \
       const node & v = unwrap_first_child_if_exists(g);                  \
       bool accept = predicate;                                           \
-      if (OP_GEN_KILL_FILTER_DEBUG) {                                    \
+      if (DBG_EACH_GEN_KILL_FILTER) {                                    \
         std::cout << "filter on: '" << v.name() << "'"                   \
                   << " accept? " << accept << "\n";                      \
       }                                                                  \
@@ -559,26 +577,6 @@ namespace analysis::L2::successor { // {{{
 namespace analysis::L2::liveness { // {{{
   using nodes = std::vector<std::shared_ptr<const node>>;
 
-  nodes collect_instructions (const node & function) { // {{{
-    nodes result;
-    assert(function.is<grammar::function::define>());
-    assert(function.children.size() == 4);
-    const node & instructions = *function.children.at(3);
-    for (auto & instruction : instructions.children) {
-      assert(instruction->is<grammar::instruction::any>());
-      assert(instruction->children.size() == 1);
-      auto shared_instruction = std::shared_ptr<const node>(
-        std::move(instruction->children.at(0))
-      );
-      result.push_back(shared_instruction);
-    }
-    return result;
-  }
-
-  void collect_instructions (const node & function, result & result) {
-    result.instructions = collect_instructions(function);
-  } // }}}
-
   /* FIXME(jordan): this code is kinda gross. Refactor? I honestly
    * suspect the code would be cleaner if we didn't use std-library set
    * operations and just iterated over things.
@@ -661,7 +659,7 @@ namespace analysis::L2::liveness { // {{{
 
   void root (const node & root, liveness::result & result, unsigned debug) {
     // 1. Compute GEN, KILL
-    collect_instructions(*root.children.at(0), result);
+    result.instructions = collect_instructions(*root.children.at(0));
 
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
@@ -677,6 +675,7 @@ namespace analysis::L2::liveness { // {{{
     }
     if (debug & DBG_GEN_KILL) std::cout << "\n";
 
+    // 2. Compute successors
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
       analysis::L2::successor::instruction(instruction, index, result);
@@ -690,6 +689,7 @@ namespace analysis::L2::liveness { // {{{
     }
     if (debug & DBG_SUCC) std::cout << "\n";
 
+    // 3. Iteratively compute IN/OUT sets
     in_out(result, debug);
 
     if (debug & DBG_PRINT) {
@@ -720,15 +720,15 @@ namespace analysis::L2::liveness {
   }
 
   void print (
-    std::ostream& os,
-    result & result,
-    nodes instructions,
+    std::ostream & os,
+    const result result,
     bool pretty = false
   ) {
+    nodes instructions = result.instructions;
     os << (pretty ? "((in\n" : "(\n(in");
     for (int index = 0; index < instructions.size(); index++) {
       const ast::node & instruction = *instructions.at(index);
-      auto in = result.in[&instruction];
+      auto in = result.in.at(&instruction);
       os << (pretty ? "  (" : "\n(");
       for (auto var : in) os << var << " ";
       os << (pretty ? ")\n" : ")");
@@ -738,7 +738,7 @@ namespace analysis::L2::liveness {
     os << (pretty ? "(out\n"     : "\n\n(out");
     for (int index = 0; index < instructions.size(); index++) {
       const ast::node & instruction = *instructions.at(index);
-      auto out = result.out[&instruction];
+      auto out = result.out.at(&instruction);
       os << (pretty ? "  (" : "\n(");
       for (auto var : out) os << var << " ";
       os << (pretty ? ")\n" : ")");
@@ -746,7 +746,5 @@ namespace analysis::L2::liveness {
     //backspace thru: " )\n"
     os << (pretty ? "\b\b\b))\n" : "\n)\n\n)\n");
   }
-  void print (std::ostream& os, result & result, bool pretty = false) {
-    return print(os, result, result.instructions, pretty);
   }
 }
