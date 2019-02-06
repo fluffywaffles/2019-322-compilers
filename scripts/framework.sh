@@ -4,7 +4,7 @@ dirName="322_framework" ;
 origDir=`pwd` ;
 
 # Compile all compilers
-make ;
+make L1_lang L2_lang ;
 
 # Copy all files to an empty directory
 mkdir ../$dirName ;
