@@ -746,5 +746,28 @@ namespace analysis::L2::liveness {
     //backspace thru: " )\n"
     os << (pretty ? "\b\b\b))\n" : "\n)\n\n)\n");
   }
+}
+
+namespace analysis::L2::interference {
+  struct result {
+    nodes instructions;
+    liveness::result liveness;
+    interference_map graph;
+  };
+}
+
+namespace analysis::L2::interference {
+  result compute (const ast::node & root, unsigned debug = 0) {
+    liveness::result liveness_result = liveness::compute(root, debug);
+    interference::result result;
+    result.liveness     = liveness_result;
+    result.instructions = liveness_result.instructions;
+    return result;
+  }
+
+  void print (std::ostream & os, const result result) {
+    // TODO(jordan): print the interference graph
+    os << "hey this should be an interference graph\n";
+    return;
   }
 }

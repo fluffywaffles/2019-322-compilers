@@ -31,8 +31,9 @@ namespace driver::L2 {
   std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
     using Mode = Options::Mode;
     switch (opt.mode) {
-      case Mode::x86      : return parse<program >(opt, in);
-      case Mode::liveness : return parse<function>(opt, in);
+      case Mode::x86          : return parse<program >(opt, in);
+      case Mode::liveness     : return parse<function>(opt, in);
+      case Mode::interference : return parse<function>(opt, in);
     }
     assert(false && "parse: unreachable! Mode unrecognized.");
   }
@@ -50,6 +51,12 @@ namespace driver::L2 {
       namespace liveness = analysis::L2::liveness;
       liveness::result result = liveness::compute(*root);
       liveness::print(std::cout, result);
+      return 0;
+    }
+    if (opt.mode == Options::Mode::interference) {
+      namespace interference = analysis::L2::interference;
+      interference::result result = interference::compute(*root);
+      interference::print(std::cout, result);
       return 0;
     }
 
