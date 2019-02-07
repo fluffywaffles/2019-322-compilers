@@ -44,7 +44,7 @@ namespace analysis::L2 {
     template <class R>
     bool matches (const node & n)  { return L1_helper::matches<R>(n); }
     template <class R>
-    bool matches (const std::string & s) { return L1_helper::matches<R>(s); }
+    bool matches (const string & s) { return L1_helper::matches<R>(s); }
   }
 
   namespace helper {
@@ -88,7 +88,6 @@ namespace analysis::L2 {
   // NOTE(jordan): woof. Template specialization, amirite?
   namespace helper::x86_64_register {
     namespace reg = identifier::x86_64_register;
-    // NOTE(jordan): delete the default converter to prevent use!
     template <typename Register> struct as_string {
       const static std::string value;
     };
@@ -159,6 +158,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
   namespace helper { using namespace liveness::helper; }
 
   namespace helper { // {{{
+    // macros {{{
     // NOTE(jordan): macros are a dangerous, beautiful weapon
     #define implement_default_gen_kill(WHICH, DEBUG)                     \
     static_assert(                                                       \
@@ -172,7 +172,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       bool is_variable = g.is<identifier::variable>();                   \
       assert(                                                            \
         is_variable || matches<register_set::any>(g)                     \
-        && "helper::"#WHICH": '"#WHICH"' not register or variable!"  \
+        && "helper::"#WHICH": '"#WHICH"' not register or variable!"      \
       );                                                                 \
       if (matches<identifier::x86_64_register::rsp>(g)) {                \
         if (DEBUG) std::cout << #WHICH": ignoring rsp.\n";               \
@@ -193,12 +193,14 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       result.WHICH[&i].insert(str);                                      \
       return;                                                            \
     }
+    // }}}
     implement_default_gen_kill(gen,  DBG_EACH_GEN_KILL)
     implement_default_gen_kill(kill, DBG_EACH_GEN_KILL)
   }
   // }}}
 
   namespace helper::operand { // {{{
+    // macros {{{
     #define implement_default_operand_gen_kill(WHICH)                    \
     static_assert(                                                       \
       static_string_eq   (#WHICH, "gen")                                 \
@@ -209,11 +211,6 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       const node & value = helper::unwrap_first_child_if_exists(g);      \
       return helper::WHICH(n, value, result);                            \
     }
-    implement_default_operand_gen_kill(gen)
-    implement_default_operand_gen_kill(kill)
-    // NOTE(jordan): the 2 "basic" operand types just alias the defaults.
-    namespace assignable { using namespace helper::operand; }
-    namespace memory     { using namespace helper::operand; }
     #define operand_gen_kill_filter(predicate)                           \
     bool filter (const node & g) {                                       \
       const node & v = helper::unwrap_first_child_if_exists(g);          \
@@ -236,8 +233,15 @@ namespace analysis::L2::liveness::gen_kill { // {{{
         return ACTION;                                                   \
       }                                                                  \
     }
-  }
+    // }}}
+    implement_default_operand_gen_kill(gen)
+    implement_default_operand_gen_kill(kill)
+    // NOTE(jordan): the 2 "basic" operand types just alias the defaults.
+    namespace assignable { using namespace helper::operand; }
+    namespace memory     { using namespace helper::operand; }
+  } // }}}
 
+  // operand helpers {{{
   namespace helper::operand::shift {
     using number = grammar::operand::number;
     operand_gen_kill_filter(!helper::matches<number>(v))
@@ -276,14 +280,14 @@ namespace analysis::L2::liveness::gen_kill { // {{{
   void instruction (const node & n, liveness::result & result) {
     using namespace grammar::instruction;
 
-    /* std::cout << "gen/kill on: " << n.name() << "\n"; */
-
     if (n.is<instruction::any>()) {
       assert(n.children.size() == 1);
       const node & actual_instruction = *n.children.at(0);
       return gen_kill::instruction(actual_instruction, result);
     }
 
+    // macros {{{
+    // TODO(jordan): These would be better as termplates and/or functions.
     #define assign_instruction_gen_kill(DEST, SRC)                       \
       assert(n.children.size() == 2);                                    \
       const node & dest = *n.children.at(0);                             \
@@ -314,6 +318,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       const node & rhs = *CMP.children.at(2);                            \
       helper::operand::comparable::gen(n, lhs, result);                  \
       helper::operand::comparable::gen(n, rhs, result)
+    // }}}
 
     if (n.is<assign::assignable::gets_movable>()) {
       assign_instruction_gen_kill(assignable, movable);
@@ -453,8 +458,6 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       assert(n.children.size() == 2);
       const node & integer  = *n.children.at(1);
       int args  = helper::integer(integer);
-      /* int spill = 8; // return address! */
-      /* if (args  > 6) spill += 8 * (args - 6); */
       if (args > 0) {
         namespace arg = register_group::argument;
         if (args >= 1) helper::gen<arg::rdi>(n, result);
@@ -500,7 +503,7 @@ namespace analysis::L2::liveness::successor { // {{{
   // NOTE(jordan): import helpers from outer scope.
   namespace helper { using namespace liveness::helper; }
 
-  namespace helper {
+  namespace helper { // {{{
     void set (const node & n, const node & s, liveness::result & result) {
       result.successor[&n].insert(&s);
     }
@@ -518,7 +521,7 @@ namespace analysis::L2::liveness::successor { // {{{
       }
       assert(false && "definition_for: could not find label!");
     }
-  }
+  } // }}}
 
   void instruction (const node & n, int index, result & result) {
     using namespace grammar::instruction;
@@ -613,7 +616,8 @@ namespace analysis::L2::liveness::successor { // {{{
  * OUT[i] = U(s : successor of(i)) IN[s]
  *
  */
-namespace analysis::L2::liveness { // {{{
+// liveness::in_out {{{
+namespace analysis::L2::liveness {
   void in_out (result & result, unsigned debug) {
     nodes instructions = result.instructions;
     // QUESTION: uh... what's our efficiency here? This code is gross.
@@ -691,7 +695,11 @@ namespace analysis::L2::liveness { // {{{
       } // }}}
     } while (!fixed_state || (--iteration_limit > 0));
   }
+}
+// }}}
 
+// compute liveness {{{
+namespace analysis::L2::liveness {
   void compute (liveness::result & result, unsigned debug) {
     // 1. Compute GEN, KILL
     for (int index = 0; index < result.instructions.size(); index++) {
@@ -752,7 +760,8 @@ namespace analysis::L2::liveness { // {{{
 
     return;
   }
-} // }}}
+}
+// }}}
 
 namespace analysis::L2::liveness {
   result compute (const ast::node & root, unsigned debug = 0) {

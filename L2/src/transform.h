@@ -12,6 +12,7 @@ namespace transform::L2::spill {
   using namespace grammar::instruction;
 
   // helper {{{
+  // FIXME(jordan): copy/pasta
   namespace helper {
     namespace L1_helper = codegen::L1::generate::helper;
     template <class R>
@@ -70,8 +71,8 @@ namespace transform::L2::spill {
   ) {
     if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
-      const node & actual_instruction = *n.children.at(0);
-      spill::instruction(actual_instruction, target, prefix, spills, offset, os);
+      const node & unwrapped = *n.children.at(0);
+      spill::instruction(unwrapped, target, prefix, spills, offset, os);
       return;
     }
 
@@ -128,7 +129,7 @@ namespace transform::L2::spill {
         helper::save_spill(spilled, offset, os);
       } else if (helper::spills(src, target)) {
         /**
-         * QUSTION(jordan): Why not just:
+         * QUESTION(jordan): Why not just:
          *
          * w <- mem rsp OFF
          *
@@ -860,12 +861,17 @@ namespace transform::L2::spill {
     const node & instructions = *function.children.at(3);
     int args   = helper::integer(arg_count);
     int locals = helper::integer(local_count);
-    int spill_offset = 8 * locals;
-    if (args > 6) spill_offset += 8 * (args - 6);
-    std::ostringstream ss;
     int spills = 0;
-    spill::instructions(instructions, target, prefix, spills, spill_offset, ss);
+    int offset = 8 * locals;
+    if (args > 6) offset += 8 * (args - 6);
+    std::ostringstream ss;
+    spill::instructions(instructions, target, prefix, spills, offset, ss);
     if (spills > 0) locals += 1;
+    // redefine the function:
+    // (<name>
+    //    <args> <locals>
+    //    <instructions>...
+    // )
     os << "(" << name.content() << "\n";
     os << "\t" << args << " " << locals << "\n";
     os << ss.str();
