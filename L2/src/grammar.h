@@ -410,6 +410,7 @@ namespace grammar::L2 {
       binop struct multiply    : spaced<D, op::multiply, S> {};
       binop struct bitwise_and : spaced<D, op::bitwise_and, S> {};
       binop struct all         : spaced<D, aop_any, S> {};
+      #undef binop
     }
     // <A,B>: A <sop> B
     namespace shift {
@@ -418,6 +419,7 @@ namespace grammar::L2 {
       binop struct shift_left  : spaced<D, op::shift_left, S> {};
       binop struct shift_right : spaced<D, op::shift_right, S> {};
       binop struct all         : spaced<D, any_sop, S> {};
+      #undef binop
     }
   }
 

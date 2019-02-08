@@ -12,10 +12,6 @@
 #include "grammar.h"
 #include "ast.h"
 
-// NOTE(jordan): must be compile-time statics b/c macros
-#define DBG_EACH_GEN_KILL        false
-#define DBG_EACH_GEN_KILL_FILTER false
-
 namespace analysis::L2 {
   namespace ast     = ast::L2;
   namespace grammar = grammar::L2;
@@ -97,6 +93,7 @@ namespace analysis::L2 {
     mkreg2s(rdi) mkreg2s(rbp) mkreg2s(rsp) mkreg2s(r8 ) mkreg2s(r9 )
     mkreg2s(r10) mkreg2s(r11) mkreg2s(r12) mkreg2s(r13) mkreg2s(r14)
     mkreg2s(r15)
+    #undef mkreg2s
   }
 
   namespace helper::variable {
@@ -158,6 +155,10 @@ namespace analysis::L2::liveness::gen_kill { // {{{
   namespace helper { using namespace liveness::helper; }
 
   namespace helper { // {{{
+    // debug constants {{{
+    const bool DBG_EACH_GEN_KILL = false;
+    const bool DBG_EACH_GEN_KILL_FILTER = false;
+    // }}}
     // macros {{{
     // NOTE(jordan): macros are a dangerous, beautiful weapon
     #define implement_default_gen_kill(WHICH, DEBUG)                     \
@@ -196,6 +197,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     // }}}
     implement_default_gen_kill(gen,  DBG_EACH_GEN_KILL)
     implement_default_gen_kill(kill, DBG_EACH_GEN_KILL)
+    #undef implement_default_gen_kill
   }
   // }}}
 
@@ -236,6 +238,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     // }}}
     implement_default_operand_gen_kill(gen)
     implement_default_operand_gen_kill(kill)
+    #undef implement_default_operand_gen_kill
     // NOTE(jordan): the 2 "basic" operand types just alias the defaults.
     namespace assignable { using namespace helper::operand; }
     namespace memory     { using namespace helper::operand; }
@@ -274,6 +277,12 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     operand_gen_kill_filter(!v.is<grammar::operand::label>())
     implement_operand_gen_kill(gen, assignable::gen(n, value, result))
     implement_operand_gen_kill(kill, assignable::kill(n, value, result))
+  }
+
+  // NOTE(jordan): these don't need to be namespaced but consistency.
+  namespace helper::operand {
+    #undef operand_gen_kill_filter
+    #undef implement_operand_gen_kill
   }
   // }}}
 
@@ -484,6 +493,11 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       }
       return;
     }
+
+    #undef assign_instruction_gen_kill
+    #undef update_unary_instruction_gen_kill
+    #undef update_binary_instruction_gen_kill
+    #undef cmp_gen_kill
 
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::instruction: unreachable!");
