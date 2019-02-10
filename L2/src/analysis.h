@@ -46,18 +46,19 @@ namespace analysis::L2 {
   namespace helper {
     int integer (const node & n) {
       assert(n.has_content() && "helper::integer: no content!");
+      assert(
+        matches<literal::number::integer::any>(n)
+        && "helper::integer: does not match literal::number::integer!"
+      );
       return std::stoi(n.content());
     }
   }
 
   namespace helper {
-    const node & unwrap_first_child_if_exists (const node & parent) {
-      return parent.children.size() > 0 ? *parent.children.at(0) : parent;
-    }
     const node & unwrap_assert (const node & parent) {
       assert(
         parent.children.size() == 1
-        && "unwrap_assert: parent node does not have exactly 1 child!"
+        && "helper::unwrap_assert: not exactly 1 child in parent!"
       );
       return *parent.children.at(0);
     }
@@ -66,14 +67,19 @@ namespace analysis::L2 {
   namespace helper {
     nodes collect_instructions (const node & function) {
       nodes result;
-      assert(function.is<grammar::function::define>());
+      assert(function.is<function::define>());
       assert(function.children.size() == 4);
       const node & instructions = *function.children.at(3);
-      for (auto & instruction : instructions.children) {
-        assert(instruction->is<grammar::instruction::any>());
-        assert(instruction->children.size() == 1);
-        auto shared_instruction = std::shared_ptr<const node>(
-          std::move(instruction->children.at(0))
+      for (auto & instruction_wrapper : instructions.children) {
+        assert(instruction_wrapper->is<instruction::any>());
+        assert(instruction_wrapper->children.size() == 1);
+        /* FIXME(jordan): this is only ok because we stop trying to look
+         * at the children of our functions (our instructions) after we've
+         * collected them. If we did try to look at the children of our
+         * functions, they'd be gone: we `std::move`d them.
+         */
+        const auto shared_instruction = std::shared_ptr<const node>(
+          std::move(instruction_wrapper->children.at(0))
         );
         result.push_back(shared_instruction);
       }
@@ -155,134 +161,201 @@ namespace analysis::L2::liveness::gen_kill { // {{{
   namespace helper { using namespace liveness::helper; }
 
   namespace helper { // {{{
-    // debug constants {{{
-    const bool DBG_EACH_GEN_KILL = false;
-    const bool DBG_EACH_GEN_KILL_FILTER = false;
-    // }}}
-    // macros {{{
-    // NOTE(jordan): macros are a dangerous, beautiful weapon
-    #define implement_default_gen_kill(WHICH, DEBUG)                     \
-    static_assert(                                                       \
-      static_string_eq   (#WHICH, "gen")                                 \
-      || static_string_eq(#WHICH, "kill")                                \
-      , "Macro error! "#WHICH" must be either 'gen' or 'kill'!"          \
-    );                                                                   \
-    /* standard version */                                               \
-    void WHICH (const node & i, const node & g, result & result) {       \
-      if (DEBUG) std::cout << #WHICH" name() " << g.name() << "\n";      \
-      bool is_variable = g.is<identifier::variable>();                   \
-      assert(                                                            \
-        is_variable || matches<register_set::any>(g)                     \
-        && "helper::"#WHICH": '"#WHICH"' not register or variable!"      \
-      );                                                                 \
-      if (matches<identifier::x86_64_register::rsp>(g)) {                \
-        if (DEBUG) std::cout << #WHICH": ignoring rsp.\n";               \
-        return;                                                          \
-      }                                                                  \
-      auto s = is_variable ? helper::variable::get_name(g) : g.content();\
-      if (DEBUG) std::cout << #WHICH " content" << s << "\n";            \
-      result.WHICH[&i].insert(s);                                        \
-      return;                                                            \
-    }                                                                    \
-    /* register-type-templated version */                                \
-    template <typename R>                                                \
-    void WHICH (const node & i, liveness::result & result) {             \
-      assert(!matches<R>("rsp") && "helper::"#WHICH" cannot gen rsp!");  \
-      namespace register_helper = helper::x86_64_register;               \
-      const std::string & str = register_helper::as_string<R>::value;    \
-      if (DEBUG) std::cout << #WHICH"<Register>: " << str << "\n";       \
-      result.WHICH[&i].insert(str);                                      \
-      return;                                                            \
-    }
-    // }}}
-    implement_default_gen_kill(gen,  DBG_EACH_GEN_KILL)
-    implement_default_gen_kill(kill, DBG_EACH_GEN_KILL)
-    #undef implement_default_gen_kill
+    enum struct GenKill { gen, kill };
+    struct gen_kill {
+      static const bool DBG = false;
+      static void generic (
+        GenKill choice,
+        const node & i,
+        const node & v,
+        result & result
+      ) {
+        if (DBG) {
+          std::cout << "gen/kill: inst : " << i.name() << "\n";
+          std::cout << "gen/kill: var  : " << v.name()
+            << " (" << (v.has_content() ? v.content() : "") << ")\n";
+        }
+        bool is_variable = v.is<identifier::variable>();
+        assert(
+          is_variable || matches<register_set::any>(v)
+          && "gen/kill: node is not register or variable!"
+        );
+        if (matches<identifier::x86_64_register::rsp>(v)) {
+          if (DBG) std::cout << "gen/kill: ignoring rsp.\n";
+          return;
+        }
+        std::string name = is_variable
+          ? helper::variable::get_name(v)
+          : v.content();
+        if (DBG) std::cout << "gen/kill: of var: " << name << "\n";
+        switch (choice) {
+          case GenKill::gen  : result.gen [&i].insert(name); return;
+          case GenKill::kill : result.kill[&i].insert(name); return;
+          default: assert(false && "gen/kill: unreachable!");
+        }
+      }
+      template <typename Reg>
+      static void generic (GenKill choice, const node & i, result & result) {
+        assert(!matches<Reg>("rsp") && "gen/kill: cannot gen rsp!");
+        namespace register_helper = helper::x86_64_register;
+        const std::string & reg = register_helper::as_string<Reg>::value;
+        if (DBG) std::cout << "gen/kill<Register>: " << reg << "\n";
+        switch (choice) {
+          case GenKill::gen  : result.gen [&i].insert(reg); return;
+          case GenKill::kill : result.kill[&i].insert(reg); return;
+          default: assert(false && "gen/kill<Register>: unreachable!");
+        }
+      }
+      static void gen  (const node & i, const node & v, result & result) {
+        return generic(GenKill::gen, i, v, result);
+      }
+      static void kill (const node & i, const node & v, result & result) {
+        return generic(GenKill::kill, i, v, result);
+      }
+      template <typename Reg>
+      static void gen  (const node & i, liveness::result & result) {
+        return generic<Reg>(GenKill::gen, i, result);
+      }
+      template <typename Reg>
+      static void kill (const node & i, liveness::result & result) {
+        return generic<Reg>(GenKill::kill, i, result);
+      }
+    };
   }
   // }}}
 
-  namespace helper::operand { // {{{
-    // macros {{{
-    #define implement_default_operand_gen_kill(WHICH)                    \
-    static_assert(                                                       \
-      static_string_eq   (#WHICH, "gen")                                 \
-      || static_string_eq(#WHICH, "kill")                                \
-      , "Macro error! " #WHICH " must be either 'gen' or 'kill'!"        \
-    );                                                                   \
-    void WHICH (const node & n, const node & g, result & result) {       \
-      const node & value = helper::unwrap_first_child_if_exists(g);      \
-      return helper::WHICH(n, value, result);                            \
-    }
-    #define operand_gen_kill_filter(predicate)                           \
-    bool filter (const node & g) {                                       \
-      const node & v = helper::unwrap_first_child_if_exists(g);          \
-      bool accept = predicate;                                           \
-      if (DBG_EACH_GEN_KILL_FILTER) {                                    \
-        std::cout << "filter on: '" << v.name() << "'"                   \
-                  << " accept? " << accept << "\n";                      \
-      }                                                                  \
-      return accept;                                                     \
-    }
-    #define implement_operand_gen_kill(WHICH, ACTION)                    \
-    static_assert(                                                       \
-      static_string_eq   (#WHICH, "gen")                                 \
-      || static_string_eq(#WHICH, "kill")                                \
-      , "Macro error! " #WHICH " must be either 'gen' or 'kill'!"        \
-    );                                                                   \
-    void WHICH (const node & n, const node & g, result & result) {       \
-      if (filter(g)) {                                                   \
-        const node & value = helper::unwrap_first_child_if_exists(g);    \
-        return ACTION;                                                   \
-      }                                                                  \
-    }
-    // }}}
-    implement_default_operand_gen_kill(gen)
-    implement_default_operand_gen_kill(kill)
-    #undef implement_default_operand_gen_kill
-    // NOTE(jordan): the 2 "basic" operand types just alias the defaults.
-    namespace assignable { using namespace helper::operand; }
-    namespace memory     { using namespace helper::operand; }
-  } // }}}
-
-  // operand helpers {{{
-  namespace helper::operand::shift {
-    using number = grammar::operand::number;
-    operand_gen_kill_filter(!helper::matches<number>(v))
-    implement_operand_gen_kill(gen, helper::gen(n, value, result))
-    implement_operand_gen_kill(kill, helper::kill(n, value, result))
-  }
-
-  namespace helper::operand::movable {
-    using label  = grammar::operand::label;
-    using number = grammar::operand::number;
-    operand_gen_kill_filter(!v.is<label>() && !helper::matches<number>(v))
-    implement_operand_gen_kill(gen, memory::gen(n, value, result))
-    implement_operand_gen_kill(kill, memory::kill(n, value, result))
-  }
-
-  namespace helper::operand::relative {
-    operand_gen_kill_filter(true)
-    implement_operand_gen_kill(gen, memory::gen(n, value, result))
-    implement_operand_gen_kill(kill, memory::kill(n, value, result))
-  }
-
-  namespace helper::operand::comparable {
-    using number = grammar::operand::number;
-    operand_gen_kill_filter(!helper::matches<number>(v))
-    implement_operand_gen_kill(gen, memory::gen(n, value, result))
-    implement_operand_gen_kill(kill, memory::kill(n, value, result))
-  }
-
-  namespace helper::operand::callable {
-    operand_gen_kill_filter(!v.is<grammar::operand::label>())
-    implement_operand_gen_kill(gen, assignable::gen(n, value, result))
-    implement_operand_gen_kill(kill, assignable::kill(n, value, result))
-  }
-
-  // NOTE(jordan): these don't need to be namespaced but consistency.
+  // helper::operand {{{
   namespace helper::operand {
-    #undef operand_gen_kill_filter
-    #undef implement_operand_gen_kill
+    template<typename Operand>
+    struct base {
+      static const bool DBG = false;
+      static bool accept (const node & v) {
+        if (DBG)
+          std::cout
+            << "accept " << v.name() << "?"
+            << " " << Operand::accept(v)
+            << "\n";
+        return Operand::accept(v);
+      };
+      static void generic (
+        GenKill choice,
+        const node & n,
+        const node & v,
+        result & result
+      ) {
+        using gen_kill = helper::gen_kill;
+        const node & value = Operand::unwrap(v);
+        if (accept(value)) {
+          if (GenKill::gen  == choice) gen_kill::gen(n, value, result);
+          if (GenKill::kill == choice) gen_kill::kill(n, value, result);
+        }
+      }
+      static void gen  (const node & n, const node & v, result & result) {
+        return generic(GenKill::gen, n, v, result);
+      }
+      static void kill (const node & n, const node & v, result & result) {
+        return generic(GenKill::kill, n, v, result);
+      }
+    };
+    /**
+     * EXPLANATION(jordan): Templates are a strange, dark, dark magic.
+     *
+     * This pattern is called the CRTP - Curiously Recursive Template
+     * Pattern. It's 'curiously recursive' because in the declaration:
+     *
+     *   struct x : tpl<x> {};
+     *
+     * the 2nd x is not an incomplete type; rather, it's concrete. But in:
+     *
+     *   template<> struct tpl<x> {};
+     *
+     * x is an incomplete type. The template is fully specialized; but,
+     * the type is not complete. With CRTP, the type *is* complete, *and*
+     * the template is fully specialized.
+     *
+     * Type completeness corresponds (afaict) to the definition of the
+     * type being *concrete*, not meta (templated) or abstract or etc.
+     *
+     * This pattern lends itself to something called "type traits". In the
+     * templated "base type," a prototype is provided but not implemented.
+     * In our case, 'static bool accept (const node & v)'. Then, every
+     * concrete instantiation (every CRTP instance) implements the method.
+     *
+     */
+    template <typename Parent, typename Child>
+    struct may_wrap {
+      static const bool DBG = false;
+      static const node & unwrap (const node & parent) {
+        if (DBG)
+          std::cout << "unwrap: parent type: " << parent.name() << "\n";
+        // NOTE(jordan): whoah dependent type names? cool.
+        assert(parent.is<typename Parent::rule>());
+        const node & child = helper::unwrap_assert(parent);
+        if (DBG)
+          std::cout << "unwrap: child  type: " << child.name() << "\n";
+        if (child.is<typename Child::rule>())
+          return Child::unwrap(child);
+        else return child;
+      }
+    };
+    template <>
+    // NOTE(jordan): here, 'false_type' is taken to mean 'cannot wrap'
+    struct may_wrap <std::false_type, std::false_type> {
+      static const bool DBG = false;
+      static const node & unwrap (const node & parent) {
+        if (DBG) std::cout << "unwrap: " << parent.name() << "\n";
+        return helper::unwrap_assert(parent);
+      }
+    };
+    using leaf_operand = may_wrap<std::false_type, std::false_type>;
+    // NOTE(jordan): "Variable" operands
+    struct memory : base<memory>, leaf_operand {
+      using rule = grammar::operand::memory;
+      static bool accept (const node & v) { return true; }
+    };
+    struct assignable : base<assignable>, leaf_operand {
+      using rule = grammar::operand::assignable;
+      static bool accept (const node & v) { return true; }
+    };
+    struct shift : base<shift>, leaf_operand {
+      using rule = grammar::operand::shift;
+      static bool accept (const node & v) {
+        using namespace grammar::operand;
+        return !helper::matches<number>(v);
+      }
+    };
+    // NOTE(jordan): "Variable-or-Value" operands
+    struct movable : base<movable>, may_wrap<movable, memory> {
+      using rule = grammar::operand::movable;
+      static bool accept (const node & v) {
+        using namespace grammar::operand;
+        return !v.is<label>() && !helper::matches<number>(v);
+      }
+    };
+    struct comparable : base<comparable>, may_wrap<comparable, memory> {
+      using rule = grammar::operand::comparable;
+      static bool accept (const node & v) {
+        using namespace grammar::operand;
+        return !helper::matches<number>(v);
+      }
+    };
+    struct callable : base<callable>, may_wrap<callable, assignable> {
+      using rule = grammar::operand::callable;
+      static bool accept (const node & v) {
+        using namespace grammar::operand;
+        return !v.is<label>();
+      }
+    };
+    struct relative : base<relative>, may_wrap<relative, memory> {
+      using rule = grammar::expression::mem;
+      static bool accept (const node & v) { return true; }
+      static const node & unwrap (const node & v) {
+        assert(v.children.size() == 2);
+        const node & base = *v.children.at(0);
+        assert(base.is<memory::rule>());
+        return memory::unwrap(base);
+      }
+    };
   }
   // }}}
 
@@ -296,7 +369,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     }
 
     // macros {{{
-    // TODO(jordan): These would be better as termplates and/or functions.
+    // TODO(jordan): These would be better as templates and/or functions.
     #define assign_instruction_gen_kill(DEST, SRC)                       \
       assert(n.children.size() == 2);                                    \
       const node & dest = *n.children.at(0);                             \
@@ -329,6 +402,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       helper::operand::comparable::gen(n, rhs, result)
     // }}}
 
+    using namespace grammar::operand;
     if (n.is<assign::assignable::gets_movable>()) {
       assign_instruction_gen_kill(assignable, movable);
       return;
@@ -447,14 +521,15 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     }
 
     if (n.is<invoke::ret>()) {
-      helper::gen<identifier::x86_64_register::rax>(n, result);
+      using gen_kill = helper::gen_kill;
+      gen_kill::gen<identifier::x86_64_register::rax>(n, result);
       namespace callee = register_group::callee_save;
-      helper::gen<callee::r12>(n, result);
-      helper::gen<callee::r13>(n, result);
-      helper::gen<callee::r14>(n, result);
-      helper::gen<callee::r15>(n, result);
-      helper::gen<callee::rbp>(n, result);
-      helper::gen<callee::rbx>(n, result);
+      gen_kill::gen<callee::r12>(n, result);
+      gen_kill::gen<callee::r13>(n, result);
+      gen_kill::gen<callee::r14>(n, result);
+      gen_kill::gen<callee::r15>(n, result);
+      gen_kill::gen<callee::rbp>(n, result);
+      gen_kill::gen<callee::rbx>(n, result);
       return;
     }
 
@@ -464,32 +539,33 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       || n.is<invoke::call::intrinsic::allocate>()
       || n.is<invoke::call::intrinsic::array_error>()
     ) {
+      using gen_kill = helper::gen_kill;
       assert(n.children.size() == 2);
       const node & integer  = *n.children.at(1);
       int args  = helper::integer(integer);
       if (args > 0) {
         namespace arg = register_group::argument;
-        if (args >= 1) helper::gen<arg::rdi>(n, result);
-        if (args >= 2) helper::gen<arg::rsi>(n, result);
-        if (args >= 3) helper::gen<arg::rdx>(n, result);
-        if (args >= 4) helper::gen<arg::rcx>(n, result);
-        if (args >= 5) helper::gen<arg::r8 >(n, result);
-        if (args >= 6) helper::gen<arg::r9 >(n, result);
+        if (args >= 1) gen_kill::gen<arg::rdi>(n, result);
+        if (args >= 2) gen_kill::gen<arg::rsi>(n, result);
+        if (args >= 3) gen_kill::gen<arg::rdx>(n, result);
+        if (args >= 4) gen_kill::gen<arg::rcx>(n, result);
+        if (args >= 5) gen_kill::gen<arg::r8 >(n, result);
+        if (args >= 6) gen_kill::gen<arg::r9 >(n, result);
       }
-      helper::kill<identifier::x86_64_register::rax>(n, result);
+      gen_kill::kill<identifier::x86_64_register::rax>(n, result);
       namespace caller = register_group::caller_save;
-      helper::kill<caller::r8 >(n, result);
-      helper::kill<caller::r9 >(n, result);
-      helper::kill<caller::r10>(n, result);
-      helper::kill<caller::r11>(n, result);
-      helper::kill<caller::rax>(n, result);
-      helper::kill<caller::rcx>(n, result);
-      helper::kill<caller::rdi>(n, result);
-      helper::kill<caller::rdx>(n, result);
-      helper::kill<caller::rsi>(n, result);
+      gen_kill::kill<caller::r8 >(n, result);
+      gen_kill::kill<caller::r9 >(n, result);
+      gen_kill::kill<caller::r10>(n, result);
+      gen_kill::kill<caller::r11>(n, result);
+      gen_kill::kill<caller::rax>(n, result);
+      gen_kill::kill<caller::rcx>(n, result);
+      gen_kill::kill<caller::rdi>(n, result);
+      gen_kill::kill<caller::rdx>(n, result);
+      gen_kill::kill<caller::rsi>(n, result);
       if (n.is<invoke::call::callable>()) {
-        const node & callable = *n.children.at(0);
-        helper::operand::callable::gen(n, callable, result);
+        const node & callable_node = *n.children.at(0);
+        helper::operand::callable::gen(n, callable_node, result);
       }
       return;
     }
@@ -920,7 +996,7 @@ namespace analysis::L2::interference { // {{{
       if (instruction.is<assign::assignable::gets_movable>()) {
         assert(instruction.children.size() == 2);
         const node & src = *instruction.children.at(1);
-        if (helper::matches<grammar::operand::memory>(src)) {
+        if (helper::matches<operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.
           connect_kill = false;
         }
@@ -948,13 +1024,14 @@ namespace analysis::L2::interference { // {{{
         // <b> cannot be any register except rcx.
         assert(instruction.children.size() == 3);
         // FIXME(jordan): whoops.
-        const node & src_wrap = *instruction.children.at(2);
-        const node & src = helper::unwrap_first_child_if_exists(src_wrap);
-        bool is_variable = src.is<identifier::variable>();
+        const node & src = *instruction.children.at(2);
+        using shift = liveness::gen_kill::helper::operand::shift;
+        const node & value = shift::unwrap(src);
+        bool is_variable = value.is<identifier::variable>();
         const std::string & variable
           = is_variable
-          ? helper::variable::get_name(src)
-          : src.content();
+          ? helper::variable::get_name(value)
+          : value.content();
         // FIXME(jordan): yeeuuup. This is horrible, I know. But... ugh.
         namespace register_help = L2::helper::x86_64_register;
         using namespace grammar::identifier::x86_64_register;
