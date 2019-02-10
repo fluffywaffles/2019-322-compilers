@@ -41,11 +41,30 @@ namespace ast::L2 {
       using selector = selector<
         Rule,
         apply_store_content::to<
+          /* NOTE(jordan): keep around literal nodes so that we can
+           * safely always unwrap their parent operands.
+           */
           literal::number::integer::any,
           literal::number::integer::positive,
           literal::number::integer::negative,
           literal::number::special::scale,
           literal::number::special::divisible_by8,
+          identifier::x86_64_register::rax,
+          identifier::x86_64_register::rbx,
+          identifier::x86_64_register::rcx,
+          identifier::x86_64_register::rdx,
+          identifier::x86_64_register::rsi,
+          identifier::x86_64_register::rdi,
+          identifier::x86_64_register::rbp,
+          identifier::x86_64_register::rsp,
+          identifier::x86_64_register::r8,
+          identifier::x86_64_register::r9,
+          identifier::x86_64_register::r10,
+          identifier::x86_64_register::r11,
+          identifier::x86_64_register::r12,
+          identifier::x86_64_register::r13,
+          identifier::x86_64_register::r14,
+          identifier::x86_64_register::r15,
           identifier::name,
           identifier::label,
           identifier::variable,
