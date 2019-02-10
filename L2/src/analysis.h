@@ -10,6 +10,7 @@
 #include "L1/codegen.h"
 #include "grammar.h"
 #include "ast.h"
+#include "helper.h"
 
 namespace analysis::L2 {
   namespace ast     = ast::L2;
@@ -17,6 +18,15 @@ namespace analysis::L2 {
   using namespace ast;
   using namespace grammar;
 
+  using nodes = helper::L2::nodes;
+  using string = std::string;
+  using liveness_map     = std::map<const node *, std::set<string>>;
+  using successor_map    = std::map<const node *, std::set<const node *>>;
+  using interference_map = std::map<const string, std::set<string>>;
+}
+
+// liveness {{{
+namespace analysis::L2::liveness {
   // debug constants {{{
   const int DBG_SUCC                       = 0b000001;
   const int DBG_PRINT                      = 0b000010;
@@ -26,117 +36,6 @@ namespace analysis::L2 {
   const int DBG_IN_OUT_LOOP_OUT_MINUS_KILL = 0b100000;
   // }}}
 
-  using string = std::string;
-  // TODO(jordan): make this a set of Register instead of std::string
-  using liveness_map     = std::map<const node *, std::set<string>>;
-  using successor_map    = std::map<const node *, std::set<const node *>>;
-  // TODO(jordan): make this use a Register type instead of std::string
-  using interference_map = std::map<const string, std::set<string>>;
-  using nodes = std::vector<std::shared_ptr<const node>>;
-
-  namespace helper { // {{{
-    namespace L1_helper = codegen::L1::generate::helper;
-    template <class R>
-    bool matches (const node & n)  { return L1_helper::matches<R>(n); }
-    template <class R>
-    bool matches (const string & s) { return L1_helper::matches<R>(s); }
-  }
-
-  namespace helper {
-    int integer (const node & n) {
-      assert(n.has_content() && "helper::integer: no content!");
-      assert(
-        matches<literal::number::integer::any>(n)
-        && "helper::integer: does not match literal::number::integer!"
-      );
-      return std::stoi(n.content());
-    }
-  }
-
-  namespace helper {
-    const node & unwrap_assert (const node & parent) {
-      assert(
-        parent.children.size() == 1
-        && "helper::unwrap_assert: not exactly 1 child in parent!"
-      );
-      return *parent.children.at(0);
-    }
-  }
-
-  namespace helper {
-    nodes collect_instructions (const node & function) {
-      nodes result;
-      assert(function.is<function::define>());
-      assert(function.children.size() == 4);
-      const node & instructions = *function.children.at(3);
-      for (auto & instruction_wrapper : instructions.children) {
-        assert(instruction_wrapper->is<instruction::any>());
-        assert(instruction_wrapper->children.size() == 1);
-        /* FIXME(jordan): this is only ok because we stop trying to look
-         * at the children of our functions (our instructions) after we've
-         * collected them. If we did try to look at the children of our
-         * functions, they'd be gone: we `std::move`d them.
-         */
-        const auto shared_instruction = std::shared_ptr<const node>(
-          std::move(instruction_wrapper->children.at(0))
-        );
-        result.push_back(shared_instruction);
-      }
-      return result;
-    }
-  }
-
-  // NOTE(jordan): woof. Template specialization, amirite?
-  namespace helper::x86_64_register {
-    namespace reg = identifier::x86_64_register;
-    template <typename Register> struct as_string {
-      const static std::string value;
-    };
-    #define mkreg2s(R) \
-      template<> const std::string as_string<reg::R>::value = #R;
-    mkreg2s(rax) mkreg2s(rbx) mkreg2s(rcx) mkreg2s(rdx) mkreg2s(rsi)
-    mkreg2s(rdi) mkreg2s(rbp) mkreg2s(rsp) mkreg2s(r8 ) mkreg2s(r9 )
-    mkreg2s(r10) mkreg2s(r11) mkreg2s(r12) mkreg2s(r13) mkreg2s(r14)
-    mkreg2s(r15)
-    #undef mkreg2s
-  }
-
-  namespace helper::variable {
-    std::string get_name (const node & variable) {
-      assert(variable.children.size() == 1 && "missing child!");
-      const node & name = *variable.children.at(0);
-      assert(name.is<identifier::name>() && "child is not a 'name'!");
-      return name.content();
-    }
-
-    void collect_variables (
-      const node & start,
-      std::vector<std::string> & variables
-    ) {
-      if (start.is<identifier::variable>()) {
-        variables.push_back(helper::variable::get_name(start));
-      } else {
-        for (auto & child : start.children) {
-          collect_variables(*child, variables);
-        }
-      }
-    }
-
-    std::vector<std::string> collect_variables (nodes instructions) {
-      std::vector<std::string> variables;
-      for (auto & instruction_ptr : instructions) {
-        for (auto & child : instruction_ptr->children) {
-          collect_variables(*child, variables);
-        }
-      }
-      return variables;
-    }
-  }
-  // }}}
-}
-
-// liveness {{{
-namespace analysis::L2::liveness {
   struct result {
     nodes instructions;
     liveness_map in;
@@ -145,8 +44,6 @@ namespace analysis::L2::liveness {
     liveness_map kill;
     successor_map successor;
   };
-
-  namespace helper { using namespace L2::helper; }
 }
 
 /**
@@ -155,214 +52,218 @@ namespace analysis::L2::liveness {
  * KILL[i] = { <defined variables> }
  *
  */
-namespace analysis::L2::liveness::gen_kill { // {{{
-  // NOTE(jordan): import helpers from outer scope.
-  namespace helper { using namespace liveness::helper; }
-
-  namespace helper { // {{{
-    enum struct GenKill { gen, kill };
-    struct gen_kill {
-      static const bool DBG = false;
-      static void generic (
-        GenKill choice,
-        const node & i,
-        const node & v,
-        result & result
-      ) {
-        if (DBG) {
-          std::cout << "gen/kill: inst : " << i.name() << "\n";
-          std::cout << "gen/kill: var  : " << v.name()
-            << " (" << (v.has_content() ? v.content() : "") << ")\n";
-        }
-        bool is_variable = v.is<operand::variable>();
-        assert(
-          is_variable || matches<register_set::any>(v)
-          && "gen/kill: node is not register or variable!"
-        );
-        // NOTE(jordan): generalized handling of rsp being out of scope
-        if (matches<register_set::unanalyzable>(v)) {
-          if (DBG)
-            std::cout
-              << "gen/kill: ignoring unanalyzable register:"
-              << " " << v.name() << "\n";
-          return;
-        }
-        std::string name = is_variable
-          ? helper::variable::get_name(v)
-          : v.content();
-        if (DBG) std::cout << "gen/kill: of var: " << name << "\n";
-        switch (choice) {
-          case GenKill::gen  : result.gen [&i].insert(name); return;
-          case GenKill::kill : result.kill[&i].insert(name); return;
-          default: assert(false && "gen/kill: unreachable!");
-        }
+/* TODO(jordan): this  unwrapping logic is reusable, just not the gen/kill
+ * logic. Separate out those 2 things so that other code can benefit from
+ * the smart wrappers.
+ */
+namespace helper::L2::liveness::gen_kill {
+  enum struct GenKill { gen, kill };
+  struct variable {
+    using result = analysis::L2::liveness::result;
+    static const bool DBG = false;
+    static void generic (
+      GenKill choice,
+      const node & i,
+      const node & v,
+      result & result
+    ) {
+      if (DBG) {
+        std::cout
+          << "gen/kill: inst : " << i.name()
+          << "\n"
+          << "gen/kill: var  : " << v.name()
+          << " (" << (v.has_content() ? v.content() : "") << ")"
+          << "\n";
       }
-      template <typename Reg>
-      static void generic (GenKill choice, const node & i, result & result) {
-        assert(!matches<Reg>("rsp") && "gen/kill: cannot gen rsp!");
-        namespace register_helper = helper::x86_64_register;
-        const std::string & reg = register_helper::as_string<Reg>::value;
-        if (DBG) std::cout << "gen/kill<Register>: " << reg << "\n";
-        switch (choice) {
-          case GenKill::gen  : result.gen [&i].insert(reg); return;
-          case GenKill::kill : result.kill[&i].insert(reg); return;
-          default: assert(false && "gen/kill<Register>: unreachable!");
-        }
-      }
-      static void gen  (const node & i, const node & v, result & result) {
-        return generic(GenKill::gen, i, v, result);
-      }
-      static void kill (const node & i, const node & v, result & result) {
-        return generic(GenKill::kill, i, v, result);
-      }
-      template <typename Reg>
-      static void gen  (const node & i, liveness::result & result) {
-        return generic<Reg>(GenKill::gen, i, result);
-      }
-      template <typename Reg>
-      static void kill (const node & i, liveness::result & result) {
-        return generic<Reg>(GenKill::kill, i, result);
-      }
-    };
-  }
-  // }}}
-
-  // helper::operand {{{
-  namespace helper::operand {
-    template<typename Operand>
-    struct base {
-      static const bool DBG = false;
-      static bool accept (const node & v) {
+      bool is_variable = v.is<grammar::operand::variable>();
+      assert(
+        is_variable || matches<grammar::register_set::any>(v)
+        && "gen/kill: node is not register or variable!"
+      );
+      // NOTE(jordan): generalized handling of rsp being out of scope
+      if (matches<grammar::register_set::unanalyzable>(v)) {
         if (DBG)
           std::cout
-            << "accept " << v.name() << "?"
-            << " " << Operand::accept(v)
-            << "\n";
-        return Operand::accept(v);
-      };
-      static void generic (
-        GenKill choice,
-        const node & n,
-        const node & v,
-        result & result
-      ) {
-        using gen_kill = helper::gen_kill;
-        const node & value = Operand::unwrap(v);
-        if (accept(value)) {
-          if (GenKill::gen  == choice) gen_kill::gen(n, value, result);
-          if (GenKill::kill == choice) gen_kill::kill(n, value, result);
-        }
+            << "gen/kill: ignoring unanalyzable register:"
+            << " " << v.name() << "\n";
+        return;
       }
-      static void gen  (const node & n, const node & v, result & result) {
-        return generic(GenKill::gen, n, v, result);
+      std::string name = is_variable
+        ? helper::L2::variable::get_name(v)
+        : v.content();
+      if (DBG) std::cout << "gen/kill: of var: " << name << "\n";
+      switch (choice) {
+        case GenKill::gen  : result.gen [&i].insert(name); return;
+        case GenKill::kill : result.kill[&i].insert(name); return;
+        default: assert(false && "gen/kill: unreachable!");
       }
-      static void kill (const node & n, const node & v, result & result) {
-        return generic(GenKill::kill, n, v, result);
+    }
+    template <typename Reg>
+    static void generic (GenKill choice, const node & i, result & result) {
+      assert(!matches<Reg>("rsp") && "gen/kill: cannot gen rsp!");
+      namespace register_helper = helper::L2::x86_64_register;
+      const std::string & reg = register_helper::as_string<Reg>::value;
+      if (DBG) std::cout << "gen/kill<Register>: " << reg << "\n";
+      switch (choice) {
+        case GenKill::gen  : result.gen [&i].insert(reg); return;
+        case GenKill::kill : result.kill[&i].insert(reg); return;
+        default: assert(false && "gen/kill<Register>: unreachable!");
       }
-    };
-    /**
-     * EXPLANATION(jordan): Templates are a strange, dark, dark magic.
-     *
-     * This pattern is called the CRTP - Curiously Recursive Template
-     * Pattern. It's 'curiously recursive' because in the declaration:
-     *
-     *   struct x : tpl<x> {};
-     *
-     * the 2nd x is not an incomplete type; rather, it's concrete. But in:
-     *
-     *   template<> struct tpl<x> {};
-     *
-     * x is an incomplete type. The template is fully specialized; but,
-     * the type is not complete. With CRTP, the type *is* complete, *and*
-     * the template is fully specialized.
-     *
-     * Type completeness corresponds (afaict) to the definition of the
-     * type being *concrete*, not meta (templated) or abstract or etc.
-     *
-     * This pattern lends itself to something called "type traits". In the
-     * templated "base type," a prototype is provided but not implemented.
-     * In our case, 'static bool accept (const node & v)'. Then, every
-     * concrete instantiation (every CRTP instance) implements the method.
-     *
-     */
-    template <typename Parent, typename Child>
-    struct may_wrap {
-      static const bool DBG = false;
-      static const node & unwrap (const node & parent) {
-        if (DBG)
-          std::cout << "unwrap: parent type: " << parent.name() << "\n";
-        // NOTE(jordan): whoah dependent type names? cool.
-        assert(parent.is<typename Parent::rule>());
-        const node & child = helper::unwrap_assert(parent);
-        if (DBG)
-          std::cout << "unwrap: child  type: " << child.name() << "\n";
-        if (child.is<typename Child::rule>())
-          return Child::unwrap(child);
-        else return child;
-      }
-    };
-    template <>
-    // NOTE(jordan): here, 'false_type' is taken to mean 'cannot wrap'
-    struct may_wrap <std::false_type, std::false_type> {
-      static const bool DBG = false;
-      static const node & unwrap (const node & parent) {
-        if (DBG) std::cout << "unwrap: " << parent.name() << "\n";
-        return helper::unwrap_assert(parent);
-      }
-    };
-    using leaf_operand = may_wrap<std::false_type, std::false_type>;
-    // NOTE(jordan): "Variable" operands
-    struct memory : base<memory>, leaf_operand {
-      using rule = grammar::operand::memory;
-      static bool accept (const node & v) { return true; }
-    };
-    struct assignable : base<assignable>, leaf_operand {
-      using rule = grammar::operand::assignable;
-      static bool accept (const node & v) { return true; }
-    };
-    struct shift : base<shift>, leaf_operand {
-      using rule = grammar::operand::shift;
-      static bool accept (const node & v) {
-        using namespace grammar::operand;
-        return !helper::matches<number>(v);
-      }
-    };
-    // NOTE(jordan): "Variable-or-Value" operands
-    struct movable : base<movable>, may_wrap<movable, memory> {
-      using rule = grammar::operand::movable;
-      static bool accept (const node & v) {
-        using namespace grammar::operand;
-        return !v.is<label>() && !helper::matches<number>(v);
-      }
-    };
-    struct comparable : base<comparable>, may_wrap<comparable, memory> {
-      using rule = grammar::operand::comparable;
-      static bool accept (const node & v) {
-        using namespace grammar::operand;
-        return !helper::matches<number>(v);
-      }
-    };
-    struct callable : base<callable>, may_wrap<callable, assignable> {
-      using rule = grammar::operand::callable;
-      static bool accept (const node & v) {
-        using namespace grammar::operand;
-        return !v.is<label>();
-      }
-    };
-    struct relative : base<relative>, may_wrap<relative, memory> {
-      using rule = grammar::expression::mem;
-      static bool accept (const node & v) { return true; }
-      static const node & unwrap (const node & v) {
-        assert(v.children.size() == 2);
-        const node & base = *v.children.at(0);
-        assert(base.is<memory::rule>());
-        return memory::unwrap(base);
-      }
-    };
-  }
-  // }}}
+    }
+    static void gen  (const node & i, const node & v, result & result) {
+      return generic(GenKill::gen, i, v, result);
+    }
+    static void kill (const node & i, const node & v, result & result) {
+      return generic(GenKill::kill, i, v, result);
+    }
+    template <typename Reg>
+    static void gen  (const node & i, result & result) {
+      return generic<Reg>(GenKill::gen, i, result);
+    }
+    template <typename Reg>
+    static void kill (const node & i, result & result) {
+      return generic<Reg>(GenKill::kill, i, result);
+    }
+  };
+}
 
+namespace helper::L2::liveness::gen_kill::operand {
+  using result = analysis::L2::liveness::result;
+  template<typename Operand>
+  struct base {
+    static const bool DBG = false;
+    static bool accept (const node & v) {
+      if (DBG)
+        std::cout
+          << "accept " << v.name() << "?"
+          << " " << Operand::accept(v)
+          << "\n";
+      return Operand::accept(v);
+    };
+    static void generic (
+      GenKill choice,
+      const node & n,
+      const node & v,
+      result & result
+    ) {
+      using variable = gen_kill::variable;
+      const node & value = Operand::unwrap(v);
+      if (accept(value)) {
+        if (GenKill::gen  == choice) variable::gen(n, value, result);
+        if (GenKill::kill == choice) variable::kill(n, value, result);
+      }
+    }
+    static void gen  (const node & n, const node & v, result & result) {
+      return generic(GenKill::gen, n, v, result);
+    }
+    static void kill (const node & n, const node & v, result & result) {
+      return generic(GenKill::kill, n, v, result);
+    }
+  };
+  /**
+   * EXPLANATION(jordan): Templates are a strange, dark, dark magic.
+   *
+   * This pattern is called the CRTP - Curiously Recursive Template
+   * Pattern. It's 'curiously recursive' because in the declaration:
+   *
+   *   struct x : tpl<x> {};
+   *
+   * the 2nd x is not an incomplete type; rather, it's concrete. But in:
+   *
+   *   template<> struct tpl<x> {};
+   *
+   * x is an incomplete type. The template is fully specialized; but,
+   * the type is not complete. With CRTP, the type *is* complete, *and*
+   * the template is fully specialized.
+   *
+   * Type completeness corresponds (afaict) to the definition of the
+   * type being *concrete*, not meta (templated) or abstract or etc.
+   *
+   * This pattern lends itself to something called "type traits". In the
+   * templated "base type," a prototype is provided but not implemented.
+   * In our case, 'static bool accept (const node & v)'. Then, every
+   * concrete instantiation (every CRTP instance) implements the method.
+   *
+   */
+  template <typename Parent, typename Child>
+  struct may_wrap {
+    static const bool DBG = false;
+    static const node & unwrap (const node & parent) {
+      if (DBG)
+        std::cout << "unwrap: parent type: " << parent.name() << "\n";
+      // NOTE(jordan): whoah dependent type names? cool.
+      assert(parent.is<typename Parent::rule>());
+      const node & child = helper::L2::unwrap_assert(parent);
+      if (DBG)
+        std::cout << "unwrap: child  type: " << child.name() << "\n";
+      if (child.is<typename Child::rule>())
+        return Child::unwrap(child);
+      else return child;
+    }
+  };
+  template <>
+  // NOTE(jordan): here, 'false_type' is taken to mean 'cannot wrap'
+  struct may_wrap <std::false_type, std::false_type> {
+    static const bool DBG = false;
+    static const node & unwrap (const node & parent) {
+      if (DBG) std::cout << "unwrap: " << parent.name() << "\n";
+      return helper::L2::unwrap_assert(parent);
+    }
+  };
+  using leaf_operand = may_wrap<std::false_type, std::false_type>;
+  // NOTE(jordan): "Variable" operands
+  struct memory : base<memory>, leaf_operand {
+    using rule = grammar::operand::memory;
+    static bool accept (const node & v) { return true; }
+  };
+  struct assignable : base<assignable>, leaf_operand {
+    using rule = grammar::operand::assignable;
+    static bool accept (const node & v) { return true; }
+  };
+  struct shift : base<shift>, leaf_operand {
+    using rule = grammar::operand::shift;
+    static bool accept (const node & v) {
+      using namespace grammar::operand;
+      return !matches<number>(v);
+    }
+  };
+  // NOTE(jordan): "Variable-or-Value" operands
+  struct movable : base<movable>, may_wrap<movable, memory> {
+    using rule = grammar::operand::movable;
+    static bool accept (const node & v) {
+      using namespace grammar::operand;
+      return !v.is<label>() && !matches<number>(v);
+    }
+  };
+  struct comparable : base<comparable>, may_wrap<comparable, memory> {
+    using rule = grammar::operand::comparable;
+    static bool accept (const node & v) {
+      using namespace grammar::operand;
+      return !matches<number>(v);
+    }
+  };
+  struct callable : base<callable>, may_wrap<callable, assignable> {
+    using rule = grammar::operand::callable;
+    static bool accept (const node & v) {
+      using namespace grammar::operand;
+      return !v.is<label>();
+    }
+  };
+  struct relative : base<relative>, may_wrap<relative, memory> {
+    using rule = grammar::expression::mem;
+    static bool accept (const node & v) { return true; }
+    static const node & unwrap (const node & v) {
+      assert(v.children.size() == 2);
+      const node & base = *v.children.at(0);
+      assert(base.is<memory::rule>());
+      return memory::unwrap(base);
+    }
+  };
+}
+
+namespace analysis::L2::liveness::gen_kill { // {{{
   void instruction (const node & n, liveness::result & result) {
+    namespace helper = helper::L2::liveness::gen_kill;
     using namespace grammar::instruction;
 
     if (n.is<instruction::any>()) {
@@ -524,15 +425,14 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     }
 
     if (n.is<invoke::ret>()) {
-      using gen_kill = helper::gen_kill;
-      gen_kill::gen<calling_convention::call::out>(n, result);
+      helper::variable::gen<calling_convention::call::out>(n, result);
       namespace callee = calling_convention::callee_save;
-      gen_kill::gen<callee::r12>(n, result);
-      gen_kill::gen<callee::r13>(n, result);
-      gen_kill::gen<callee::r14>(n, result);
-      gen_kill::gen<callee::r15>(n, result);
-      gen_kill::gen<callee::rbp>(n, result);
-      gen_kill::gen<callee::rbx>(n, result);
+      helper::variable::gen<callee::r12>(n, result);
+      helper::variable::gen<callee::r13>(n, result);
+      helper::variable::gen<callee::r14>(n, result);
+      helper::variable::gen<callee::r15>(n, result);
+      helper::variable::gen<callee::rbp>(n, result);
+      helper::variable::gen<callee::rbx>(n, result);
       return;
     }
 
@@ -542,30 +442,29 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       || n.is<invoke::call::intrinsic::allocate>()
       || n.is<invoke::call::intrinsic::array_error>()
     ) {
-      using gen_kill = helper::gen_kill;
       assert(n.children.size() == 2);
       const node & integer  = *n.children.at(1);
-      int args  = helper::integer(integer);
+      int args  = ::helper::L2::integer(integer);
       if (args > 0) {
         namespace arg = calling_convention::call::argument;
-        if (args >= 1) gen_kill::gen<arg::rdi>(n, result);
-        if (args >= 2) gen_kill::gen<arg::rsi>(n, result);
-        if (args >= 3) gen_kill::gen<arg::rdx>(n, result);
-        if (args >= 4) gen_kill::gen<arg::rcx>(n, result);
-        if (args >= 5) gen_kill::gen<arg::r8 >(n, result);
-        if (args >= 6) gen_kill::gen<arg::r9 >(n, result);
+        if (args >= 1) helper::variable::gen<arg::rdi>(n, result);
+        if (args >= 2) helper::variable::gen<arg::rsi>(n, result);
+        if (args >= 3) helper::variable::gen<arg::rdx>(n, result);
+        if (args >= 4) helper::variable::gen<arg::rcx>(n, result);
+        if (args >= 5) helper::variable::gen<arg::r8 >(n, result);
+        if (args >= 6) helper::variable::gen<arg::r9 >(n, result);
       }
-      gen_kill::kill<calling_convention::call::out>(n, result);
+      helper::variable::kill<calling_convention::call::out>(n, result);
       namespace caller = calling_convention::caller_save;
-      gen_kill::kill<caller::r8 >(n, result);
-      gen_kill::kill<caller::r9 >(n, result);
-      gen_kill::kill<caller::r10>(n, result);
-      gen_kill::kill<caller::r11>(n, result);
-      gen_kill::kill<caller::rax>(n, result);
-      gen_kill::kill<caller::rcx>(n, result);
-      gen_kill::kill<caller::rdi>(n, result);
-      gen_kill::kill<caller::rdx>(n, result);
-      gen_kill::kill<caller::rsi>(n, result);
+      helper::variable::kill<caller::r8 >(n, result);
+      helper::variable::kill<caller::r9 >(n, result);
+      helper::variable::kill<caller::r10>(n, result);
+      helper::variable::kill<caller::r11>(n, result);
+      helper::variable::kill<caller::rax>(n, result);
+      helper::variable::kill<caller::rcx>(n, result);
+      helper::variable::kill<caller::rdi>(n, result);
+      helper::variable::kill<caller::rdx>(n, result);
+      helper::variable::kill<caller::rsi>(n, result);
       if (n.is<invoke::call::callable>()) {
         const node & callable_node = *n.children.at(0);
         helper::operand::callable::gen(n, callable_node, result);
@@ -593,28 +492,9 @@ namespace analysis::L2::liveness::gen_kill { // {{{
  *
  */
 namespace analysis::L2::liveness::successor { // {{{
-  // NOTE(jordan): import helpers from outer scope.
-  namespace helper { using namespace liveness::helper; }
-
-  namespace helper { // {{{
-    void set (const node & n, const node & s, liveness::result & result) {
-      result.successor[&n].insert(&s);
-    }
-    const node & definition_for (const node & label, nodes instructions) {
-      assert(label.is<operand::label>()
-          && "definition_for: called on a non-label!");
-      for (auto & instruction_ptr : instructions) {
-        const node & instruction = *instruction_ptr;
-        if (instruction.is<instruction::define::label>()) {
-          const node & defined_label = *instruction.children.at(0);
-          assert(defined_label.is<operand::label>());
-          if (defined_label.content() == label.content())
-            return instruction;
-        }
-      }
-      assert(false && "definition_for: could not find label!");
-    }
-  } // }}}
+  void set (const node & n, const node & s, liveness::result & result) {
+    result.successor[&n].insert(&s);
+  }
 
   void instruction (const node & n, int index, result & result) {
     using namespace grammar::instruction;
@@ -642,7 +522,7 @@ namespace analysis::L2::liveness::successor { // {{{
       // Our successor is the next instruction. Nice!
       assert(siblings.size() > index + 1);
       const node & next = *siblings.at(index + 1);
-      return successor::helper::set(n, next, result);
+      return successor::set(n, next, result);
     }
 
     if (false
@@ -652,30 +532,30 @@ namespace analysis::L2::liveness::successor { // {{{
     ) {
       // Ugh. Jumps.
       if (n.is<jump::go2>()) {
-        const node & label = helper::definition_for(*n.children.at(0), siblings);
-        return successor::helper::set(n, label, result);
+        const node & label = helper::L2::definition_for(*n.children.at(0), siblings);
+        return successor::set(n, label, result);
       }
       if (n.is<jump::cjump::when>()) {
         /* const node & cmp        = *n.children.at(0); */
         const node & then_label = *n.children.at(1);
         const node & then_instruction
-          = helper::definition_for(then_label, siblings);
+          = helper::L2::definition_for(then_label, siblings);
         assert(siblings.size() > index + 1);
         const node & next = *siblings.at(index + 1);
-        successor::helper::set(n, next, result);
-        successor::helper::set(n, then_instruction, result);
+        successor::set(n, next, result);
+        successor::set(n, then_instruction, result);
         return;
       }
       if (n.is<jump::cjump::if_else>()) {
         /* const node & cmp        = *n.children.at(0); */
         const node & then_label = *n.children.at(1);
         const node & then_instruction
-          = helper::definition_for(then_label, siblings);
+          = helper::L2::definition_for(then_label, siblings);
         const node & else_label = *n.children.at(2);
         const node & else_instruction
-          = helper::definition_for(else_label, siblings);
-        successor::helper::set(n, then_instruction, result);
-        successor::helper::set(n, else_instruction, result);
+          = helper::L2::definition_for(else_label, siblings);
+        successor::set(n, then_instruction, result);
+        successor::set(n, else_instruction, result);
         return;
       }
       assert(false && "successor: jump::*: unreachable!");
@@ -690,7 +570,7 @@ namespace analysis::L2::liveness::successor { // {{{
       // Calls! Our analysis is intraprocedural, so the successor is easy.
       assert(siblings.size() > index + 1);
       const node & next = *siblings.at(index + 1);
-      return successor::helper::set(n, next, result);
+      return successor::set(n, next, result);
     }
 
     if (n.is<invoke::ret>()) {
@@ -711,7 +591,7 @@ namespace analysis::L2::liveness::successor { // {{{
  */
 // liveness::in_out {{{
 namespace analysis::L2::liveness {
-  void in_out (result & result, unsigned debug) {
+  void in_out (result & result, unsigned debug = 0) {
     nodes instructions = result.instructions;
     // QUESTION: uh... what's our efficiency here? This code is gross.
     int iteration_limit = -1; // NOTE(jordan): used for debugging.
@@ -793,7 +673,7 @@ namespace analysis::L2::liveness {
 
 // compute liveness {{{
 namespace analysis::L2::liveness {
-  void compute (liveness::result & result, unsigned debug) {
+  void compute (liveness::result & result, unsigned debug = 0) {
     // 1. Compute GEN, KILL
     for (int index = 0; index < result.instructions.size(); index++) {
       const node & instruction = *result.instructions.at(index);
@@ -857,13 +737,13 @@ namespace analysis::L2::liveness {
 // }}}
 
 namespace analysis::L2::liveness {
-  result compute (const ast::node & root, unsigned debug = 0) {
+  result compute (const ast::node & root) {
     assert(root.is_root() && "liveness: got a non-root node!");
     assert(!root.children.empty() && "liveness: got an empty AST!");
     liveness::result result = {};
     const node & function = *root.children.at(0);
-    result.instructions = helper::collect_instructions(function);
-    liveness::compute(result, debug);
+    result.instructions = helper::L2::collect_instructions(function);
+    liveness::compute(result);
     return result;
   }
 
@@ -906,9 +786,7 @@ namespace analysis::L2::interference {
     interference_map graph;
   };
 
-  namespace helper { using namespace L2::helper; }
-
-  namespace helper {
+  namespace graph {
     // TODO(jordan): uh, not this.
     void biconnect (
       result & result,
@@ -921,11 +799,11 @@ namespace analysis::L2::interference {
   }
 
   // FIXME(jordan): these helpers are gross.
-  namespace helper::x86_64_register { // {{{
-    namespace register_helper = ::analysis::L2::helper::x86_64_register;
+  namespace graph::x86_64_register { // {{{
+    namespace register_helper = helper::L2::x86_64_register;
     using namespace grammar::identifier::x86_64_register;
 
-    void connect_to_all (result & result, const std::string & origin) {
+    void connect_to (result & result, const std::string & origin) {
       auto & interferes = result.graph[origin];
       biconnect(result, origin, register_helper::as_string<rax>::value);
       biconnect(result, origin, register_helper::as_string<rbx>::value);
@@ -946,40 +824,37 @@ namespace analysis::L2::interference {
     }
 
     template <typename Register>
-    void connect_to_all (result & result) {
-      connect_to_all(result, register_helper::as_string<Register>::value);
+    void connect_to (result & result) {
+      connect_to(result, register_helper::as_string<Register>::value);
     }
 
     // FIXME(jordan): never a sin without its just reward...
-    void connect_all_registers (result & result) {
-      connect_to_all<rax>(result);
-      connect_to_all<rbx>(result);
-      connect_to_all<rcx>(result);
-      connect_to_all<rdx>(result);
-      connect_to_all<rsi>(result);
-      connect_to_all<rdi>(result);
-      connect_to_all<rbp>(result);
-      connect_to_all<r8 >(result);
-      connect_to_all<r9 >(result);
-      connect_to_all<r10>(result);
-      connect_to_all<r11>(result);
-      connect_to_all<r12>(result);
-      connect_to_all<r13>(result);
-      connect_to_all<r14>(result);
-      connect_to_all<r15>(result);
+    void connect_all (result & result) {
+      connect_to<rax>(result);
+      connect_to<rbx>(result);
+      connect_to<rcx>(result);
+      connect_to<rdx>(result);
+      connect_to<rsi>(result);
+      connect_to<rdi>(result);
+      connect_to<rbp>(result);
+      connect_to<r8 >(result);
+      connect_to<r9 >(result);
+      connect_to<r10>(result);
+      connect_to<r11>(result);
+      connect_to<r12>(result);
+      connect_to<r13>(result);
+      connect_to<r14>(result);
+      connect_to<r15>(result);
     }
   } // }}}
 }
 
 namespace analysis::L2::interference { // {{{
-  void compute (
-    interference::result & result,
-    unsigned debug = 0 // TODO(jordan): add debug flags for interference
-  ) {
+  void compute (interference::result & result) {
     namespace assign = grammar::instruction::assign;
     namespace update = grammar::instruction::update;
     // 0. Connect all registers to one another. Don't look closely.
-    helper::x86_64_register::connect_all_registers(result);
+    graph::x86_64_register::connect_all(result);
     // Iterate over all of the instructions, and...
     for (int index = 0; index < result.instructions.size(); index++) {
       const auto & instruction = *result.instructions.at(index);
@@ -989,7 +864,7 @@ namespace analysis::L2::interference { // {{{
       // 1. Connect each pair of variables in the same IN set
       for (const auto & variable : in) {
         for (const auto & sibling : in) {
-          helper::biconnect(result, variable, sibling);
+          graph::biconnect(result, variable, sibling);
         }
       }
       // 2. Connect each pair of variables in the same OUT set
@@ -999,7 +874,7 @@ namespace analysis::L2::interference { // {{{
       if (instruction.is<assign::assignable::gets_movable>()) {
         assert(instruction.children.size() == 2);
         const node & src = *instruction.children.at(1);
-        if (helper::matches<operand::memory>(src)) {
+        if (helper::L2::matches<operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.
           connect_kill = false;
         }
@@ -1007,17 +882,17 @@ namespace analysis::L2::interference { // {{{
       // Make the connections.
       for (const auto & variable : out) {
         for (const auto & sibling : out) {
-          helper::biconnect(result, variable, sibling);
+          graph::biconnect(result, variable, sibling);
         }
         if (connect_kill) {
           for (const auto & k : kill) {
-            helper::biconnect(result, variable, k);
+            graph::biconnect(result, variable, k);
           }
         }
       }
       if (connect_kill) for (const auto & variable : kill) {
         for (const auto & liveout : out) {
-          helper::biconnect(result, variable, liveout);
+          graph::biconnect(result, variable, liveout);
         }
       }
       // 4. Handle special arithmetic constraints
@@ -1028,17 +903,17 @@ namespace analysis::L2::interference { // {{{
         assert(instruction.children.size() == 3);
         // FIXME(jordan): whoops.
         const node & src = *instruction.children.at(2);
-        using shift = liveness::gen_kill::helper::operand::shift;
+        using shift = ::helper::L2::liveness::gen_kill::operand::shift;
         const node & value = shift::unwrap(src);
         bool is_variable = value.is<operand::variable>();
         const std::string & variable
           = is_variable
-          ? helper::variable::get_name(value)
+          ? helper::L2::variable::get_name(value)
           : value.content();
         // FIXME(jordan): yeeuuup. This is horrible, I know. But... ugh.
-        namespace register_help = L2::helper::x86_64_register;
+        namespace register_help = helper::L2::x86_64_register;
         using namespace grammar::identifier::x86_64_register;
-        using namespace helper;
+        using namespace graph;
         biconnect(result, variable, register_help::as_string<rax>::value);
         biconnect(result, variable, register_help::as_string<rbx>::value);
         biconnect(result, variable, register_help::as_string<rdx>::value);
@@ -1060,12 +935,12 @@ namespace analysis::L2::interference { // {{{
 } // }}}
 
 namespace analysis::L2::interference {
-  result compute (const ast::node & root, unsigned debug = 0) {
+  result compute (const ast::node & root) {
     assert(root.is_root() && "interference: got a non-root node!");
     assert(!root.children.empty() && "interference: got an empty AST!");
-    liveness::result liveness_result = liveness::compute(root, debug);
+    liveness::result liveness_result = liveness::compute(root);
     std::vector<std::string> variables
-      = helper::variable::collect_variables(liveness_result.instructions);
+      = helper::L2::collect_variables(liveness_result.instructions);
     interference::result result = {
       liveness_result.instructions,
       variables,
@@ -1075,7 +950,7 @@ namespace analysis::L2::interference {
     for (auto variable : result.variables) {
       result.graph[variable] = {};
     }
-    interference::compute(result, debug);
+    interference::compute(result);
     return result;
   }
 

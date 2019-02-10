@@ -1,65 +1,47 @@
 // vim: set foldmethod=marker:
+#pragma once
 #include <sstream>
 #include <iostream>
 
 #include "L1/codegen.h"
 #include "grammar.h"
 #include "ast.h"
+#include "helper.h"
+
+namespace helper::L2::transform {
+  std::string relative (const node & n) {
+    assert(n.children.size() == 2 && "mem: incorrect # children");
+    const node & base   = *n.children.at(0);
+    const node & offset = *n.children.at(1);
+    return "mem " + base.content() + " " + offset.content();
+  }
+}
+
+namespace helper::L2::transform::spill {
+  bool spills (const node & operand, const node & target) {
+    assert(operand.has_content() && "spills: operand has no content!");
+    return true
+      && matches<grammar::identifier::variable>(operand)
+      && operand.content() == target.content();
+  }
+  std::string make (const node & prefix, int & spills) {
+    return prefix.content() + std::to_string(spills++);
+  }
+  std::string get (const int & offset) {
+    return "mem rsp " + std::to_string(offset);
+  }
+  std::string save (const std::string & spilled, const int & offset) {
+    return spill::get(offset) + " <- " + spilled;
+  }
+  std::string load ( const std::string & dest, const int & offset) {
+    return dest + " <- " + spill::get(offset);
+  }
+}
 
 namespace transform::L2::spill {
   namespace grammar = grammar::L2;
   using namespace ast::L2;
   using namespace grammar::instruction;
-
-  // helper {{{
-  // FIXME(jordan): copy/pasta
-  namespace helper {
-    namespace L1_helper = codegen::L1::generate::helper;
-    template <class R>
-    bool matches (const node & n)  { return L1_helper::matches<R>(n); }
-    template <class R>
-    bool matches (const std::string & s) { return L1_helper::matches<R>(s); }
-  }
-
-  namespace helper {
-    int integer (const node & n) {
-      assert(n.has_content() && "helper::integer: no content!");
-      return std::stoi(n.content());
-    }
-  }
-
-  namespace helper {
-    std::string relative (const node & n) {
-      assert(n.children.size() == 2 && "mem: incorrect # children");
-      const node & base   = *n.children.at(0);
-      const node & offset = *n.children.at(1);
-      return "mem " + base.content() + " " + offset.content();
-    }
-  }
-
-  namespace helper {
-    bool spills (const node & operand, const node & target) {
-      assert(operand.has_content() && "spills: operand has no content!");
-      return true
-        && matches<grammar::identifier::variable>(operand)
-        && operand.content() == target.content();
-    }
-    std::string make_spill (const node & prefix, int & spills) {
-      return prefix.content() + std::to_string(spills++);
-    }
-    void get_spill (const int & offset, std::ostream & os) {
-      os << "mem rsp " << offset;
-    }
-    void save_spill (const std::string & spilled, const int & offset, std::ostream & os) {
-      helper::get_spill(offset, os);
-      os << " <- " << spilled;
-    }
-    void load_spill (const std::string & dest, const int & offset, std::ostream & os) {
-      os << dest << " <- ";
-      helper::get_spill(offset, os);
-    }
-  }
-  // }}}
 
   void instruction (
     const node & n,
@@ -69,6 +51,7 @@ namespace transform::L2::spill {
     const int & offset,
     std::ostream & os
   ) {
+    namespace helper = helper::L2::transform;
     if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
       const node & unwrapped = *n.children.at(0);
@@ -80,17 +63,17 @@ namespace transform::L2::spill {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & stack_arg = *n.children.at(1);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN <- stack-arg M
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- stack-arg M
         os << spilled << " <- " << stack_arg.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content() << " <- " << stack_arg.content();
       }
@@ -100,7 +83,10 @@ namespace transform::L2::spill {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & src  = *n.children.at(1);
-      if (helper::spills(dest, target) && helper::spills(src, target)) {
+      if (true
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(src, target)
+      ) {
         /**
          * NOTE(jordan):
          *
@@ -112,22 +98,22 @@ namespace transform::L2::spill {
          */
         // %SN <- %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- %SN
         os << spilled << " <- " << spilled;
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(dest, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(dest, target)) {
         // %SN <- <movable>
-        std::string spilled = helper::make_spill(prefix, spills);
+        std::string spilled = helper::spill::make(prefix, spills);
         os << spilled << " <- " << src.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(src, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(src, target)) {
         /**
          * QUESTION(jordan): Why not just:
          *
@@ -137,8 +123,8 @@ namespace transform::L2::spill {
          */
         // w <-  %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // X <- %SN
         os << dest.content() << " <- " << spilled;
@@ -152,14 +138,14 @@ namespace transform::L2::spill {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & src  = *n.children.at(1);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
+        std::string spilled = helper::spill::make(prefix, spills);
         // %SN <- mem x M
         os << spilled << " <- " << helper::relative(src);
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content() << " <- " << helper::relative(src);
       }
@@ -170,10 +156,10 @@ namespace transform::L2::spill {
       assert(n.children.size() == 2);
       const node & dest = *n.children.at(0);
       const node & src  = *n.children.at(1);
-      if (helper::spills(src, target)) {
+      if (helper::spill::spills(src, target)) {
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // mem x M <- %SN
         os << helper::relative(dest) << " <- " << spilled;
@@ -189,11 +175,11 @@ namespace transform::L2::spill {
       const node & op   = *n.children.at(1);
       const node & src  = *n.children.at(2);
       // w {+,*,-,&}= t
-      if (helper::spills(dest, target) && helper::spills(src, target)) {
+      if (helper::spill::spills(dest, target) && helper::spill::spills(src, target)) {
         // %SN OP %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN OP= %SN
         os << spilled
@@ -201,12 +187,12 @@ namespace transform::L2::spill {
           << " " << spilled;
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(dest, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(dest, target)) {
         // %SN OP t
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN OP= t
         os << spilled
@@ -214,21 +200,20 @@ namespace transform::L2::spill {
           << " " << src.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(src, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(src, target)) {
         // w OP %SN
         // += and -= allow mem x M; otherwise, no.
         if (op.is<grammar::op::add>() || op.is<grammar::op::subtract>()) {
           // w OP mem rsp OFF
           os << dest.content()
             << " " << op.content()
-            << " ";
-          helper::get_spill(offset, os);
+            << " " << helper::spill::get(offset);
         } else {
           // w OP %SN
           // %SN <- mem rsp OFF
-          std::string spilled = helper::make_spill(prefix, spills);
-          helper::load_spill(spilled, offset, os);
+          std::string spilled = helper::spill::make(prefix, spills);
+          os << helper::spill::load(spilled, offset);
           os << "\n\t";
           // w OP %SN
           os << dest.content()
@@ -248,33 +233,33 @@ namespace transform::L2::spill {
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
       const node & src  = *n.children.at(2);
-      if (helper::spills(dest, target) && helper::spills(src, target)) {
+      if (helper::spill::spills(dest, target) && helper::spill::spills(src, target)) {
         // %SN SOP= %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN SOP= %SN
         os << spilled << " " << op.content() << " " << spilled;
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(dest, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(dest, target)) {
         // %SN SOP= sx
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN SOP= sx
         os << spilled << " " << op.content() << " " << src.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
-      } else if (helper::spills(src, target)) {
+        os << helper::spill::save(spilled, offset);
+      } else if (helper::spill::spills(src, target)) {
         // w SOP %SN -- no relative.
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w SOP= %SN
         os << dest.content() << " " << op.content() << " " << spilled;
@@ -291,17 +276,17 @@ namespace transform::L2::spill {
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
       const node & con  = *n.children.at(2);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN SOP= N -- no relative.
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN SOP= N
         os << spilled << " " << op.content() << " " << con.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content()
           << " " << op.content()
@@ -316,11 +301,11 @@ namespace transform::L2::spill {
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
       const node & src  = *n.children.at(2);
-      if (helper::spills(src, target)) {
+      if (helper::spill::spills(src, target)) {
         // mem x M <- %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // mem x M <- %SN
         os << helper::relative(dest) << " " << op.content() << " " << spilled;
@@ -338,17 +323,17 @@ namespace transform::L2::spill {
       const node & dest = *n.children.at(0);
       const node & op   = *n.children.at(1);
       const node & src  = *n.children.at(2);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN <- mem x M
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- mem x M
         os << spilled << " " << op.content() << " " << helper::relative(src);
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content()
           << " " << op.content()
@@ -366,14 +351,14 @@ namespace transform::L2::spill {
       const node & op   = *cmp.children.at(1);
       const node & rhs  = *cmp.children.at(2);
       if (true
-        && helper::spills(dest, target)
-        && helper::spills(lhs, target)
-        && helper::spills(rhs, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(lhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // %SN <- %SN CMP %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- %SN CMP %SN
         os << spilled
@@ -383,15 +368,15 @@ namespace transform::L2::spill {
           << " " << spilled;
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(dest, target)
-        && helper::spills(lhs, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(lhs, target)
       ) {
         // %SN <- %SN CMP t
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- %SN CMP t
         os << spilled
@@ -401,15 +386,15 @@ namespace transform::L2::spill {
           << " " << rhs.content();
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(dest, target)
-        && helper::spills(rhs, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // %SN <- t CMP %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN <- t CMP %SN
         os << spilled
@@ -419,15 +404,15 @@ namespace transform::L2::spill {
           << " " << spilled;
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(lhs, target)
-        && helper::spills(rhs, target)
+        && helper::spill::spills(lhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // w <- %SN CMP %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w <- %SN CMP %SN
         os << dest.content()
@@ -436,12 +421,12 @@ namespace transform::L2::spill {
           << " " << op.content()
           << " " << spilled;
       } else if (true
-        && helper::spills(lhs, target)
+        && helper::spill::spills(lhs, target)
       ) {
         // w <- %SN CMP t
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w <- %SN CMP t
         os << dest.content()
@@ -450,12 +435,12 @@ namespace transform::L2::spill {
           << " " << op.content()
           << " " << rhs.content();
       } else if (true
-        && helper::spills(rhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // w <- t CMP %SN
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w <- t CMP %SN
         os << dest.content()
@@ -483,13 +468,13 @@ namespace transform::L2::spill {
       const node & then = *n.children.at(1);
       const node & els  = *n.children.at(2);
       if (true
-        && helper::spills(lhs, target)
-        && helper::spills(rhs, target)
+        && helper::spill::spills(lhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // cjump %SN CMP %SN :then :else
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then :else
         os << "cjump"
@@ -499,12 +484,12 @@ namespace transform::L2::spill {
           << " " << then.content()
           << " " << els.content();
       } else if (true
-        && helper::spills(lhs, target)
+        && helper::spill::spills(lhs, target)
       ) {
         // cjump %SN CMP t :then :else
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then :else
         os << "cjump"
@@ -514,12 +499,12 @@ namespace transform::L2::spill {
           << " " << then.content()
           << " " << els.content();
       } else if (true
-        && helper::spills(rhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // cjump t CMP %SN :then :else
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then :else
         os << "cjump"
@@ -548,13 +533,13 @@ namespace transform::L2::spill {
       const node & rhs  = *cmp.children.at(2);
       const node & then = *n.children.at(1);
       if (true
-        && helper::spills(lhs, target)
-        && helper::spills(rhs, target)
+        && helper::spill::spills(lhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // cjump %SN CMP %SN :then
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then
         os << "cjump"
@@ -563,12 +548,12 @@ namespace transform::L2::spill {
           << " " << spilled
           << " " << then.content();
       } else if (true
-        && helper::spills(lhs, target)
+        && helper::spill::spills(lhs, target)
       ) {
         // cjump %SN CMP t :then
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then
         os << "cjump"
@@ -577,12 +562,12 @@ namespace transform::L2::spill {
           << " " << rhs.content()
           << " " << then.content();
       } else if (true
-        && helper::spills(rhs, target)
+        && helper::spill::spills(rhs, target)
       ) {
         // cjump t CMP %SN :then
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // cjump %SN CMP %SN :then
         os << "cjump"
@@ -626,12 +611,12 @@ namespace transform::L2::spill {
       const node & integer  = *n.children.at(1);
       assert(callable.children.size() == 1);
       const node & value = *callable.children.at(0);
-      int args  = helper::integer(integer);
-      if (helper::spills(callable, target)) {
+      int args  = ::helper::L2::integer(integer);
+      if (helper::spill::spills(callable, target)) {
         // call %SN N
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // call %SN N
         os << "call"
@@ -663,17 +648,17 @@ namespace transform::L2::spill {
     if (n.is<update::assignable::arithmetic::increment>()) {
       assert(n.children.size() == 2); // ignore '++'
       const node & dest = *n.children.at(0);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN++
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN++
         os << spilled << "++";
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content() << "++";
       }
@@ -683,17 +668,17 @@ namespace transform::L2::spill {
     if (n.is<update::assignable::arithmetic::decrement>()) {
       assert(n.children.size() == 2); // ignore '--'
       const node & dest = *n.children.at(0);
-      if (helper::spills(dest, target)) {
+      if (helper::spill::spills(dest, target)) {
         // %SN--
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN--
         os << spilled << "--";
         os << "\n\t";
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else {
         os << dest.content() << "--";
       }
@@ -708,14 +693,14 @@ namespace transform::L2::spill {
       const node & address_offset = *n.children.at(3);
       const node & scale          = *n.children.at(4);
       if (true
-        && helper::spills(dest, target)
-        && helper::spills(address_offset, target)
-        && helper::spills(base, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(address_offset, target)
+        && helper::spill::spills(base, target)
       ) {
         // %SN @ %SN %SN E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN @ %SN %SN E
         os << spilled
@@ -724,15 +709,15 @@ namespace transform::L2::spill {
           << " " << spilled
           << " " << scale.content();
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(dest, target)
-        && helper::spills(base, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(base, target)
       ) {
         // %SN @ %SN w E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         os << spilled
           << " " << op.content()
@@ -740,15 +725,15 @@ namespace transform::L2::spill {
           << " " << address_offset.content()
           << " " << scale.content();
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(dest, target)
-        && helper::spills(address_offset, target)
+        && helper::spill::spills(dest, target)
+        && helper::spill::spills(address_offset, target)
       ) {
         // %SN @ w %SN E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN @ w %SN E
         os << spilled
@@ -757,15 +742,15 @@ namespace transform::L2::spill {
           << " " << spilled
           << " " << scale.content();
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(base, target)
-        && helper::spills(address_offset, target)
+        && helper::spill::spills(base, target)
+        && helper::spill::spills(address_offset, target)
       ) {
         // w @ %SN %SN E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         os << dest.content()
           << " " << op.content()
@@ -773,12 +758,12 @@ namespace transform::L2::spill {
           << " " << spilled
           << " " << scale.content();
       } else if (true
-        && helper::spills(dest, target)
+        && helper::spill::spills(dest, target)
       ) {
         // %SN @ w w E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // %SN @ w w E
         os << spilled
@@ -787,14 +772,14 @@ namespace transform::L2::spill {
           << " " << address_offset.content()
           << " " << scale.content();
         // mem rsp OFF <- %SN
-        helper::save_spill(spilled, offset, os);
+        os << helper::spill::save(spilled, offset);
       } else if (true
-        && helper::spills(base, target)
+        && helper::spill::spills(base, target)
       ) {
         // w @ %SN w E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w @ %SN w E
         os << dest.content()
@@ -803,12 +788,12 @@ namespace transform::L2::spill {
           << " " << address_offset.content()
           << " " << scale.content();
       } else if (true
-        && helper::spills(address_offset, target)
+        && helper::spill::spills(address_offset, target)
       ) {
         // w @ w %SN E
         // %SN <- mem rsp OFF
-        std::string spilled = helper::make_spill(prefix, spills);
-        helper::load_spill(spilled, offset, os);
+        std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
         os << "\n\t";
         // w @ w %SN E
         os << dest.content()
@@ -859,8 +844,8 @@ namespace transform::L2::spill {
     const node & arg_count    = *function.children.at(1);
     const node & local_count  = *function.children.at(2);
     const node & instructions = *function.children.at(3);
-    int args   = helper::integer(arg_count);
-    int locals = helper::integer(local_count);
+    int args   = helper::L2::integer(arg_count);
+    int locals = helper::L2::integer(local_count);
     int spills = 0;
     int offset = 8 * locals;
     if (args > 6) offset += 8 * (args - 6);
