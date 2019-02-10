@@ -8,7 +8,6 @@
 #include <algorithm>
 
 #include "L1/codegen.h"
-#include "util.h"
 #include "grammar.h"
 #include "ast.h"
 
