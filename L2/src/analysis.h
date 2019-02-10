@@ -4,7 +4,6 @@
 #include <set>
 #include <cassert>
 #include <iostream>
-#include <iterator>
 #include <algorithm>
 
 #include "L1/codegen.h"
