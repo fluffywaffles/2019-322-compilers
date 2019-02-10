@@ -41,8 +41,9 @@ namespace ast::L2 {
       using selector = selector<
         Rule,
         apply_store_content::to<
-          /* NOTE(jordan): keep around literal nodes so that we can
-           * safely always unwrap their parent operands.
+          /* NOTE(jordan): keep around literal nodes' contents so that we
+           * can always unwrap their parent operands and operate on the
+           * literals directly.
            */
           literal::number::integer::any,
           literal::number::integer::positive,
@@ -65,11 +66,26 @@ namespace ast::L2 {
           identifier::x86_64_register::r13,
           identifier::x86_64_register::r14,
           identifier::x86_64_register::r15,
+          /* NOTE(jordan): if we store both the labels/variables and their
+           * name, we don't have to parse the name out later: the name
+           * (without a prefix) is the label/variable child.
+           */
           identifier::name,
           identifier::label,
           identifier::variable,
+          /* NOTE(jordan): we don't strictly *need* to keep around the
+           * contents of expressions, because they're easy to reconstruct,
+           * but the redundant storage is worth the insurance /
+           * debuggability.
+           */
+          expression::cmp,
           expression::mem,
           expression::stack_arg,
+          /* NOTE(jordan): we can write more generic code by keeping
+           * around the contents of operators. Otherwise we're forced to
+           * reconstruct their string representations, which is silly. The
+           * same goes for intrinsic function names.
+           */
           op::less,
           op::equal,
           op::less_equal,
@@ -82,6 +98,13 @@ namespace ast::L2 {
           op::shift_left,
           op::bitwise_and,
           op::shift_right,
+          literal::intrinsic::print,
+          literal::intrinsic::allocate,
+          literal::intrinsic::array_error,
+          /* NOTE(jordan): we want to do later string matching against
+           * operands, so we need to keep their contents around even
+           * though it's redundant. It makes the code easier.
+           */
           operand::shift,
           operand::assignable,
           operand::memory,
@@ -91,10 +114,10 @@ namespace ast::L2 {
           function::arg_count,
           function::local_count>,
         apply_remove_content::to<
-          literal::intrinsic::print,
-          literal::intrinsic::allocate,
-          literal::intrinsic::array_error,
-          expression::cmp,
+          /* NOTE(jordan): these nodes are just containers; they don't
+           * have any content of their own. Keeping their content would be
+           * purely redundant.
+           */
           instruction::any,
           instruction::assign::assignable::gets_movable,
           instruction::assign::assignable::gets_relative,
