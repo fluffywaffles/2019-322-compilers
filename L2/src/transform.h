@@ -40,8 +40,7 @@ namespace helper::L2::transform::spill {
 
 namespace transform::L2::spill {
   namespace grammar = grammar::L2;
-  using namespace ast::L2;
-  using namespace grammar::instruction;
+  using node = ast::L2::node;
 
   void instruction (
     const node & n,
@@ -52,6 +51,7 @@ namespace transform::L2::spill {
     std::ostream & os
   ) {
     namespace helper = helper::L2::transform;
+    using namespace grammar::instruction;
     if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
       const node & unwrapped = *n.children.at(0);

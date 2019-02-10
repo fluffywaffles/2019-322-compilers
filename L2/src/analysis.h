@@ -12,12 +12,8 @@
 #include "helper.h"
 
 namespace analysis::L2 {
-  namespace ast     = ast::L2;
-  namespace grammar = grammar::L2;
-  using namespace ast;
-  using namespace grammar;
-
-  using nodes = helper::L2::nodes;
+  using node   = ast::L2::node;
+  using nodes  = helper::L2::nodes;
   using string = std::string;
   using liveness_map     = std::map<const node *, std::set<string>>;
   using successor_map    = std::map<const node *, std::set<const node *>>;
@@ -26,14 +22,12 @@ namespace analysis::L2 {
 
 // liveness {{{
 namespace analysis::L2::liveness {
-  // debug constants {{{
   const int DBG_SUCC                       = 0b000001;
   const int DBG_PRINT                      = 0b000010;
   const int DBG_GEN_KILL                   = 0b000100;
   const int DBG_IN_OUT_LOOP_CND            = 0b001000;
   const int DBG_IN_OUT_LOOP_ORIG           = 0b010000;
   const int DBG_IN_OUT_LOOP_OUT_MINUS_KILL = 0b100000;
-  // }}}
 
   struct result {
     nodes instructions;
@@ -55,6 +49,7 @@ namespace analysis::L2::liveness {
  * logic. Separate out those 2 things so that other code can benefit from
  * the smart wrappers.
  */
+// gen/kill helpers {{{
 namespace helper::L2::liveness::gen_kill {
   enum struct GenKill { gen, kill };
   struct variable {
@@ -259,11 +254,13 @@ namespace helper::L2::liveness::gen_kill::operand {
     }
   };
 }
+// }}}
 
-namespace analysis::L2::liveness::gen_kill { // {{{
+// gen/kill analysis {{{
+namespace analysis::L2::liveness::gen_kill {
   void instruction (const node & n, liveness::result & result) {
     namespace helper = helper::L2::liveness::gen_kill;
-    using namespace grammar::instruction;
+    namespace instruction = grammar::L2::instruction;
 
     if (n.is<instruction::any>()) {
       assert(n.children.size() == 1);
@@ -305,7 +302,8 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       helper::operand::comparable::gen(n, rhs, result)
     // }}}
 
-    using namespace grammar::operand;
+    using namespace grammar::L2::operand;
+    using namespace grammar::L2::instruction;
     if (n.is<assign::assignable::gets_movable>()) {
       assign_instruction_gen_kill(assignable, movable);
       return;
@@ -424,6 +422,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     }
 
     if (n.is<invoke::ret>()) {
+      namespace calling_convention = grammar::L2::calling_convention;
       helper::variable::gen<calling_convention::call::out>(n, result);
       namespace callee = calling_convention::callee_save;
       helper::variable::gen<callee::r12>(n, result);
@@ -441,11 +440,12 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       || n.is<invoke::call::intrinsic::allocate>()
       || n.is<invoke::call::intrinsic::array_error>()
     ) {
+      namespace calling_convention = grammar::L2::calling_convention;
+      namespace arg                = calling_convention::call::argument;
       assert(n.children.size() == 2);
       const node & integer  = *n.children.at(1);
       int args  = ::helper::L2::integer(integer);
       if (args > 0) {
-        namespace arg = calling_convention::call::argument;
         if (args >= 1) helper::variable::gen<arg::rdi>(n, result);
         if (args >= 2) helper::variable::gen<arg::rsi>(n, result);
         if (args >= 3) helper::variable::gen<arg::rdx>(n, result);
@@ -479,7 +479,8 @@ namespace analysis::L2::liveness::gen_kill { // {{{
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::instruction: unreachable!");
   }
-} // }}}
+}
+// }}}
 
 /**
  *
@@ -490,13 +491,14 @@ namespace analysis::L2::liveness::gen_kill { // {{{
  * succ[<else>...     ] = i + i
  *
  */
-namespace analysis::L2::liveness::successor { // {{{
+// successor analysis {{{
+namespace analysis::L2::liveness::successor {
   void set (const node & n, const node & s, liveness::result & result) {
     result.successor[&n].insert(&s);
   }
 
   void instruction (const node & n, int index, result & result) {
-    using namespace grammar::instruction;
+    using namespace grammar::L2::instruction;
 
     nodes siblings = result.instructions;
 
@@ -580,7 +582,8 @@ namespace analysis::L2::liveness::successor { // {{{
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::successor: unreachable!");
   }
-} // }}}
+}
+// }}}
 
 /**
  *
@@ -588,7 +591,7 @@ namespace analysis::L2::liveness::successor { // {{{
  * OUT[i] = U(s : successor of(i)) IN[s]
  *
  */
-// liveness::in_out {{{
+// in/out calculation {{{
 namespace analysis::L2::liveness {
   void in_out (result & result, unsigned debug = 0) {
     nodes instructions = result.instructions;
@@ -670,7 +673,7 @@ namespace analysis::L2::liveness {
 }
 // }}}
 
-// compute liveness {{{
+// full liveness analysis {{{
 namespace analysis::L2::liveness {
   void compute (liveness::result & result, unsigned debug = 0) {
     // 1. Compute GEN, KILL
@@ -735,8 +738,9 @@ namespace analysis::L2::liveness {
 }
 // }}}
 
+// wrapper api {{{
 namespace analysis::L2::liveness {
-  result compute (const ast::node & root) {
+  result compute (const node & root) {
     assert(root.is_root() && "liveness: got a non-root node!");
     assert(!root.children.empty() && "liveness: got an empty AST!");
     liveness::result result = {};
@@ -754,7 +758,7 @@ namespace analysis::L2::liveness {
     nodes instructions = result.instructions;
     os << (pretty ? "((in\n" : "(\n(in");
     for (int index = 0; index < instructions.size(); index++) {
-      const ast::node & instruction = *instructions.at(index);
+      const node & instruction = *instructions.at(index);
       auto in = result.in.at(&instruction);
       os << (pretty ? "  (" : "\n(");
       for (auto var : in) os << var << " ";
@@ -764,7 +768,7 @@ namespace analysis::L2::liveness {
     os << (pretty ? "\b\b\b))\n" : "\n)");
     os << (pretty ? "(out\n"     : "\n\n(out");
     for (int index = 0; index < instructions.size(); index++) {
-      const ast::node & instruction = *instructions.at(index);
+      const node & instruction = *instructions.at(index);
       auto out = result.out.at(&instruction);
       os << (pretty ? "  (" : "\n(");
       for (auto var : out) os << var << " ";
@@ -775,6 +779,7 @@ namespace analysis::L2::liveness {
   }
 }
 // }}}
+// }}}
 
 // interference {{{
 namespace analysis::L2::interference {
@@ -784,74 +789,77 @@ namespace analysis::L2::interference {
     liveness::result liveness;
     interference_map graph;
   };
-
-  namespace graph {
-    // TODO(jordan): uh, not this.
-    void biconnect (
-      result & result,
-      const std::string & a,
-      const std::string & b
-    ) {
-      result.graph[a].insert(b);
-      result.graph[b].insert(a);
-    }
-  }
-
-  // FIXME(jordan): these helpers are gross.
-  namespace graph::x86_64_register { // {{{
-    namespace register_helper = helper::L2::x86_64_register;
-    using namespace grammar::identifier::x86_64_register;
-
-    void connect_to (result & result, const std::string & origin) {
-      auto & interferes = result.graph[origin];
-      biconnect(result, origin, register_helper::as_string<rax>::value);
-      biconnect(result, origin, register_helper::as_string<rbx>::value);
-      biconnect(result, origin, register_helper::as_string<rcx>::value);
-      biconnect(result, origin, register_helper::as_string<rdx>::value);
-      biconnect(result, origin, register_helper::as_string<rsi>::value);
-      biconnect(result, origin, register_helper::as_string<rdi>::value);
-      biconnect(result, origin, register_helper::as_string<rbp>::value);
-      biconnect(result, origin, register_helper::as_string<r8 >::value);
-      biconnect(result, origin, register_helper::as_string<r9 >::value);
-      biconnect(result, origin, register_helper::as_string<r10>::value);
-      biconnect(result, origin, register_helper::as_string<r11>::value);
-      biconnect(result, origin, register_helper::as_string<r12>::value);
-      biconnect(result, origin, register_helper::as_string<r13>::value);
-      biconnect(result, origin, register_helper::as_string<r14>::value);
-      biconnect(result, origin, register_helper::as_string<r15>::value);
-      interferes.erase(origin);
-    }
-
-    template <typename Register>
-    void connect_to (result & result) {
-      connect_to(result, register_helper::as_string<Register>::value);
-    }
-
-    // FIXME(jordan): never a sin without its just reward...
-    void connect_all (result & result) {
-      connect_to<rax>(result);
-      connect_to<rbx>(result);
-      connect_to<rcx>(result);
-      connect_to<rdx>(result);
-      connect_to<rsi>(result);
-      connect_to<rdi>(result);
-      connect_to<rbp>(result);
-      connect_to<r8 >(result);
-      connect_to<r9 >(result);
-      connect_to<r10>(result);
-      connect_to<r11>(result);
-      connect_to<r12>(result);
-      connect_to<r13>(result);
-      connect_to<r14>(result);
-      connect_to<r15>(result);
-    }
-  } // }}}
 }
 
-namespace analysis::L2::interference { // {{{
+// graph connection helpers {{{
+namespace analysis::L2::interference::graph {
+  // TODO(jordan): uh, not this.
+  void biconnect (
+    result & result,
+    const std::string & a,
+    const std::string & b
+  ) {
+    result.graph[a].insert(b);
+    result.graph[b].insert(a);
+  }
+}
+
+// FIXME(jordan): these helpers are gross.
+namespace analysis::L2::interference::graph::x86_64_register {
+  namespace register_helper = helper::L2::x86_64_register;
+  using namespace grammar::L2::identifier::x86_64_register;
+
+  void connect_to (result & result, const std::string & origin) {
+    auto & interferes = result.graph[origin];
+    biconnect(result, origin, register_helper::as_string<rax>::value);
+    biconnect(result, origin, register_helper::as_string<rbx>::value);
+    biconnect(result, origin, register_helper::as_string<rcx>::value);
+    biconnect(result, origin, register_helper::as_string<rdx>::value);
+    biconnect(result, origin, register_helper::as_string<rsi>::value);
+    biconnect(result, origin, register_helper::as_string<rdi>::value);
+    biconnect(result, origin, register_helper::as_string<rbp>::value);
+    biconnect(result, origin, register_helper::as_string<r8 >::value);
+    biconnect(result, origin, register_helper::as_string<r9 >::value);
+    biconnect(result, origin, register_helper::as_string<r10>::value);
+    biconnect(result, origin, register_helper::as_string<r11>::value);
+    biconnect(result, origin, register_helper::as_string<r12>::value);
+    biconnect(result, origin, register_helper::as_string<r13>::value);
+    biconnect(result, origin, register_helper::as_string<r14>::value);
+    biconnect(result, origin, register_helper::as_string<r15>::value);
+    interferes.erase(origin);
+  }
+
+  template <typename Register>
+  void connect_to (result & result) {
+    connect_to(result, register_helper::as_string<Register>::value);
+  }
+
+  // FIXME(jordan): never a sin without its just reward...
+  void connect_all (result & result) {
+    connect_to<rax>(result);
+    connect_to<rbx>(result);
+    connect_to<rcx>(result);
+    connect_to<rdx>(result);
+    connect_to<rsi>(result);
+    connect_to<rdi>(result);
+    connect_to<rbp>(result);
+    connect_to<r8 >(result);
+    connect_to<r9 >(result);
+    connect_to<r10>(result);
+    connect_to<r11>(result);
+    connect_to<r12>(result);
+    connect_to<r13>(result);
+    connect_to<r14>(result);
+    connect_to<r15>(result);
+  }
+}
+// }}}
+
+// analysis (graph building) {{{
+namespace analysis::L2::interference {
   void compute (interference::result & result) {
-    namespace assign = grammar::instruction::assign;
-    namespace update = grammar::instruction::update;
+    namespace assign = grammar::L2::instruction::assign;
+    namespace update = grammar::L2::instruction::update;
     // 0. Connect all registers to one another. Don't look closely.
     graph::x86_64_register::connect_all(result);
     // Iterate over all of the instructions, and...
@@ -873,7 +881,7 @@ namespace analysis::L2::interference { // {{{
       if (instruction.is<assign::assignable::gets_movable>()) {
         assert(instruction.children.size() == 2);
         const node & src = *instruction.children.at(1);
-        if (helper::L2::matches<operand::memory>(src)) {
+        if (helper::L2::matches<grammar::L2::operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.
           connect_kill = false;
         }
@@ -904,14 +912,14 @@ namespace analysis::L2::interference { // {{{
         const node & src = *instruction.children.at(2);
         using shift = ::helper::L2::liveness::gen_kill::operand::shift;
         const node & value = shift::unwrap(src);
-        bool is_variable = value.is<operand::variable>();
+        bool is_variable = value.is<grammar::L2::operand::variable>();
         const std::string & variable
           = is_variable
           ? helper::L2::variable::get_name(value)
           : value.content();
         // FIXME(jordan): yeeuuup. This is horrible, I know. But... ugh.
         namespace register_help = helper::L2::x86_64_register;
-        using namespace grammar::identifier::x86_64_register;
+        using namespace grammar::L2::identifier::x86_64_register;
         using namespace graph;
         biconnect(result, variable, register_help::as_string<rax>::value);
         biconnect(result, variable, register_help::as_string<rbx>::value);
@@ -931,10 +939,12 @@ namespace analysis::L2::interference { // {{{
       }
     }
   }
-} // }}}
+}
+// }}}
 
+// wrapper api {{{
 namespace analysis::L2::interference {
-  result compute (const ast::node & root) {
+  result compute (const node & root) {
     assert(root.is_root() && "interference: got a non-root node!");
     assert(!root.children.empty() && "interference: got an empty AST!");
     liveness::result liveness_result = liveness::compute(root);
@@ -966,4 +976,5 @@ namespace analysis::L2::interference {
     return;
   }
 }
+// }}}
 // }}}
