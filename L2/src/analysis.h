@@ -174,13 +174,17 @@ namespace analysis::L2::liveness::gen_kill { // {{{
           std::cout << "gen/kill: var  : " << v.name()
             << " (" << (v.has_content() ? v.content() : "") << ")\n";
         }
-        bool is_variable = v.is<identifier::variable>();
+        bool is_variable = v.is<operand::variable>();
         assert(
           is_variable || matches<register_set::any>(v)
           && "gen/kill: node is not register or variable!"
         );
-        if (matches<identifier::x86_64_register::rsp>(v)) {
-          if (DBG) std::cout << "gen/kill: ignoring rsp.\n";
+        // NOTE(jordan): generalized handling of rsp being out of scope
+        if (matches<register_set::unanalyzable>(v)) {
+          if (DBG)
+            std::cout
+              << "gen/kill: ignoring unanalyzable register:"
+              << " " << v.name() << "\n";
           return;
         }
         std::string name = is_variable
@@ -521,8 +525,8 @@ namespace analysis::L2::liveness::gen_kill { // {{{
 
     if (n.is<invoke::ret>()) {
       using gen_kill = helper::gen_kill;
-      gen_kill::gen<identifier::x86_64_register::rax>(n, result);
-      namespace callee = register_group::callee_save;
+      gen_kill::gen<calling_convention::call::out>(n, result);
+      namespace callee = calling_convention::callee_save;
       gen_kill::gen<callee::r12>(n, result);
       gen_kill::gen<callee::r13>(n, result);
       gen_kill::gen<callee::r14>(n, result);
@@ -543,7 +547,7 @@ namespace analysis::L2::liveness::gen_kill { // {{{
       const node & integer  = *n.children.at(1);
       int args  = helper::integer(integer);
       if (args > 0) {
-        namespace arg = register_group::argument;
+        namespace arg = calling_convention::call::argument;
         if (args >= 1) gen_kill::gen<arg::rdi>(n, result);
         if (args >= 2) gen_kill::gen<arg::rsi>(n, result);
         if (args >= 3) gen_kill::gen<arg::rdx>(n, result);
@@ -551,8 +555,8 @@ namespace analysis::L2::liveness::gen_kill { // {{{
         if (args >= 5) gen_kill::gen<arg::r8 >(n, result);
         if (args >= 6) gen_kill::gen<arg::r9 >(n, result);
       }
-      gen_kill::kill<identifier::x86_64_register::rax>(n, result);
-      namespace caller = register_group::caller_save;
+      gen_kill::kill<calling_convention::call::out>(n, result);
+      namespace caller = calling_convention::caller_save;
       gen_kill::kill<caller::r8 >(n, result);
       gen_kill::kill<caller::r9 >(n, result);
       gen_kill::kill<caller::r10>(n, result);
@@ -1026,7 +1030,7 @@ namespace analysis::L2::interference { // {{{
         const node & src = *instruction.children.at(2);
         using shift = liveness::gen_kill::helper::operand::shift;
         const node & value = shift::unwrap(src);
-        bool is_variable = value.is<identifier::variable>();
+        bool is_variable = value.is<operand::variable>();
         const std::string & variable
           = is_variable
           ? helper::variable::get_name(value)

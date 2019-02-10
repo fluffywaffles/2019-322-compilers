@@ -156,7 +156,27 @@ namespace grammar::L2 {
     using unanalyzable = rsp;
   }
 
-  namespace register_group::callee_save {
+  //
+  // Calling convention convenience groupings
+  //
+  /* NOTE(jordan): for the purpose of abstracting the details of the
+   * calling convention slightly, we create these groupings. The groupings
+   * are ONLY allowed to contain ALIASES - that is, types. We don't create
+   * any `struct`s here: the calling_convention MUST be expressible in
+   * terms of the language, without modifications or additions.
+   */
+  /* TODO(jordan): replace the groupings with single types representing
+   * 'all {callee-save,caller-save} registers' so that implementation code
+   * doesn't have to iterate over the registers directly. At least with
+   * the current system they can be code-completed; but not having to list
+   * them out would be better.
+   */
+  /* TODO(jordan): as above, make it so implementations don't list out
+   * registers for call arguments.
+   * Maybe try: convention::argument::{all,n{0..5}} ?
+   */
+
+  namespace calling_convention::callee_save {
     namespace x86_64_register = literal::identifier::x86_64_register;
     using r12 = x86_64_register::r12;
     using r13 = x86_64_register::r13;
@@ -166,7 +186,7 @@ namespace grammar::L2 {
     using rbx = x86_64_register::rbx;
   }
 
-  namespace register_group::caller_save {
+  namespace calling_convention::caller_save {
     namespace x86_64_register = literal::identifier::x86_64_register;
     using r8  = x86_64_register::r8;
     using r9  = x86_64_register::r9;
@@ -179,15 +199,18 @@ namespace grammar::L2 {
     using rsi = x86_64_register::rsi;
   }
 
-  namespace register_group::argument {
+  namespace calling_convention::call {
     namespace x86_64_register = literal::identifier::x86_64_register;
-    // NOTE(jordan): this is the correct order
-    using rdi = x86_64_register::rdi;
-    using rsi = x86_64_register::rsi;
-    using rdx = x86_64_register::rdx;
-    using rcx = x86_64_register::rcx;
-    using r8  = x86_64_register::r8;
-    using r9  = x86_64_register::r9;
+    using out = x86_64_register::rax;
+    namespace argument {
+      // NOTE(jordan): this is the correct order
+      using rdi = x86_64_register::rdi;
+      using rsi = x86_64_register::rsi;
+      using rdx = x86_64_register::rdx;
+      using rcx = x86_64_register::rcx;
+      using r8  = x86_64_register::r8;
+      using r9  = x86_64_register::r9;
+    }
   }
 
   //
