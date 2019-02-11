@@ -1,6 +1,5 @@
 // vim: set foldmethod=marker:
 #pragma once
-#include <map>
 #include <set>
 #include <cassert>
 #include <iostream>
