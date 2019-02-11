@@ -816,19 +816,13 @@ namespace analysis::L2::interference::graph::x86_64_register {
   using namespace grammar::L2::identifier::x86_64_register;
   void connect_to_all (result & result, const std::string & origin) {
     auto & interferes = result.graph[origin];
-    for (const auto & reg : register_helper::all_register_indices) {
-      const auto & name = register_helper::index_to_string(reg);
-      if (helper::L2::matches<register_set::unanalyzable>(name))
-        continue;
-      biconnect(result, origin, name);
+    for (const auto & reg : register_helper::analyzable_registers()) {
+      biconnect(result, origin, reg);
     }
   }
   void connect_all (result & result) {
-    for (const auto & reg : register_helper::all_register_indices) {
-      const auto & name = register_helper::index_to_string(reg);
-      if (helper::L2::matches<register_set::unanalyzable>(name))
-        continue;
-      connect_to_all(result, name);
+    for (const auto & reg : register_helper::analyzable_registers()) {
+      connect_to_all(result, reg);
     }
   }
 }

@@ -63,6 +63,7 @@ namespace helper::L2 { // {{{
       const static std::type_index index;
       const static std::string string;
     };
+    // REFACTOR(jordan): look at that register call pattern...
     #define mkreg2s(R) \
       template<> const std::string convert<reg::R>::string = #R
     mkreg2s(rax); mkreg2s(rbx); mkreg2s(rcx); mkreg2s(rdx); mkreg2s(rsi);
@@ -94,6 +95,15 @@ namespace helper::L2 { // {{{
       assert(false && "register_index_to_string: unrecognized index!");
     }
     #undef ri2s
+    std::set<std::string> analyzable_registers () {
+      std::set<std::string> result;
+      for (auto & index : all_register_indices) {
+        const std::string reg = index_to_string(index);
+        if (!matches<grammar::register_set::unanalyzable>(reg))
+          result.insert(reg);
+      }
+      return result;
+    }
   }
 
   namespace variable {
