@@ -1,3 +1,4 @@
+// vim: set foldmethod=marker:
 #include <cassert>
 #include <iostream>
 
@@ -52,20 +53,7 @@ namespace driver::L2 {
       std::cerr << "Error: cannot generate code for L2 yet.\n";
       return -1;
     }
-    if (opt.mode == Options::Mode::liveness) {
-      namespace liveness = analysis::L2::liveness;
-      liveness::result result = liveness::compute(*root);
-      liveness::print(std::cout, result);
-      return 0;
-    }
-    if (opt.mode == Options::Mode::interference) {
-      namespace interference = analysis::L2::interference;
-      interference::result result = interference::compute(*root);
-      interference::print(std::cout, result);
-      return 0;
-    }
-    if (opt.mode == Options::Mode::spill) {
-      // TODO(jordan): Woof. Spill some stuff. Messy.
+    if (Options::Mode::spill == opt.mode) {
       using node = ast::node;
       assert(root->children.size() == 3 && "spill: parsed incorrectly!");
       const node & function = *root->children.at(0);
@@ -74,7 +62,19 @@ namespace driver::L2 {
       transform::spill::execute(function, target, prefix, std::cout);
       return 0;
     }
-
+    if (Options::Mode::liveness == opt.mode) {
+      namespace analysis = analysis::L2;
+      auto liveness = analysis::liveness::function(*root);
+      analysis::liveness::print(std::cout, liveness);
+      return 0;
+    }
+    if (Options::Mode::interference == opt.mode) {
+      namespace analysis = analysis::L2;
+      auto liveness     = analysis::liveness::function(*root);
+      auto interference = analysis::interference::function(liveness);
+      analysis::interference::print(std::cout, interference);
+      return 0;
+    }
     assert(false && "execute: unreachable! Mode unrecognized.");
   }
 }

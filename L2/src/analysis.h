@@ -10,6 +10,9 @@
 #include "ast.h"
 #include "helper.h"
 
+// NOTE(jordan): toggle at compile time whether to always connect OUT/KILL
+#define HACK_ALWAYS_OUT_KILL false
+
 namespace analysis::L2 {
   using node   = ast::L2::node;
   using nodes  = helper::L2::nodes;
@@ -95,7 +98,7 @@ namespace helper::L2::liveness::gen_kill {
     static void generic (GenKill choice, const node & i, result & result) {
       assert(!matches<Reg>("rsp") && "gen/kill: cannot gen rsp!");
       namespace register_helper = helper::L2::x86_64_register;
-      const std::string & reg = register_helper::as_string<Reg>::value;
+      const std::string & reg = register_helper::convert<Reg>::string;
       if (DBG) std::cout << "gen/kill<Register>: " << reg << "\n";
       switch (choice) {
         case GenKill::gen  : result.gen [&i].insert(reg); return;
@@ -739,7 +742,7 @@ namespace analysis::L2::liveness {
 
 // wrapper api {{{
 namespace analysis::L2::liveness {
-  result compute (const node & root) {
+  result function (const node & root) {
     assert(root.is_root() && "liveness: got a non-root node!");
     assert(!root.children.empty() && "liveness: got an empty AST!");
     liveness::result result = {};
@@ -798,8 +801,11 @@ namespace analysis::L2::interference::graph {
     const std::string & a,
     const std::string & b
   ) {
-    result.graph[a].insert(b);
-    result.graph[b].insert(a);
+    // NOTE(jordan): don't allow a variable to connect to itself.
+    if (a != b) {
+      result.graph[a].insert(b);
+      result.graph[b].insert(a);
+    }
   }
 }
 
@@ -810,27 +816,27 @@ namespace analysis::L2::interference::graph::x86_64_register {
 
   void connect_to (result & result, const std::string & origin) {
     auto & interferes = result.graph[origin];
-    biconnect(result, origin, register_helper::as_string<rax>::value);
-    biconnect(result, origin, register_helper::as_string<rbx>::value);
-    biconnect(result, origin, register_helper::as_string<rcx>::value);
-    biconnect(result, origin, register_helper::as_string<rdx>::value);
-    biconnect(result, origin, register_helper::as_string<rsi>::value);
-    biconnect(result, origin, register_helper::as_string<rdi>::value);
-    biconnect(result, origin, register_helper::as_string<rbp>::value);
-    biconnect(result, origin, register_helper::as_string<r8 >::value);
-    biconnect(result, origin, register_helper::as_string<r9 >::value);
-    biconnect(result, origin, register_helper::as_string<r10>::value);
-    biconnect(result, origin, register_helper::as_string<r11>::value);
-    biconnect(result, origin, register_helper::as_string<r12>::value);
-    biconnect(result, origin, register_helper::as_string<r13>::value);
-    biconnect(result, origin, register_helper::as_string<r14>::value);
-    biconnect(result, origin, register_helper::as_string<r15>::value);
+    biconnect(result, origin, register_helper::convert<rax>::string);
+    biconnect(result, origin, register_helper::convert<rbx>::string);
+    biconnect(result, origin, register_helper::convert<rcx>::string);
+    biconnect(result, origin, register_helper::convert<rdx>::string);
+    biconnect(result, origin, register_helper::convert<rsi>::string);
+    biconnect(result, origin, register_helper::convert<rdi>::string);
+    biconnect(result, origin, register_helper::convert<rbp>::string);
+    biconnect(result, origin, register_helper::convert<r8 >::string);
+    biconnect(result, origin, register_helper::convert<r9 >::string);
+    biconnect(result, origin, register_helper::convert<r10>::string);
+    biconnect(result, origin, register_helper::convert<r11>::string);
+    biconnect(result, origin, register_helper::convert<r12>::string);
+    biconnect(result, origin, register_helper::convert<r13>::string);
+    biconnect(result, origin, register_helper::convert<r14>::string);
+    biconnect(result, origin, register_helper::convert<r15>::string);
     interferes.erase(origin);
   }
 
   template <typename Register>
   void connect_to (result & result) {
-    connect_to(result, register_helper::as_string<Register>::value);
+    connect_to(result, register_helper::convert<Register>::string);
   }
 
   // FIXME(jordan): never a sin without its just reward...
@@ -882,7 +888,7 @@ namespace analysis::L2::interference {
         const node & src = *instruction.children.at(1);
         if (helper::L2::matches<grammar::L2::operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.
-          connect_kill = false;
+          !HACK_ALWAYS_OUT_KILL && (connect_kill = false);
         }
       }
       // Make the connections.
@@ -920,21 +926,20 @@ namespace analysis::L2::interference {
         namespace register_help = helper::L2::x86_64_register;
         using namespace grammar::L2::identifier::x86_64_register;
         using namespace graph;
-        biconnect(result, variable, register_help::as_string<rax>::value);
-        biconnect(result, variable, register_help::as_string<rbx>::value);
-        biconnect(result, variable, register_help::as_string<rdx>::value);
-        biconnect(result, variable, register_help::as_string<rsi>::value);
-        biconnect(result, variable, register_help::as_string<rdi>::value);
-        biconnect(result, variable, register_help::as_string<rbp>::value);
-        biconnect(result, variable, register_help::as_string<r8 >::value);
-        biconnect(result, variable, register_help::as_string<r9 >::value);
-        biconnect(result, variable, register_help::as_string<r10>::value);
-        biconnect(result, variable, register_help::as_string<r11>::value);
-        biconnect(result, variable, register_help::as_string<r12>::value);
-        biconnect(result, variable, register_help::as_string<r13>::value);
-        biconnect(result, variable, register_help::as_string<r14>::value);
-        biconnect(result, variable, register_help::as_string<r15>::value);
-        result.graph[variable].erase(variable);
+        biconnect(result, variable, register_help::convert<rax>::string);
+        biconnect(result, variable, register_help::convert<rbx>::string);
+        biconnect(result, variable, register_help::convert<rdx>::string);
+        biconnect(result, variable, register_help::convert<rsi>::string);
+        biconnect(result, variable, register_help::convert<rdi>::string);
+        biconnect(result, variable, register_help::convert<rbp>::string);
+        biconnect(result, variable, register_help::convert<r8 >::string);
+        biconnect(result, variable, register_help::convert<r9 >::string);
+        biconnect(result, variable, register_help::convert<r10>::string);
+        biconnect(result, variable, register_help::convert<r11>::string);
+        biconnect(result, variable, register_help::convert<r12>::string);
+        biconnect(result, variable, register_help::convert<r13>::string);
+        biconnect(result, variable, register_help::convert<r14>::string);
+        biconnect(result, variable, register_help::convert<r15>::string);
       }
     }
   }
@@ -943,16 +948,12 @@ namespace analysis::L2::interference {
 
 // wrapper api {{{
 namespace analysis::L2::interference {
-  result compute (const node & root) {
-    assert(root.is_root() && "interference: got a non-root node!");
-    assert(!root.children.empty() && "interference: got an empty AST!");
-    liveness::result liveness_result = liveness::compute(root);
-    std::vector<std::string> variables
-      = helper::L2::collect_variables(liveness_result.instructions);
+  result function (const liveness::result & liveness) {
+    auto variables = helper::L2::collect_variables(liveness.instructions);
     interference::result result = {
-      liveness_result.instructions,
+      liveness.instructions,
       variables,
-      liveness_result
+      liveness
     };
     // NOTE(jordan): make sure every variable has SOME kind of entry.
     for (auto variable : result.variables) {
@@ -968,7 +969,7 @@ namespace analysis::L2::interference {
       auto & interferes  = entry.second;
       os << origin << " ";
       for (const std::string & interfering : interferes) {
-        if (interfering != origin) os << interfering << " ";
+        os << interfering << " ";
       }
       os << "\n";
     }

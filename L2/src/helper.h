@@ -1,4 +1,7 @@
 #pragma once
+#include <set>
+#include <typeindex>
+
 #include "L1/codegen.h"
 #include "grammar.h"
 #include "ast.h"
@@ -56,16 +59,41 @@ namespace helper::L2 { // {{{
   // NOTE(jordan): woof. Template specialization, amirite?
   namespace x86_64_register {
     namespace reg = grammar::identifier::x86_64_register;
-    template <typename Register> struct as_string {
-      const static std::string value;
+    template <typename Register> struct convert {
+      const static std::type_index index;
+      const static std::string string;
     };
     #define mkreg2s(R) \
-      template<> const std::string as_string<reg::R>::value = #R;
-    mkreg2s(rax) mkreg2s(rbx) mkreg2s(rcx) mkreg2s(rdx) mkreg2s(rsi)
-    mkreg2s(rdi) mkreg2s(rbp) mkreg2s(rsp) mkreg2s(r8 ) mkreg2s(r9 )
-    mkreg2s(r10) mkreg2s(r11) mkreg2s(r12) mkreg2s(r13) mkreg2s(r14)
-    mkreg2s(r15)
+      template<> const std::string convert<reg::R>::string = #R
+    mkreg2s(rax); mkreg2s(rbx); mkreg2s(rcx); mkreg2s(rdx); mkreg2s(rsi);
+    mkreg2s(rdi); mkreg2s(rbp); mkreg2s(rsp); mkreg2s(r8 ); mkreg2s(r9 );
+    mkreg2s(r10); mkreg2s(r11); mkreg2s(r12); mkreg2s(r13); mkreg2s(r14);
+    mkreg2s(r15);
     #undef mkreg2s
+    #define mkreg2i(R)                                                   \
+      template<> const std::type_index                                   \
+      convert<reg::R>::index = std::type_index(typeid(reg::R))
+    mkreg2i(rax); mkreg2i(rbx); mkreg2i(rcx); mkreg2i(rdx); mkreg2i(rsi);
+    mkreg2i(rdi); mkreg2i(rbp); mkreg2i(rsp); mkreg2i(r8 ); mkreg2i(r9 );
+    mkreg2i(r10); mkreg2i(r11); mkreg2i(r12); mkreg2i(r13); mkreg2i(r14);
+    mkreg2i(r15);
+    #undef mkreg2i
+    #define r2i(R) convert<reg::R>::index
+    std::set<std::type_index> all_register_indices = {
+      r2i(rax), r2i(rbx), r2i(rcx), r2i(rdx), r2i(rsi), r2i(rdi),
+      r2i(rbp), r2i(rsp), r2i(r8 ), r2i(r9 ), r2i(r10), r2i(r11),
+      r2i(r12), r2i(r13), r2i(r14), r2i(r15),
+    };
+    #undef r2i
+    #define ri2s(R) \
+      if (convert<reg::R>::index == reg) return convert<reg::R>::string
+    std::string index_to_string (std::type_index reg) {
+      ri2s(rax); ri2s(rbx); ri2s(rcx); ri2s(rdx); ri2s(rsi); ri2s(rdi);
+      ri2s(rbp); ri2s(rsp); ri2s(r8 ); ri2s(r9 ); ri2s(r10); ri2s(r11);
+      ri2s(r12); ri2s(r13); ri2s(r14); ri2s(r15);
+      assert(false && "register_index_to_string: unrecognized index!");
+    }
+    #undef ri2s
   }
 
   namespace variable {
