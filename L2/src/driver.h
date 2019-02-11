@@ -36,7 +36,8 @@ namespace driver::L2 {
   std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
     using Mode = Options::Mode;
     switch (opt.mode) {
-      case Mode::x86          : return parse<program >(opt, in);
+      // FIXME(jordan): Mode::x86 should parse a whole program
+      case Mode::x86          : return parse<function>(opt, in);
       case Mode::spill        : return parse<spiller >(opt, in);
       case Mode::liveness     : return parse<function>(opt, in);
       case Mode::interference : return parse<function>(opt, in);
@@ -46,9 +47,33 @@ namespace driver::L2 {
 
   template <typename Input>
   int execute (Options & opt, Input & in) {
-    auto root = parse(opt, in);
-
-    if (opt.mode == Options::Mode::x86) {
+    /**
+     * Anyone want to take a guess as to why this causes a segfault? ;)
+     *
+     *    auto & root = *parse(opt, in);
+     *
+     * HINT {{{
+     * (note that parse returns a std::unique_ptr<node>)
+     * }}}
+     **/
+    const auto & root = parse(opt, in);
+    if (Options::Mode::x86 == opt.mode) {
+      namespace analysis = analysis::L2;
+      // FIXME(jordan): liveness expects root -> function::define...
+      auto liveness     = analysis::liveness::function(*root);
+      auto interference = analysis::interference::function(liveness);
+      auto coloring     = analysis::color::function(interference);
+      analysis::color::print(std::cout, coloring);
+      /* bool colored = false; */
+      /* while (!colored) { */
+      /*   auto liveness     = analysis::liveness::compute(root); */
+      /*   auto interference = analysis::interference::compute(liveness); */
+      /*   auto coloring     = analysis::coloring::color(interference); */
+      /*   if (analysis::coloring::is_complete(coloring)) { */
+      /*     colored = true; */
+      /*     continue; */
+      /*   } */
+      /* } */
       /* L2::codegen::generate(*root); */
       std::cerr << "Error: cannot generate code for L2 yet.\n";
       return -1;

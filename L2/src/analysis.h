@@ -935,3 +935,177 @@ namespace analysis::L2::interference {
 }
 // }}}
 // }}}
+
+// graph coloring {{{
+namespace analysis::L2::color {
+  /// color definitions {{{
+  // NOTE(jordan): We need a lot of colors. Crayola to the rescue!
+  enum struct Color {
+    plum,
+    grape,
+    bruise,     // well, okay, this one isn't Crayola.
+    cerise,
+    orchid,
+    purple,     // or this one. (Really. They're all "<adjective> purple")
+    fuchsia,
+    magenta,
+    royalty,    // fine. I cheated. A little. 3 times.
+    thistle,
+    eggplant,
+    lavender,
+    mulberry,
+    wisteria,
+    jazzberry_jam,
+    // NOTE(jordan): special color for "must be spilled"
+    none,
+  };
+  namespace { // NOTE(jordan): anonymous namespace is file-private. Weird.
+    #define color2s(N) case Color::N : return #N
+    std::string color_to_string (Color color) {
+      switch (color) {
+        color2s(plum);     color2s(grape);    color2s(cerise);
+        color2s(purple);   color2s(royalty);  color2s(bruise);
+        color2s(orchid);   color2s(fuchsia);  color2s(magenta);
+        color2s(thistle);  color2s(eggplant); color2s(lavender);
+        color2s(mulberry); color2s(wisteria); color2s(jazzberry_jam);
+        // NOTE(jordan): none ==> SPILL
+        case Color::none: return "<SPILL>";
+      }
+      assert(false && "color_to_string: unrecognized color!");
+    }
+    #undef color2s
+    std::set<Color> all_colors = {
+      Color::plum,     Color::grape,    Color::bruise,    Color::cerise,
+      Color::orchid,   Color::purple,   Color::fuchsia,   Color::magenta,
+      Color::royalty,  Color::thistle,  Color::eggplant,  Color::lavender,
+      Color::mulberry, Color::wisteria, Color::jazzberry_jam, // shhhh
+      // NOTE(jordan): we don't include 'none' because it's special
+    };
+  }
+  /// }}}
+  namespace entry {
+    // NOTE(jordan): These are just "marker types".
+    using uncolored = interference_map::value_type;
+    using colored = uncolored;
+  }
+  struct result {
+    nodes instructions;
+    std::set<std::string> variables;
+    interference_map graph;
+    std::vector<entry::uncolored> removed;
+    std::map<const std::string, Color> mapping;
+  };
+}
+
+// graph manipulation helpers {{{
+namespace analysis::L2::color::graph {
+  // Assign a color to an uncolored entry.
+  const entry::colored & color (
+    const entry::uncolored & entry,
+    const Color & color,
+    result & result
+  ) {
+    assert(
+      result.mapping.find(entry.first) == result.mapping.end()
+      && "graph::color: variable is already colored!"
+    );
+    result.mapping[entry.first] = color;
+    return entry;
+  }
+  // Remove an uncolored entry from the interference graph.
+  const entry::uncolored remove (
+    const std::string & var,
+    result & result
+  ) {
+    assert(result.mapping.find(var) == result.mapping.end());
+    auto entry = std::make_pair(var, std::move(result.graph.at(var)));
+    result.graph.erase(var);
+    for (auto & value : result.graph) value.second.erase(var);
+    return entry;
+  }
+  // Pick an unused color for a given uncolored entry.
+  const Color choose_color (
+    const entry::uncolored & entry,
+    result & result
+  ) {
+    const auto & mapping = result.mapping;
+    std::set<Color> available_colors = all_colors; // NOTE(jordan): copies
+    for (const auto & interferes : entry.second) {
+      if (mapping.find(interferes) != mapping.end()) {
+        Color adjacent_color = mapping.at(interferes);
+        available_colors.erase(adjacent_color);
+      }
+    }
+    if (available_colors.size() != 0) {
+      // TODO(jordan): sort available colors to implement heuristic
+      return *available_colors.begin();
+    } else {
+      return Color::none;
+    }
+  }
+  // Reinsert a colored entry into the interference graph.
+  void reinsert (const entry::colored & entry, result & result) {
+    result.graph[entry.first] = entry.second;
+    for (auto & interfered_with : entry.second) {
+      result.graph[interfered_with].insert(entry.first);
+    }
+  }
+}
+// }}}
+
+namespace analysis::L2::color {
+  result function (const interference::result & interference) {
+    color::result result = {
+      interference.instructions,
+      interference.variables,
+      interference.graph,
+      { /* 'removed' vector   */ },
+      { /* 'mapping' to color */ },
+    };
+    // 0. color all register nodes
+    namespace register_helper = helper::L2::x86_64_register;
+    for (const auto & reg : register_helper::analyzable_registers()) {
+      entry::uncolored entry = std::make_pair(reg, result.graph.at(reg));
+      Color color = graph::choose_color(entry, result);
+      graph::color(entry, color, result); // => entry::colored
+    }
+    // 1. remove all non-register nodes & add to stack (in some order)
+    for (const auto & variable : result.variables) {
+      result.removed.push_back(graph::remove(variable, result));
+    }
+    // 2. sort the removed nodes by some reasoning
+    /* TODO(jordan): sort the nodes according to heuristic so that the
+     * most-preferred nodes are at the end, and the least-preferred nodes
+     * are at the beginning.
+     */
+    // 3. pop the stack, color the node, and reinsert it in the graph
+    while (result.removed.size() != 0) {
+      const auto uncolored = result.removed.back();
+      const auto color     = graph::choose_color(uncolored, result);
+      const auto & colored = graph::color(uncolored, color, result);
+      graph::reinsert(colored, result);
+      result.removed.pop_back();
+    }
+    return result;
+  }
+
+  bool is_complete (const result & result) {
+    return std::all_of(
+      result.variables.begin(),
+      result.variables.end(),
+      [&] (auto var) {
+        return result.mapping.at(var) != Color::none;
+      }
+    );
+  }
+  void print (std::ostream & os, const result & result) { // {{{
+    for (const auto & mapping : result.mapping) {
+      os
+        << mapping.first
+        << " = "
+        << color_to_string(mapping.second)
+        << "\n";
+    }
+  } // }}}
+}
+// }}}
