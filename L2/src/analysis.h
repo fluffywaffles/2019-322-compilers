@@ -811,51 +811,25 @@ namespace analysis::L2::interference::graph {
 
 // FIXME(jordan): these helpers are gross.
 namespace analysis::L2::interference::graph::x86_64_register {
+  namespace register_set = grammar::L2::register_set;
   namespace register_helper = helper::L2::x86_64_register;
   using namespace grammar::L2::identifier::x86_64_register;
-
-  void connect_to (result & result, const std::string & origin) {
+  void connect_to_all (result & result, const std::string & origin) {
     auto & interferes = result.graph[origin];
-    biconnect(result, origin, register_helper::convert<rax>::string);
-    biconnect(result, origin, register_helper::convert<rbx>::string);
-    biconnect(result, origin, register_helper::convert<rcx>::string);
-    biconnect(result, origin, register_helper::convert<rdx>::string);
-    biconnect(result, origin, register_helper::convert<rsi>::string);
-    biconnect(result, origin, register_helper::convert<rdi>::string);
-    biconnect(result, origin, register_helper::convert<rbp>::string);
-    biconnect(result, origin, register_helper::convert<r8 >::string);
-    biconnect(result, origin, register_helper::convert<r9 >::string);
-    biconnect(result, origin, register_helper::convert<r10>::string);
-    biconnect(result, origin, register_helper::convert<r11>::string);
-    biconnect(result, origin, register_helper::convert<r12>::string);
-    biconnect(result, origin, register_helper::convert<r13>::string);
-    biconnect(result, origin, register_helper::convert<r14>::string);
-    biconnect(result, origin, register_helper::convert<r15>::string);
-    interferes.erase(origin);
+    for (const auto & reg : register_helper::all_register_indices) {
+      const auto & name = register_helper::index_to_string(reg);
+      if (helper::L2::matches<register_set::unanalyzable>(name))
+        continue;
+      biconnect(result, origin, name);
+    }
   }
-
-  template <typename Register>
-  void connect_to (result & result) {
-    connect_to(result, register_helper::convert<Register>::string);
-  }
-
-  // FIXME(jordan): never a sin without its just reward...
   void connect_all (result & result) {
-    connect_to<rax>(result);
-    connect_to<rbx>(result);
-    connect_to<rcx>(result);
-    connect_to<rdx>(result);
-    connect_to<rsi>(result);
-    connect_to<rdi>(result);
-    connect_to<rbp>(result);
-    connect_to<r8 >(result);
-    connect_to<r9 >(result);
-    connect_to<r10>(result);
-    connect_to<r11>(result);
-    connect_to<r12>(result);
-    connect_to<r13>(result);
-    connect_to<r14>(result);
-    connect_to<r15>(result);
+    for (const auto & reg : register_helper::all_register_indices) {
+      const auto & name = register_helper::index_to_string(reg);
+      if (helper::L2::matches<register_set::unanalyzable>(name))
+        continue;
+      connect_to_all(result, name);
+    }
   }
 }
 // }}}
@@ -922,24 +896,13 @@ namespace analysis::L2::interference {
           = is_variable
           ? helper::L2::variable::get_name(value)
           : value.content();
-        // FIXME(jordan): yeeuuup. This is horrible, I know. But... ugh.
-        namespace register_help = helper::L2::x86_64_register;
-        using namespace grammar::L2::identifier::x86_64_register;
-        using namespace graph;
-        biconnect(result, variable, register_help::convert<rax>::string);
-        biconnect(result, variable, register_help::convert<rbx>::string);
-        biconnect(result, variable, register_help::convert<rdx>::string);
-        biconnect(result, variable, register_help::convert<rsi>::string);
-        biconnect(result, variable, register_help::convert<rdi>::string);
-        biconnect(result, variable, register_help::convert<rbp>::string);
-        biconnect(result, variable, register_help::convert<r8 >::string);
-        biconnect(result, variable, register_help::convert<r9 >::string);
-        biconnect(result, variable, register_help::convert<r10>::string);
-        biconnect(result, variable, register_help::convert<r11>::string);
-        biconnect(result, variable, register_help::convert<r12>::string);
-        biconnect(result, variable, register_help::convert<r13>::string);
-        biconnect(result, variable, register_help::convert<r14>::string);
-        biconnect(result, variable, register_help::convert<r15>::string);
+        graph::x86_64_register::connect_to_all(result, variable);
+        // FIXME(jordan): this is kinda gross
+        using rcx = grammar::L2::identifier::x86_64_register::rcx;
+        namespace register_helper = helper::L2::x86_64_register;
+        std::string rcx_string = register_helper::convert<rcx>::string;
+        result.graph[variable].erase(rcx_string);
+        result.graph[rcx_string].erase(variable);
       }
     }
   }
