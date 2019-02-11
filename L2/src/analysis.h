@@ -787,7 +787,7 @@ namespace analysis::L2::liveness {
 namespace analysis::L2::interference {
   struct result {
     nodes instructions;
-    std::vector<std::string> variables;
+    std::set<std::string> variables;
     liveness::result liveness;
     interference_map graph;
   };

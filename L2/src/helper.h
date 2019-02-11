@@ -111,10 +111,10 @@ namespace helper::L2 { // {{{
   // NOTE(jordan): collect_variables is kinda gross. Idk any better way.
   void collect_variables (
     const node & start,
-    std::vector<std::string> & variables
+    std::set<std::string> & variables
   ) {
     if (start.is<grammar::identifier::variable>()) {
-      variables.push_back(variable::get_name(start));
+      variables.insert(variable::get_name(start));
     } else {
       for (auto & child : start.children) {
         collect_variables(*child, variables);
@@ -122,8 +122,8 @@ namespace helper::L2 { // {{{
     }
   }
 
-  std::vector<std::string> collect_variables (nodes instructions) {
-    std::vector<std::string> variables;
+  std::set<std::string> collect_variables (nodes instructions) {
+    std::set<std::string> variables;
     for (auto & instruction_ptr : instructions) {
       for (auto & child : instruction_ptr->children) {
         collect_variables(*child, variables);
