@@ -11,7 +11,7 @@
 #include "helper.h"
 
 // NOTE(jordan): toggle at compile time whether to always connect OUT/KILL
-#define HACK_ALWAYS_OUT_KILL false
+#define HACK_ALWAYS_OUT_KILL true
 
 namespace analysis::L2 {
   using node   = ast::L2::node;
