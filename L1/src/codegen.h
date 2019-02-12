@@ -641,8 +641,8 @@ namespace codegen::L1::generate {
   }
 
   void program (const node & n, std::ostream & os) {
-    assert(n.children.size() == 2);
     assert(n.is<grammar::program::define>() && "top is not a program!");
+    assert(n.children.size() == 2);
     const node & entry     = *n.children.at(0);
     const node & functions = *n.children.at(1);
     os << ".text\n";
