@@ -197,6 +197,7 @@ namespace grammar::L2 {
     using rdi = x86_64_register::rdi;
     using rdx = x86_64_register::rdx;
     using rsi = x86_64_register::rsi;
+    using any = peg::sor<r8, r9, r10, r11, rax, rcx, rdi, rdx, rsi>;
   }
 
   namespace calling_convention::call {

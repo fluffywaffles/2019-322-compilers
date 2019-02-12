@@ -153,8 +153,9 @@ namespace ast::L2 {
 namespace ast::L2::debug {
   template <
     typename Entry,
-    template <typename...> class Selector = filter::selector
-  > auto trace (peg::file_input<> & in) {
+    template <typename...> class Selector = filter::selector,
+    typename Input
+  > auto trace (Input & in) {
     return parse<Entry, Selector, peg::nothing, peg::tracer>(in);
   }
 }

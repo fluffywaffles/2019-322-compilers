@@ -11,7 +11,7 @@ namespace helper::L2 { // {{{
   namespace grammar = grammar::L2;
   using node = ast::L2::node;
 
-  using nodes = std::vector<std::shared_ptr<const node>>;
+  using nodes = std::vector<std::unique_ptr<node>>;
 
   template <class R>
   bool matches (const node & n)  { return L1_helper::matches<R>(n); }
@@ -33,27 +33,6 @@ namespace helper::L2 { // {{{
       && "helper::unwrap_assert: not exactly 1 child in parent!"
     );
     return *parent.children.at(0);
-  }
-
-  nodes collect_instructions (const node & function) {
-    nodes result;
-    assert(function.is<grammar::function::define>());
-    assert(function.children.size() == 4);
-    const node & instructions = *function.children.at(3);
-    for (auto & instruction_wrapper : instructions.children) {
-      assert(instruction_wrapper->is<grammar::instruction::any>());
-      assert(instruction_wrapper->children.size() == 1);
-      /* FIXME(jordan): this is only ok because we stop trying to look
-       * at the children of our functions (our instructions) after we've
-       * collected them. If we did try to look at the children of our
-       * functions, they'd be gone: we `std::move`d them.
-       */
-      const auto shared_instruction = std::shared_ptr<const node>(
-        std::move(instruction_wrapper->children.at(0))
-      );
-      result.push_back(shared_instruction);
-    }
-    return result;
   }
 
   // NOTE(jordan): woof. Template specialization, amirite?
@@ -106,25 +85,13 @@ namespace helper::L2 { // {{{
     }
   }
 
-  namespace variable {
-    std::string get_name (const node & variable) {
-      assert(variable.children.size() == 1 && "missing child!");
-      const node & name = *variable.children.at(0);
-      assert(
-        name.is<grammar::identifier::name>()
-        && "child is not a 'name'!"
-      );
-      return name.content();
-    }
-  }
-
   // NOTE(jordan): collect_variables is kinda gross. Idk any better way.
   void collect_variables (
     const node & start,
     std::set<std::string> & variables
   ) {
     if (start.is<grammar::identifier::variable>()) {
-      variables.insert(variable::get_name(start));
+      variables.insert(start.content());
     } else {
       for (auto & child : start.children) {
         collect_variables(*child, variables);
@@ -132,10 +99,11 @@ namespace helper::L2 { // {{{
     }
   }
 
-  std::set<std::string> collect_variables (nodes instructions) {
+  std::set<std::string> collect_variables (const nodes & instructions) {
     std::set<std::string> variables;
-    for (auto & instruction_ptr : instructions) {
-      for (auto & child : instruction_ptr->children) {
+    for (auto & instruction_wrapper : instructions) {
+      const auto & instruction = instruction_wrapper->children.at(0);
+      for (auto & child : instruction->children) {
         collect_variables(*child, variables);
       }
     }
@@ -144,14 +112,14 @@ namespace helper::L2 { // {{{
 
   const node & definition_for (
     const node & label,
-    nodes instructions
+    const nodes & instructions
   ) {
     assert(
       label.is<grammar::operand::label>()
       && "definition_for: called on a non-label!"
     );
-    for (auto & instruction_ptr : instructions) {
-      const node & instruction = *instruction_ptr;
+    for (auto & wrapper : instructions) {
+      const node & instruction = *wrapper->children.at(0);
       if (instruction.is<grammar::instruction::define::label>()) {
         const node & defined_label = *instruction.children.at(0);
         assert(defined_label.is<grammar::operand::label>());
@@ -160,5 +128,22 @@ namespace helper::L2 { // {{{
       }
     }
     assert(false && "definition_for: could not find label!");
+  }
+
+  std::string strip_variable_prefix (const std::string & s) {
+    if (matches<grammar::identifier::variable>(s)) {
+      using variable = peg::must<grammar::identifier::variable>;
+      peg::string_input<> in(s, "");
+      const auto & root
+        = ast::L2::parse<variable, ast::L2::filter::selector>(in);
+      assert(root->children.size() == 1);
+      const node & var_node = *root->children.at(0);
+      assert(var_node.children.size() == 1);
+      const node & name_node = *var_node.children.at(0);
+      assert(name_node.is<grammar::identifier::name>());
+      return name_node.content();
+    } else {
+      return s;
+    }
   }
 }

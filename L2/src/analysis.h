@@ -32,7 +32,7 @@ namespace analysis::L2::liveness {
   const int DBG_IN_OUT_LOOP_OUT_MINUS_KILL = 0b100000;
 
   struct result {
-    nodes instructions;
+    const node & instructions;
     liveness_map in;
     liveness_map out;
     liveness_map gen;
@@ -84,13 +84,11 @@ namespace helper::L2::liveness::gen_kill {
             << " " << v.name() << "\n";
         return;
       }
-      std::string name = is_variable
-        ? helper::L2::variable::get_name(v)
-        : v.content();
-      if (DBG) std::cout << "gen/kill: of var: " << name << "\n";
+      std::string content = v.content();
+      if (DBG) std::cout << "gen/kill: of var: " << content << "\n";
       switch (choice) {
-        case GenKill::gen  : result.gen [&i].insert(name); return;
-        case GenKill::kill : result.kill[&i].insert(name); return;
+        case GenKill::gen  : result.gen [&i].insert(content); return;
+        case GenKill::kill : result.kill[&i].insert(content); return;
         default: assert(false && "gen/kill: unreachable!");
       }
     }
@@ -317,7 +315,12 @@ namespace analysis::L2::liveness::gen_kill {
     }
 
     if (n.is<assign::relative::gets_movable>()) {
-      assign_instruction_gen_kill(relative, movable);
+      assert(n.children.size() == 2);
+      const node & dest = *n.children.at(0);
+      const node & src  = *n.children.at(1);
+      helper::operand::movable::gen(n, src, result);
+      helper::operand::relative::gen(n, dest, result);
+      helper::operand::relative::kill(n, dest, result);
       return;
     }
 
@@ -500,9 +503,16 @@ namespace analysis::L2::liveness::successor {
   }
 
   void instruction (const node & n, int index, result & result) {
-    using namespace grammar::L2::instruction;
+    namespace instruction = grammar::L2::instruction;
+    using namespace instruction;
 
-    nodes siblings = result.instructions;
+    const nodes & siblings = result.instructions.children;
+
+    if (n.is<instruction::any>()) {
+      assert(n.children.size() == 1);
+      const node & actual_instruction = *n.children.at(0);
+      return successor::instruction(actual_instruction, index, result);
+    }
 
     if (false
       || n.is<assign::assignable::gets_movable>()
@@ -524,7 +534,8 @@ namespace analysis::L2::liveness::successor {
     ) {
       // Our successor is the next instruction. Nice!
       assert(siblings.size() > index + 1);
-      const node & next = *siblings.at(index + 1);
+      const node & next_wrapper = *siblings.at(index + 1);
+      const node & next = *next_wrapper.children.at(0);
       return successor::set(n, next, result);
     }
 
@@ -544,7 +555,8 @@ namespace analysis::L2::liveness::successor {
         const node & then_instruction
           = helper::L2::definition_for(then_label, siblings);
         assert(siblings.size() > index + 1);
-        const node & next = *siblings.at(index + 1);
+        const node & next_wrapper = *siblings.at(index + 1);
+        const node & next = *next_wrapper.children.at(0);
         successor::set(n, next, result);
         successor::set(n, then_instruction, result);
         return;
@@ -572,7 +584,8 @@ namespace analysis::L2::liveness::successor {
     ) {
       // Calls! Our analysis is intraprocedural, so the successor is easy.
       assert(siblings.size() > index + 1);
-      const node & next = *siblings.at(index + 1);
+      const node & next_wrapper = *siblings.at(index + 1);
+      const node & next = *next_wrapper.children.at(0);
       return successor::set(n, next, result);
     }
 
@@ -596,14 +609,15 @@ namespace analysis::L2::liveness::successor {
 // in/out calculation {{{
 namespace analysis::L2::liveness {
   void in_out (result & result, unsigned debug = 0) {
-    nodes instructions = result.instructions;
+    const nodes & instructions = result.instructions.children;
     // QUESTION: uh... what's our efficiency here? This code is gross.
     int iteration_limit = -1; // NOTE(jordan): used for debugging.
     bool fixed_state;
     do {
       fixed_state = true;
       for (int index = instructions.size() - 1; index >= 0; index--) {
-        const node & instruction = *instructions.at(index);
+        const node & wrapper = *instructions.at(index);
+        const node & instruction = *wrapper.children.at(0);
         // load gen, kill sets and successors
         auto & gen        = result.gen [&instruction];
         auto & kill       = result.kill[&instruction];
@@ -679,8 +693,9 @@ namespace analysis::L2::liveness {
 namespace analysis::L2::liveness {
   void compute (liveness::result & result, unsigned debug = 0) {
     // 1. Compute GEN, KILL
-    for (int index = 0; index < result.instructions.size(); index++) {
-      const node & instruction = *result.instructions.at(index);
+    for (int index = 0; index < result.instructions.children.size(); index++) {
+      const node & wrapper = *result.instructions.children.at(index);
+      const node & instruction = *wrapper.children.at(0);
       analysis::L2::liveness::gen_kill::instruction(instruction, result);
       // debug {{{
       if (debug & DBG_GEN_KILL) {
@@ -698,9 +713,10 @@ namespace analysis::L2::liveness {
     // }}}
 
     // 2. Compute successors
-    for (int index = 0; index < result.instructions.size(); index++) {
+    for (int index = 0; index < result.instructions.children.size(); index++) {
       namespace successor = analysis::L2::liveness::successor;
-      const node & instruction = *result.instructions.at(index);
+      const node & wrapper = *result.instructions.children.at(index);
+      const node & instruction = *wrapper.children.at(0);
       successor::instruction(instruction, index, result);
       // debug {{{
       if (debug & DBG_SUCC) {
@@ -722,8 +738,9 @@ namespace analysis::L2::liveness {
     // debug {{{
     if (debug & DBG_PRINT) {
       std::cout << "\n";
-      for (int index = 0; index < result.instructions.size(); index++) {
-        const node & instruction = *result.instructions.at(index);
+      for (int index = 0; index < result.instructions.children.size(); index++) {
+        const node & wrapper = *result.instructions.children.at(index);
+        const node & instruction = *wrapper.children.at(0);
         std::cout << "in[" << index << "]  = ";
         for (auto i : result.in[&instruction]) std::cout << i << " ";
         std::cout << "\n";
@@ -742,12 +759,13 @@ namespace analysis::L2::liveness {
 
 // wrapper api {{{
 namespace analysis::L2::liveness {
-  result function (const node & root) {
-    assert(root.is_root() && "liveness: got a non-root node!");
-    assert(!root.children.empty() && "liveness: got an empty AST!");
-    liveness::result result = {};
-    const node & function = *root.children.at(0);
-    result.instructions = helper::L2::collect_instructions(function);
+  result function (const node & function) {
+    assert(
+      function.is<grammar::L2::function::define>()
+      && "liveness: called on non-function!"
+    );
+    const node & instructions = *function.children.at(3);
+    liveness::result result = { instructions };
     liveness::compute(result);
     return result;
   }
@@ -757,23 +775,27 @@ namespace analysis::L2::liveness {
     const result result,
     bool pretty = false
   ) {
-    nodes instructions = result.instructions;
+    const node & instructions = result.instructions;
     os << (pretty ? "((in\n" : "(\n(in");
-    for (int index = 0; index < instructions.size(); index++) {
-      const node & instruction = *instructions.at(index);
+    for (int index = 0; index < instructions.children.size(); index++) {
+      const node & instruction_wrapper = *result.instructions.children.at(index);
+      const node & instruction = *instruction_wrapper.children.at(0);
       auto in = result.in.at(&instruction);
       os << (pretty ? "  (" : "\n(");
-      for (auto var : in) os << var << " ";
+      for (auto var : in)
+        os << helper::L2::strip_variable_prefix(var) << " ";
       os << (pretty ? ")\n" : ")");
     }
     //backspace thru: " )\n"
     os << (pretty ? "\b\b\b))\n" : "\n)");
     os << (pretty ? "(out\n"     : "\n\n(out");
-    for (int index = 0; index < instructions.size(); index++) {
-      const node & instruction = *instructions.at(index);
+    for (int index = 0; index < instructions.children.size(); index++) {
+      const node & instruction_wrapper = *result.instructions.children.at(index);
+      const node & instruction = *instruction_wrapper.children.at(0);
       auto out = result.out.at(&instruction);
       os << (pretty ? "  (" : "\n(");
-      for (auto var : out) os << var << " ";
+      for (auto var : out)
+        os << helper::L2::strip_variable_prefix(var) << " ";
       os << (pretty ? ")\n" : ")");
     }
     //backspace thru: " )\n"
@@ -786,7 +808,7 @@ namespace analysis::L2::liveness {
 // interference {{{
 namespace analysis::L2::interference {
   struct result {
-    nodes instructions;
+    const node & instructions;
     std::set<std::string> variables;
     liveness::result liveness;
     interference_map graph;
@@ -836,8 +858,9 @@ namespace analysis::L2::interference {
     // 0. Connect all registers to one another. Don't look closely.
     graph::x86_64_register::connect_all(result);
     // Iterate over all of the instructions, and...
-    for (int index = 0; index < result.instructions.size(); index++) {
-      const auto & instruction = *result.instructions.at(index);
+    for (int index = 0; index < result.instructions.children.size(); index++) {
+      const node & instruction_wrapper = *result.instructions.children.at(index);
+      const node & instruction = *instruction_wrapper.children.at(0);
       const auto in   = result.liveness.in[&instruction];
       const auto out  = result.liveness.out[&instruction];
       const auto kill = result.liveness.kill[&instruction];
@@ -886,10 +909,7 @@ namespace analysis::L2::interference {
         using shift = ::helper::L2::liveness::gen_kill::operand::shift;
         const node & value = shift::unwrap(src);
         bool is_variable = value.is<grammar::L2::operand::variable>();
-        const std::string & variable
-          = is_variable
-          ? helper::L2::variable::get_name(value)
-          : value.content();
+        const std::string & variable = value.content();
         graph::x86_64_register::connect_to_all(result, variable);
         // FIXME(jordan): this is kinda gross
         using rcx = grammar::L2::identifier::x86_64_register::rcx;
@@ -906,7 +926,7 @@ namespace analysis::L2::interference {
 // wrapper api {{{
 namespace analysis::L2::interference {
   result function (const liveness::result & liveness) {
-    auto variables = helper::L2::collect_variables(liveness.instructions);
+    auto variables = helper::L2::collect_variables(liveness.instructions.children);
     interference::result result = {
       liveness.instructions,
       variables,
@@ -924,9 +944,9 @@ namespace analysis::L2::interference {
     for (auto & entry : result.graph) {
       const std::string & origin = entry.first;
       auto & interferes  = entry.second;
-      os << origin << " ";
+      os << helper::L2::strip_variable_prefix(origin) << " ";
       for (const std::string & interfering : interferes) {
-        os << interfering << " ";
+        os << helper::L2::strip_variable_prefix(interfering) << " ";
       }
       os << "\n";
     }
@@ -989,11 +1009,12 @@ namespace analysis::L2::color {
     using colored = uncolored;
   }
   struct result {
-    nodes instructions;
+    const node & instructions;
     std::set<std::string> variables;
-    interference_map graph;
+    interference::result interference;
     std::vector<entry::uncolored> removed;
     std::map<const std::string, Color> mapping;
+    std::map<Color, std::string> color_to_register;
   };
 }
 
@@ -1018,9 +1039,12 @@ namespace analysis::L2::color::graph {
     result & result
   ) {
     assert(result.mapping.find(var) == result.mapping.end());
-    auto entry = std::make_pair(var, std::move(result.graph.at(var)));
-    result.graph.erase(var);
-    for (auto & value : result.graph) value.second.erase(var);
+    auto entry = std::make_pair(
+      var, std::move(result.interference.graph.at(var))
+    );
+    result.interference.graph.erase(var);
+    for (auto & value : result.interference.graph)
+      value.second.erase(var);
     return entry;
   }
   // Pick an unused color for a given uncolored entry.
@@ -1037,7 +1061,13 @@ namespace analysis::L2::color::graph {
       }
     }
     if (available_colors.size() != 0) {
-      // TODO(jordan): sort available colors to implement heuristic
+      // NOTE(jordan): prefer caller-save colors
+      for (auto color : available_colors) {
+        namespace caller = grammar::L2::calling_convention::caller_save;
+        auto color_register = result.color_to_register[color];
+        if (helper::L2::matches<caller::any>(color_register))
+          return color;
+      }
       return *available_colors.begin();
     } else {
       return Color::none;
@@ -1045,9 +1075,9 @@ namespace analysis::L2::color::graph {
   }
   // Reinsert a colored entry into the interference graph.
   void reinsert (const entry::colored & entry, result & result) {
-    result.graph[entry.first] = entry.second;
+    result.interference.graph[entry.first] = entry.second;
     for (auto & interfered_with : entry.second) {
-      result.graph[interfered_with].insert(entry.first);
+      result.interference.graph[interfered_with].insert(entry.first);
     }
   }
 }
@@ -1058,30 +1088,42 @@ namespace analysis::L2::color {
     color::result result = {
       interference.instructions,
       interference.variables,
-      interference.graph,
-      { /* 'removed' vector   */ },
-      { /* 'mapping' to color */ },
+      interference,
+      { /* 'removed' vector    */ },
+      { /* 'mapping' to color  */ },
+      { /* 'color_to_register' */ },
     };
     // 0. color all register nodes
     namespace register_helper = helper::L2::x86_64_register;
     for (const auto & reg : register_helper::analyzable_registers()) {
-      entry::uncolored entry = std::make_pair(reg, result.graph.at(reg));
+      entry::uncolored entry = std::make_pair(
+        reg, result.interference.graph.at(reg)
+      );
       Color color = graph::choose_color(entry, result);
       graph::color(entry, color, result); // => entry::colored
+      result.color_to_register[color] = std::string(reg);
     }
-    // 1. remove all non-register nodes & add to stack (in some order)
-    for (const auto & variable : result.variables) {
+    // 1. sort the variables so those with most edges pop last
+    std::vector<std::string> variable_vector;
+    for (auto variable : result.variables)
+      variable_vector.push_back(variable);
+    std::sort(
+      variable_vector.begin(),
+      variable_vector.end(),
+      [&] (std::string left, std::string right) {
+        return result.interference.graph[left].size()
+             > result.interference.graph[right].size();
+      }
+    );
+    // 2. remove all non-register nodes & add to stack (in some order)
+    for (const auto & variable : variable_vector) {
       result.removed.push_back(graph::remove(variable, result));
     }
-    // 2. sort the removed nodes by some reasoning
-    /* TODO(jordan): sort the nodes according to heuristic so that the
-     * most-preferred nodes are at the end, and the least-preferred nodes
-     * are at the beginning.
-     */
     // 3. pop the stack, color the node, and reinsert it in the graph
     while (result.removed.size() != 0) {
       const auto uncolored = result.removed.back();
-      const auto color     = graph::choose_color(uncolored, result);
+      // NOTE(jordan): don't try to color impossible nodes
+      Color color = graph::choose_color(uncolored, result);
       const auto & colored = graph::color(uncolored, color, result);
       graph::reinsert(colored, result);
       result.removed.pop_back();
@@ -1089,19 +1131,45 @@ namespace analysis::L2::color {
     return result;
   }
 
+  const std::string recommend_spill (
+    const result & result,
+    const std::string & prefix_filter
+  ) {
+    auto variable = std::find_if(
+      result.variables.begin(),
+      result.variables.end(),
+      [&] (const std::string & variable) {
+        return variable.find(prefix_filter) != 0
+          && result.mapping.at(variable) == Color::none;
+      }
+    );
+    assert(variable != result.variables.end());
+    return * variable;
+  }
+
+  // NOTE(jordan): unused.
+  const std::set<std::string> recommend_spills (const result & result) {
+    std::set<std::string> recommended = result.variables; // NOTE: copies
+    for (const auto & variable : recommended) {
+      if (result.mapping.at(variable) != Color::none)
+        recommended.erase(variable);
+    }
+    return recommended;
+  }
+
   bool is_complete (const result & result) {
     return std::all_of(
       result.variables.begin(),
       result.variables.end(),
-      [&] (auto var) {
-        return result.mapping.at(var) != Color::none;
+      [&] (const std::string & variable) {
+        return result.mapping.at(variable) != Color::none;
       }
     );
   }
   void print (std::ostream & os, const result & result) { // {{{
     for (const auto & mapping : result.mapping) {
       os
-        << mapping.first
+        << helper::L2::strip_variable_prefix(mapping.first)
         << " = "
         << color_to_string(mapping.second)
         << "\n";
