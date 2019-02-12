@@ -1139,7 +1139,7 @@ namespace analysis::L2::color {
       result.variables.begin(),
       result.variables.end(),
       [&] (const std::string & variable) {
-        return variable.find(prefix_filter) != 0
+        return true//variable.find(prefix_filter) != 0
           && result.mapping.at(variable) == Color::none;
       }
     );

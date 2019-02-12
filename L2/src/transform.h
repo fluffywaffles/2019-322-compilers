@@ -966,7 +966,6 @@ namespace transform::L2::spill {
     int locals = helper::L2::integer(local_count);
     int spills = 0;
     int offset = 8 * locals;
-    if (args > 6) offset += 8 * (args - 6);
     std::ostringstream ss;
     spill::instructions(instructions, target, prefix, spills, offset, ss);
     if (spills > 0) locals += 1;
