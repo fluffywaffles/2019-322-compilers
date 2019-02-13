@@ -86,6 +86,7 @@ namespace ast::L2 {
            * reconstruct their string representations, which is silly. The
            * same goes for intrinsic function names.
            */
+          op::gets,
           op::less,
           op::equal,
           op::less_equal,

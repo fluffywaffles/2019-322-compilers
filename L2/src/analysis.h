@@ -270,13 +270,16 @@ namespace analysis::L2::liveness::gen_kill {
 
     // macros {{{
     // TODO(jordan): These would be better as templates and/or functions.
+    // binary_kill_gen
     #define assign_instruction_gen_kill(DEST, SRC)                       \
-      assert(n.children.size() == 2);                                    \
+      assert(n.children.size() == 3);                                    \
       const node & dest = *n.children.at(0);                             \
-      const node & src  = *n.children.at(1);                             \
+      /* const node & op   = *n.children.at(1); */                       \
+      const node & src  = *n.children.at(2);                             \
       helper::operand::SRC::gen(n, src, result);                         \
       helper::operand::DEST::kill(n, dest, result)
 
+    // binary_genkill_gen
     #define update_binary_instruction_gen_kill(DEST, SRC)                \
       assert(n.children.size() == 3);                                    \
       const node & dest = *n.children.at(0);                             \
@@ -286,6 +289,7 @@ namespace analysis::L2::liveness::gen_kill {
       helper::operand::DEST::gen(n, dest, result);                       \
       helper::operand::DEST::kill(n, dest, result)
 
+    // unary_genkill
     #define update_unary_instruction_gen_kill(DEST)                      \
       assert(n.children.size() == 2);                                    \
       const node & dest = *n.children.at(0);                             \
@@ -293,6 +297,7 @@ namespace analysis::L2::liveness::gen_kill {
       helper::operand::DEST::gen(n, dest, result);                       \
       helper::operand::DEST::kill(n, dest, result)
 
+    // binary_gen_gen
     #define cmp_gen_kill(CMP)                                            \
       assert(CMP.children.size() == 3);                                  \
       const node & lhs = *CMP.children.at(0);                            \
@@ -314,13 +319,9 @@ namespace analysis::L2::liveness::gen_kill {
       return;
     }
 
+    // FIXME(jordan): this case is slightly special; we call it an update
     if (n.is<assign::relative::gets_movable>()) {
-      assert(n.children.size() == 2);
-      const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
-      helper::operand::movable::gen(n, src, result);
-      helper::operand::relative::gen(n, dest, result);
-      helper::operand::relative::kill(n, dest, result);
+      update_binary_instruction_gen_kill(relative, movable);
       return;
     }
 
@@ -396,19 +397,21 @@ namespace analysis::L2::liveness::gen_kill {
     }
 
     if (n.is<assign::assignable::gets_stack_arg>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      /* const node & stack_arg = *n.children.at(1); */
+      /* const node & op  = *n.children.at(1); */
+      /* const node & stack_arg = *n.children.at(2); */
       helper::operand::assignable::kill(n, dest, result);
       return;
     }
 
     if (n.is<assign::assignable::gets_comparison>()) {
       /* namespace predicate = helper::cmp::predicate; */
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
+      /* const node & op  = *n.children.at(1); */
       helper::operand::assignable::kill(n, dest, result);
-      const node & cmp  = *n.children.at(1);
+      const node & cmp  = *n.children.at(2);
       cmp_gen_kill(cmp);
       return;
     }
@@ -875,7 +878,7 @@ namespace analysis::L2::interference {
       // Check if we should connect the kill set.
       bool connect_kill = true;
       if (instruction.is<assign::assignable::gets_movable>()) {
-        assert(instruction.children.size() == 2);
+        assert(instruction.children.size() == 3);
         const node & src = *instruction.children.at(1);
         if (helper::L2::matches<grammar::L2::operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.

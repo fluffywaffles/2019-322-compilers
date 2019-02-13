@@ -66,9 +66,10 @@ namespace transform::L2::spill {
     }
 
     if (n.is<assign::assignable::gets_stack_arg>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & stack_arg = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & stack_arg = *n.children.at(2);
       if (helper::spill::spills(dest, target)) {
         // %SN <- stack-arg M
         // %SN <- mem rsp OFF
@@ -85,9 +86,10 @@ namespace transform::L2::spill {
     }
 
     if (n.is<assign::assignable::gets_movable>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       if (true
         && helper::spill::spills(dest, target)
         && helper::spill::spills(src, target)
@@ -141,9 +143,10 @@ namespace transform::L2::spill {
     }
 
     if (n.is<assign::assignable::gets_relative>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       const node & base = *src.children.at(0);
       if (true
         && helper::spill::spills(base, target)
@@ -184,9 +187,10 @@ namespace transform::L2::spill {
     }
 
     if (n.is<assign::relative::gets_movable>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       const node & base = *dest.children.at(0);
       if (true
         && helper::spill::spills(src, target)
@@ -451,9 +455,10 @@ namespace transform::L2::spill {
     }
 
     if (n.is<assign::assignable::gets_comparison>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & cmp  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & cmp  = *n.children.at(2);
       assert(cmp.children.size() == 3);
       const node & lhs  = *cmp.children.at(0);
       const node & op   = *cmp.children.at(1);
@@ -1111,17 +1116,19 @@ namespace transform::L2::color::apply {
     }
 
     if (n.is<assign::assignable::gets_stack_arg>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & stack_arg = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & stack_arg = *n.children.at(2);
       os << replace_variable(dest, coloring) << " <- " << stack_arg.content();
       return;
     }
 
     if (n.is<assign::assignable::gets_movable>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       os << replace_variable(dest, coloring)
         << " <- "
         << replace_variable(src, coloring);
@@ -1129,9 +1136,10 @@ namespace transform::L2::color::apply {
     }
 
     if (n.is<assign::assignable::gets_relative>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       const node & base = *src.children.at(0);
       os << replace_variable(dest, coloring)
         << " <- "
@@ -1140,9 +1148,10 @@ namespace transform::L2::color::apply {
     }
 
     if (n.is<assign::relative::gets_movable>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & src  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & src  = *n.children.at(2);
       const node & base = *dest.children.at(0);
       os
         << helper::relative(dest, replace_variable(base, coloring))
@@ -1211,9 +1220,10 @@ namespace transform::L2::color::apply {
     }
 
     if (n.is<assign::assignable::gets_comparison>()) {
-      assert(n.children.size() == 2);
+      assert(n.children.size() == 3);
       const node & dest = *n.children.at(0);
-      const node & cmp  = *n.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+      const node & cmp  = *n.children.at(2);
       assert(cmp.children.size() == 3);
       const node & lhs  = *cmp.children.at(0);
       const node & op   = *cmp.children.at(1);
@@ -1392,7 +1402,8 @@ namespace transform::L2::to_L1 {
   ) {
     assert(instruction.is<gets_stack_arg>());
     const node & dest      = *instruction.children.at(0);
-    const node & stack_arg = *instruction.children.at(1);
+      /* const node & op  = *n.children.at(1); */
+    const node & stack_arg = *instruction.children.at(2);
     assert(stack_arg.children.size() == 1);
     const node & arg_node  = *stack_arg.children.at(0);
     const int arg_index = helper::L2::integer(arg_node);

@@ -285,6 +285,11 @@ namespace grammar::L2 {
     struct any : peg::sor<add, subtract, multiply, bitwise_and> {};
   }
 
+  // Simple Assignment ("gets"/"<-")
+  namespace op::binary::assignment {
+    struct gets : TAO_PEGTL_STRING("<-") {};
+  }
+
   // Unary
   //
 
@@ -299,6 +304,7 @@ namespace grammar::L2 {
 
   namespace op {
     using add         = binary::arithmetic::add;
+    using gets        = binary::assignment::gets;
     using less        = binary::comparison::less;
     using equal       = binary::comparison::equal;
     using subtract    = binary::arithmetic::subtract;
@@ -365,7 +371,6 @@ namespace grammar::L2 {
     struct mem       : TAO_PEGTL_STRING("mem")       {};
     struct ret       : TAO_PEGTL_STRING("return")    {};
     struct call      : TAO_PEGTL_STRING("call")      {};
-    struct gets      : TAO_PEGTL_STRING("<-")        {};
     struct cjump     : TAO_PEGTL_STRING("cjump")     {};
     struct stack_arg : TAO_PEGTL_STRING("stack-arg") {};
   }
@@ -409,7 +414,7 @@ namespace grammar::L2 {
   namespace meta::statement {
     // <A, B>: A <- B
     namespace gets {
-      using gets = literal::instruction::gets;
+      using gets = op::gets;
       template <typename dest, typename source>
         struct s : spaced<dest, gets, source> {};
     }
