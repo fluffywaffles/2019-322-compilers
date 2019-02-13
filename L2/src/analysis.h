@@ -272,72 +272,87 @@ namespace analysis::L2::liveness::gen_kill {
     // macros {{{
     // TODO(jordan): These would be better as templates and/or functions.
     // binary_kill_gen
-    #define assign_instruction_gen_kill(DEST, SRC)                       \
-      assert(n.children.size() == 3);                                    \
-      const node & dest = *n.children.at(0);                             \
-      /* const node & op   = *n.children.at(1); */                       \
-      const node & src  = *n.children.at(2);                             \
-      helper::operand::SRC::gen(n, src, result);                         \
-      helper::operand::DEST::kill(n, dest, result)
+    #define binary_kill_gen(N, DEST, SRC)                                \
+      assert(N.children.size() >= 3);                                    \
+      const node & dest = *N.children.at(0);                             \
+      /* const node & op   = *N.children.at(1); */                       \
+      const node & src  = *N.children.at(2);                             \
+      helper::operand::SRC::gen(N, src, result);                         \
+      helper::operand::DEST::kill(N, dest, result)
+
+    #define binary_kill_nop(N, DEST)                                     \
+      assert(N.children.size() >= 3);                                    \
+      const node & dest = *N.children.at(0);                             \
+      /* const node & op   = *N.children.at(1); */                       \
+      /* const node & src  = *N.children.at(2); */                       \
+      helper::operand::DEST::kill(N, dest, result)
+
+    #define binary_genkill_nop(N, DEST)                                  \
+      assert(N.children.size() >= 3);                                    \
+      const node & dest = *N.children.at(0);                             \
+      /* const node & op   = *N.children.at(1); */                       \
+      /* const node & src  = *N.children.at(2); */                       \
+      helper::operand::DEST::gen(N, dest, result);                       \
+      helper::operand::DEST::kill(N, dest, result)
 
     // binary_genkill_gen
-    #define update_binary_instruction_gen_kill(DEST, SRC)                \
-      assert(n.children.size() == 3);                                    \
-      const node & dest = *n.children.at(0);                             \
-      /* const node & op   = *n.children.at(1); */                       \
-      const node & src  = *n.children.at(2);                             \
-      helper::operand::SRC::gen(n, src, result);                         \
-      helper::operand::DEST::gen(n, dest, result);                       \
-      helper::operand::DEST::kill(n, dest, result)
+    #define binary_genkill_gen(N, DEST, SRC)                             \
+      assert(N.children.size() >= 3);                                    \
+      const node & dest = *N.children.at(0);                             \
+      /* const node & op   = *N.children.at(1); */                       \
+      const node & src  = *N.children.at(2);                             \
+      helper::operand::SRC::gen(N, src, result);                         \
+      helper::operand::DEST::gen(N, dest, result);                       \
+      helper::operand::DEST::kill(N, dest, result)
 
     // unary_genkill
-    #define update_unary_instruction_gen_kill(DEST)                      \
-      assert(n.children.size() == 2);                                    \
-      const node & dest = *n.children.at(0);                             \
-      /* const node & op   = *n.children.at(1); */                       \
-      helper::operand::DEST::gen(n, dest, result);                       \
-      helper::operand::DEST::kill(n, dest, result)
+    #define unary_genkill(N, DEST)                                       \
+      assert(N.children.size() >= 2);                                    \
+      const node & dest = *N.children.at(0);                             \
+      /* const node & op   = *N.children.at(1); */                       \
+      helper::operand::DEST::gen(N, dest, result);                       \
+      helper::operand::DEST::kill(N, dest, result)
 
     // binary_gen_gen
-    #define cmp_gen_kill(CMP)                                            \
-      assert(CMP.children.size() == 3);                                  \
-      const node & lhs = *CMP.children.at(0);                            \
-      /* const node & op  = *CMP.children.at(1); */                      \
-      const node & rhs = *CMP.children.at(2);                            \
-      helper::operand::comparable::gen(n, lhs, result);                  \
-      helper::operand::comparable::gen(n, rhs, result)
+    #define binary_gen_gen(N, DEST, SRC)                                 \
+      assert(N.children.size() >= 3);                                    \
+      const node & lhs = *N.children.at(0);                              \
+      /* const node & op  = *N.children.at(1); */                        \
+      const node & rhs = *N.children.at(2);                              \
+      helper::operand::SRC::gen(n, rhs, result);                         \
+      helper::operand::DEST::gen(n, lhs, result)
     // }}}
 
     using namespace grammar::L2::operand;
     using namespace grammar::L2::instruction;
+
     if (n.is<assign::assignable::gets_movable>()) {
-      assign_instruction_gen_kill(assignable, movable);
+      binary_kill_gen(n, assignable, movable);
       return;
     }
 
     if (n.is<assign::assignable::gets_relative>()) {
-      assign_instruction_gen_kill(assignable, relative);
+      binary_kill_gen(n, assignable, relative);
       return;
     }
 
-    // FIXME(jordan): this case is slightly special; we call it an update
     if (n.is<assign::relative::gets_movable>()) {
-      update_binary_instruction_gen_kill(relative, movable);
+      binary_genkill_gen(n, relative, movable);
       return;
     }
 
     if (n.is<update::assignable::arithmetic::comparable>()) {
-      update_binary_instruction_gen_kill(assignable, comparable);
+      binary_genkill_gen(n, assignable, comparable);
       return;
     }
 
     if (n.is<update::assignable::shift::shift>()) {
-      update_binary_instruction_gen_kill(assignable, shift);
+      binary_genkill_gen(n, assignable, shift);
       return;
     }
 
     if (n.is<update::assignable::shift::number>()) {
-      update_binary_instruction_gen_kill(assignable, shift);
+      binary_genkill_nop(n, assignable);
       return;
     }
 
@@ -345,7 +360,7 @@ namespace analysis::L2::liveness::gen_kill {
       || n.is<update::relative::arithmetic::add_comparable>()
       || n.is<update::relative::arithmetic::subtract_comparable>()
     ) {
-      update_binary_instruction_gen_kill(relative, comparable);
+      binary_genkill_gen(n, relative, comparable);
       return;
     }
 
@@ -353,67 +368,42 @@ namespace analysis::L2::liveness::gen_kill {
       || n.is<update::assignable::arithmetic::add_relative>()
       || n.is<update::assignable::arithmetic::subtract_relative>()
     ) {
-      update_binary_instruction_gen_kill(assignable, relative);
+      binary_genkill_gen(n, assignable, relative);
       return;
     }
 
-    if (n.is<update::assignable::arithmetic::increment>()) {
-      update_unary_instruction_gen_kill(assignable);
+    if (false
+      || n.is<update::assignable::arithmetic::increment>()
+      || n.is<update::assignable::arithmetic::decrement>()
+    ) {
+      unary_genkill(n, assignable);
       return;
     }
 
-    if (n.is<update::assignable::arithmetic::decrement>()) {
-      update_unary_instruction_gen_kill(assignable);
-      return;
-    }
-
-    if (n.is<jump::cjump::if_else>()) {
-      assert(n.children.size() == 3);
+    if (false
+      || n.is<jump::cjump::if_else>()
+      || n.is<jump::cjump::when>()
+    ) {
       const node & cmp  = *n.children.at(0);
       /* const node & then = *n.children.at(1); */
-      /* const node & els  = *n.children.at(2); */
-      cmp_gen_kill(cmp);
+      /* const node & els  = *n.children.at(2); // for if_else */
+      binary_gen_gen(cmp, comparable, comparable);
       return;
     }
 
-    if (n.is<jump::cjump::when>()) {
-      /* namespace predicate = helper::cmp::predicate; */
-      assert(n.children.size() == 2);
-      const node & cmp  = *n.children.at(0);
-      /* const node & then = *n.children.at(1); */
-      cmp_gen_kill(cmp);
-      return;
-    }
-
-    if (n.is<define::label>()) {
-      assert(n.children.size() == 1);
-      /* const node & label = *n.children.at(0); */
-      return;
-    }
-
-    if (n.is<jump::go2>()) {
-      assert(n.children.size() == 1);
-      /* const node & label = *n.children.at(0); */
-      return;
-    }
-
+    // NOTE(jordan): binary_kill_nop
     if (n.is<assign::assignable::gets_stack_arg>()) {
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      /* const node & stack_arg = *n.children.at(2); */
-      helper::operand::assignable::kill(n, dest, result);
+      binary_kill_nop(n, assignable);
       return;
     }
 
+    // NOTE(jordan): binary_kill_nop and binary_gen_gen
     if (n.is<assign::assignable::gets_comparison>()) {
-      /* namespace predicate = helper::cmp::predicate; */
-      assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
+      /* const node & dest = *n.children.at(0); */
       /* const node & op  = *n.children.at(1); */
-      helper::operand::assignable::kill(n, dest, result);
       const node & cmp  = *n.children.at(2);
-      cmp_gen_kill(cmp);
+      binary_kill_nop(n, assignable);
+      binary_gen_gen(cmp, comparable, comparable);
       return;
     }
 
@@ -480,10 +470,20 @@ namespace analysis::L2::liveness::gen_kill {
       return;
     }
 
-    #undef assign_instruction_gen_kill
-    #undef update_unary_instruction_gen_kill
-    #undef update_binary_instruction_gen_kill
-    #undef cmp_gen_kill
+    // NOTE(jordan): explicitly catch the no-op case! Helps prevent bugs.
+    if (false
+      || n.is<define::label>()
+      || n.is<jump::go2>()
+    ) {
+      assert(n.children.size() == 1);
+      /* const node & label = *n.children.at(0); */
+      return;
+    }
+
+    #undef binary_kill_gen
+    #undef unary_genkill
+    #undef binary_genkill_gen
+    #undef binary_gen_gen
 
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::instruction: unreachable!");
