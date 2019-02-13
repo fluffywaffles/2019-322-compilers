@@ -98,10 +98,11 @@ namespace grammar::L2 {
 
   namespace literal::identifier {
     using namespace character;
-    template <bool after_zero> struct at;
-    template <> struct at<0> : peg::sor<alphabetic, underscore> {};
-    template <> struct at<1> : peg::sor<alphanumeric, underscore> {};
-    struct name  : peg::seq<at<0>, peg::star<at<1>>> {};
+    namespace at {
+      struct zero : peg::sor<alphabetic, underscore>   {};
+      struct gte1 : peg::sor<alphanumeric, underscore> {};
+    }
+    struct name  : peg::seq<at::zero, peg::star<at::gte1>> {};
     // label ::= :[a-zA-Z_][a-zA-Z_0-9]*
     struct label : peg::seq<colon, name> {};
     // var   ::= %[a-zA-Z_][a-zA-Z_0-9]*
