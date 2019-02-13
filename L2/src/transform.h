@@ -759,7 +759,7 @@ namespace transform::L2::spill {
     }
 
     if (n.is<invoke::call::intrinsic::array_error>()) {
-      os << "call array_error 2";
+      os << "call array-error 2";
       return;
     }
 
