@@ -3,7 +3,6 @@
 #include <set>
 #include <cassert>
 #include <iostream>
-#include <algorithm>
 
 #include "L1/codegen.h"
 #include "grammar.h"
@@ -615,8 +614,8 @@ namespace analysis::L2::liveness::successor {
 // in/out calculation {{{
 namespace analysis::L2::liveness {
   void in_out (result & result, unsigned debug = 0) {
-    // QUESTION: uh... what's our efficiency here? This code is gross.
     const up_nodes & instructions = result.instructions.children;
+    // FIXME(jordan): This code is still a little gross.
     int iteration_limit = -1; // NOTE(jordan): used for debugging.
     bool fixed_state;
     do {
@@ -633,10 +632,7 @@ namespace analysis::L2::liveness {
         auto out = result.out[&instruction];
         // out_minus_kill = OUT[i] - KILL[i]
         std::set<std::string> out_minus_kill;
-        std::set_difference(
-          out.begin(), out.end(),
-          kill.begin(), kill.end(),
-          std::inserter(out_minus_kill, out_minus_kill.begin()));
+        helper::L2::set_difference(out, kill, out_minus_kill);
         // debug {{{
         if (debug & DBG_IN_OUT_LOOP_OUT_MINUS_KILL) {
           std::cout << "OUT[" << index << "] - KILL[" << index << "] = ";
@@ -646,17 +642,11 @@ namespace analysis::L2::liveness {
           std::cout << "\n";
         } // }}}
         // IN[i] = GEN[i] U (out_minus_kill)
-        std::set_union(
-          gen.begin(), gen.end(),
-          out_minus_kill.begin(), out_minus_kill.end(),
-          std::inserter(in, in.begin()));
+        helper::L2::set_union(gen, out_minus_kill, in);
         // OUT[i] = U(s : successor of(i)) IN[s]
         for (const node * successor : successors) {
           auto & in_s = result.in[successor];
-          std::set_union(
-            in_s.begin(), in_s.end(),
-            out.begin(), out.end(),
-            std::inserter(out, out.begin()));
+          helper::L2::set_union(in_s, out, out);
         }
 
         const auto & in_original  = result.in [&instruction];
@@ -678,8 +668,8 @@ namespace analysis::L2::liveness {
         }
         // }}}
         fixed_state = fixed_state
-          && std::equal(in_original.begin(), in_original.end(), in.begin(), in.end())
-          && std::equal(out_original.begin(), out_original.end(), out.begin(), out.end());
+          && helper::L2::set_equal(in_original, in)
+          && helper::L2::set_equal(out_original, out);
 
         result.in [&instruction] = in;
         result.out[&instruction] = out;

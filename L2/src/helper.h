@@ -1,6 +1,7 @@
 #pragma once
 #include <set>
 #include <typeindex>
+#include <algorithm>
 
 #include "L1/codegen.h"
 #include "grammar.h"
@@ -17,6 +18,33 @@ namespace helper::L2 { // {{{
   bool matches (const node & n)  { return L1_helper::matches<R>(n); }
   template <class R>
   bool matches (const std::string & s) { return L1_helper::matches<R>(s); }
+
+  template <typename Colln>
+  bool set_equal (const Colln & a, const Colln & b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end());
+  }
+
+  template <typename Colln>
+  void set_union (const Colln & a, const Colln & b, Colln & dest) {
+    // NOTE(jordan): return dest.end(). Don't care; discard.
+    std::set_union(
+      a.begin(), a.end(),
+      b.begin(), b.end(),
+      std::inserter(dest, dest.begin())
+    );
+    return;
+  }
+
+  template <typename Colln>
+  void set_difference (const Colln & a, const Colln & b, Colln & dest) {
+    // NOTE(jordan): return dest.end(). Don't care; discard.
+    std::set_difference(
+      a.begin(), a.end(),
+      b.begin(), b.end(),
+      std::inserter(dest, dest.begin())
+    );
+    return;
+  }
 
   int integer (const node & n) {
     assert(n.has_content() && "helper::integer: no content!");
