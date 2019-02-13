@@ -58,16 +58,9 @@ namespace driver::L2 {
      * }}}
      **/
     const auto root = parse(opt, in);
-    if (Options::Mode::x86 == opt.mode) {
+    if (Options::Mode::x86 == opt.mode) { // {{{
       namespace analysis = analysis::L2;
       const ast::node & program = *root->children.at(0);
-      /* transform::to_L1::program(program, std::cout); */
-      // for function in program:
-      // 1. liveness
-      // 2. interference
-      // 3. color
-      // 4. spill? -> if yes, goto 1
-      // 5. done.
       /**
        * FIXME(jordan): so... this is a mess.
        *
@@ -181,11 +174,8 @@ namespace driver::L2 {
         out << entry.second << "\n";
       out << "\n)";
       return 0;
-      /* L2::codegen::generate(*root); */
-      /* std::cerr << "Error: cannot generate code for L2 yet.\n"; */
-      /* return -1; */
-    }
-    if (Options::Mode::spill == opt.mode) {
+    } // }}}
+    if (Options::Mode::spill == opt.mode) { // {{{
       using node = ast::node;
       assert(root->children.size() == 3 && "spill: parsed incorrectly!");
       const node & function = *root->children.at(0);
@@ -193,22 +183,22 @@ namespace driver::L2 {
       const node & prefix   = *root->children.at(2);
       transform::spill::function(function, target, prefix, std::cout);
       return 0;
-    }
-    if (Options::Mode::liveness == opt.mode) {
+    } // }}}
+    if (Options::Mode::liveness == opt.mode) { // {{{
       namespace analysis = analysis::L2;
       const auto & function = root->children.at(0);
       auto liveness = analysis::liveness::function(*function);
       analysis::liveness::print(std::cout, liveness);
       return 0;
-    }
-    if (Options::Mode::interference == opt.mode) {
+    } // }}}
+    if (Options::Mode::interference == opt.mode) { // {{{
       namespace analysis = analysis::L2;
       const auto & function = root->children.at(0);
       auto liveness     = analysis::liveness::function(*function);
       auto interference = analysis::interference::function(liveness);
       analysis::interference::print(std::cout, interference);
       return 0;
-    }
+    } // }}}
     assert(false && "execute: unreachable! Mode unrecognized.");
   }
 }
