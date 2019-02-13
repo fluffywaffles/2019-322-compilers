@@ -1041,7 +1041,8 @@ namespace transform::L2::spill {
 // apply color {{{
 // try_apply {{{
 namespace transform::L2::color {
-  const std::string prefix = "%_spill_";
+  static const std::string prefix = "%_spill_";
+  // REFACTOR(jordan): move this into analysis.h
   // FIXME(jordan): extremely tightly coupled with driver.
   void try_color_function (
     const ast::L2::node & function,

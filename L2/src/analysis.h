@@ -17,27 +17,180 @@ namespace analysis::L2 {
   using node   = ast::L2::node;
   using up_nodes  = helper::L2::up_nodes;
   using string = std::string;
-  using liveness_map     = std::map<const node *, std::set<string>>;
   using successor_map    = std::map<const node *, std::set<const node *>>;
+  using liveness_map     = std::map<const node *, std::set<string>>;
   using interference_map = std::map<const string, std::set<string>>;
 }
+
+// successor analysis {{{
+/**
+ *
+ * succ[cjump_when    ] = then_label && i + 1
+ * succ[cjump_if_else ] = then_label && else_label
+ * succ[call_u_N      ] = i + 1 // intraprocedural
+ * succ[call_intrinsic] = i + 1 // intraprocedural
+ * succ[<else>...     ] = i + i
+ *
+ */
+namespace analysis::L2::successor {
+  static const bool DBG = false;
+  struct result {
+    const node & instructions;
+    successor_map map;
+  };
+
+  void set (const node & n, const node & s, result & result) {
+    result.map[&n].insert(&s);
+  }
+
+  // instruction {{{
+  void instruction (const node & n, int index, result & result) {
+    namespace instruction = grammar::L2::instruction;
+    using namespace instruction;
+
+    const up_nodes & siblings = result.instructions.children;
+
+    if (n.is<instruction::any>()) {
+      assert(n.children.size() == 1);
+      const node & actual_instruction = *n.children.at(0);
+      return successor::instruction(actual_instruction, index, result);
+    }
+
+    if (false
+      || n.is<assign::assignable::gets_movable>()
+      || n.is<assign::assignable::gets_relative>()
+      || n.is<assign::relative::gets_movable>()
+      || n.is<update::assignable::arithmetic::comparable>()
+      || n.is<update::assignable::shift::shift>()
+      || n.is<update::assignable::shift::number>()
+      || n.is<update::relative::arithmetic::add_comparable>()
+      || n.is<update::relative::arithmetic::subtract_comparable>()
+      || n.is<update::assignable::arithmetic::add_relative>()
+      || n.is<update::assignable::arithmetic::subtract_relative>()
+      || n.is<assign::assignable::gets_comparison>()
+      || n.is<define::label>()
+      || n.is<update::assignable::arithmetic::increment>()
+      || n.is<update::assignable::arithmetic::decrement>()
+      || n.is<assign::assignable::gets_address>()
+      || n.is<assign::assignable::gets_stack_arg>()
+    ) {
+      // Our successor is the next instruction. Nice!
+      assert(siblings.size() > index + 1);
+      const node & next_wrapper = *siblings.at(index + 1);
+      const node & next = *next_wrapper.children.at(0);
+      return successor::set(n, next, result);
+    }
+
+    if (false
+      || n.is<jump::go2>()
+      || n.is<jump::cjump::when>()
+      || n.is<jump::cjump::if_else>()
+    ) {
+      // Ugh. Jumps.
+      if (n.is<jump::go2>()) {
+        const node & label = *n.children.at(0);
+        const node & instruction
+          = helper::L2::definition_for(label, siblings);
+        return successor::set(n, instruction, result);
+      }
+      if (n.is<jump::cjump::when>()) {
+        /* const node & cmp        = *n.children.at(0); */
+        const node & then_label = *n.children.at(1);
+        const node & then_instruction
+          = helper::L2::definition_for(then_label, siblings);
+        assert(siblings.size() > index + 1);
+        const node & next_wrapper = *siblings.at(index + 1);
+        const node & next = *next_wrapper.children.at(0);
+        successor::set(n, next, result);
+        successor::set(n, then_instruction, result);
+        return;
+      }
+      if (n.is<jump::cjump::if_else>()) {
+        /* const node & cmp        = *n.children.at(0); */
+        const node & then_label = *n.children.at(1);
+        const node & then_instruction
+          = helper::L2::definition_for(then_label, siblings);
+        const node & else_label = *n.children.at(2);
+        const node & else_instruction
+          = helper::L2::definition_for(else_label, siblings);
+        successor::set(n, then_instruction, result);
+        successor::set(n, else_instruction, result);
+        return;
+      }
+      assert(false && "successor: jump::*: unreachable!");
+    }
+
+    if (false
+      || n.is<invoke::call::callable>()
+      || n.is<invoke::call::intrinsic::print>()
+      || n.is<invoke::call::intrinsic::allocate>()
+      || n.is<invoke::call::intrinsic::array_error>()
+    ) {
+      // Calls! Our analysis is intraprocedural, so the successor is easy.
+      assert(siblings.size() > index + 1);
+      const node & next_wrapper = *siblings.at(index + 1);
+      const node & next = *next_wrapper.children.at(0);
+      return successor::set(n, next, result);
+    }
+
+    if (n.is<invoke::ret>()) {
+      // Do nothing. A `return` has no successor in an our analysis.
+      return;
+    }
+
+    std::cout << "something went wrong at\n\t" << n.name() << "\n";
+    assert(false && "liveness::successor: unreachable!");
+  }
+  // }}}
+
+  void instructions (const node & instructions, result & result) {
+    for (int index = 0; index < instructions.children.size(); index++) {
+      const node & instruction = *instructions.children.at(index);
+      successor::instruction(instruction, index, result);
+    }
+    return;
+  }
+
+  // print {{{
+  void print (result & result) {
+    const up_nodes & instructions = result.instructions.children;
+    for (int index = 0; index < instructions.size(); index++) {
+      const node & wrapper = *instructions.at(index);
+      const node & instruction = helper::L2::unwrap_assert(wrapper);
+      std::cout << "succ[" << index << "] = ";
+      for (auto successor : result.map[&instruction]) {
+        std::cout << successor->name();
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+  }
+  // }}}
+
+  void compute (result & result) {
+    successor::instructions(result.instructions, result);
+    if (DBG) successor::print(result);
+    return;
+  }
+}
+// }}}
 
 // liveness {{{
 namespace analysis::L2::liveness {
   const int DBG_SUCC                       = 0b000001;
-  const int DBG_PRINT                      = 0b000010;
-  const int DBG_GEN_KILL                   = 0b000100;
+  const int DBG_GEN_KILL                   = 0b000010;
+  const int DBG_IN_OUT                     = 0b000100;
   const int DBG_IN_OUT_LOOP_CND            = 0b001000;
   const int DBG_IN_OUT_LOOP_ORIG           = 0b010000;
   const int DBG_IN_OUT_LOOP_OUT_MINUS_KILL = 0b100000;
 
   struct result {
     const node & instructions;
+    successor::result successor;
     liveness_map in;
     liveness_map out;
     liveness_map gen;
     liveness_map kill;
-    successor_map successor;
   };
 }
 
@@ -258,6 +411,7 @@ namespace helper::L2::liveness::gen_kill::operand {
 
 // gen/kill analysis {{{
 namespace analysis::L2::liveness::gen_kill {
+  // instruction {{{
   void instruction (const node & n, liveness::result & result) {
     namespace helper = helper::L2::liveness::gen_kill;
     namespace instruction = grammar::L2::instruction;
@@ -487,120 +641,16 @@ namespace analysis::L2::liveness::gen_kill {
     std::cout << "something went wrong at\n\t" << n.name() << "\n";
     assert(false && "liveness::instruction: unreachable!");
   }
-}
-// }}}
+  // }}}
 
-/**
- *
- * succ[cjump_when    ] = then_label && i + 1
- * succ[cjump_if_else ] = then_label && else_label
- * succ[call_u_N      ] = i + 1 // intraprocedural
- * succ[call_intrinsic] = i + 1 // intraprocedural
- * succ[<else>...     ] = i + i
- *
- */
-// successor analysis {{{
-namespace analysis::L2::liveness::successor {
-  void set (const node & n, const node & s, liveness::result & result) {
-    result.successor[&n].insert(&s);
+  void instructions (const node & instructions, result & result) {
+    for (const auto & wrapper : instructions.children)
+      gen_kill::instruction(*wrapper, result);
+    return;
   }
 
-  void instruction (const node & n, int index, result & result) {
-    namespace instruction = grammar::L2::instruction;
-    using namespace instruction;
-
-    const up_nodes & siblings = result.instructions.children;
-
-    if (n.is<instruction::any>()) {
-      assert(n.children.size() == 1);
-      const node & actual_instruction = *n.children.at(0);
-      return successor::instruction(actual_instruction, index, result);
-    }
-
-    if (false
-      || n.is<assign::assignable::gets_movable>()
-      || n.is<assign::assignable::gets_relative>()
-      || n.is<assign::relative::gets_movable>()
-      || n.is<update::assignable::arithmetic::comparable>()
-      || n.is<update::assignable::shift::shift>()
-      || n.is<update::assignable::shift::number>()
-      || n.is<update::relative::arithmetic::add_comparable>()
-      || n.is<update::relative::arithmetic::subtract_comparable>()
-      || n.is<update::assignable::arithmetic::add_relative>()
-      || n.is<update::assignable::arithmetic::subtract_relative>()
-      || n.is<assign::assignable::gets_comparison>()
-      || n.is<define::label>()
-      || n.is<update::assignable::arithmetic::increment>()
-      || n.is<update::assignable::arithmetic::decrement>()
-      || n.is<assign::assignable::gets_address>()
-      || n.is<assign::assignable::gets_stack_arg>()
-    ) {
-      // Our successor is the next instruction. Nice!
-      assert(siblings.size() > index + 1);
-      const node & next_wrapper = *siblings.at(index + 1);
-      const node & next = *next_wrapper.children.at(0);
-      return successor::set(n, next, result);
-    }
-
-    if (false
-      || n.is<jump::go2>()
-      || n.is<jump::cjump::when>()
-      || n.is<jump::cjump::if_else>()
-    ) {
-      // Ugh. Jumps.
-      if (n.is<jump::go2>()) {
-        const node & label = *n.children.at(0);
-        const node & instruction
-          = helper::L2::definition_for(label, siblings);
-        return successor::set(n, instruction, result);
-      }
-      if (n.is<jump::cjump::when>()) {
-        /* const node & cmp        = *n.children.at(0); */
-        const node & then_label = *n.children.at(1);
-        const node & then_instruction
-          = helper::L2::definition_for(then_label, siblings);
-        assert(siblings.size() > index + 1);
-        const node & next_wrapper = *siblings.at(index + 1);
-        const node & next = *next_wrapper.children.at(0);
-        successor::set(n, next, result);
-        successor::set(n, then_instruction, result);
-        return;
-      }
-      if (n.is<jump::cjump::if_else>()) {
-        /* const node & cmp        = *n.children.at(0); */
-        const node & then_label = *n.children.at(1);
-        const node & then_instruction
-          = helper::L2::definition_for(then_label, siblings);
-        const node & else_label = *n.children.at(2);
-        const node & else_instruction
-          = helper::L2::definition_for(else_label, siblings);
-        successor::set(n, then_instruction, result);
-        successor::set(n, else_instruction, result);
-        return;
-      }
-      assert(false && "successor: jump::*: unreachable!");
-    }
-
-    if (false
-      || n.is<invoke::call::callable>()
-      || n.is<invoke::call::intrinsic::print>()
-      || n.is<invoke::call::intrinsic::allocate>()
-      || n.is<invoke::call::intrinsic::array_error>()
-    ) {
-      // Calls! Our analysis is intraprocedural, so the successor is easy.
-      assert(siblings.size() > index + 1);
-      const node & next_wrapper = *siblings.at(index + 1);
-      const node & next = *next_wrapper.children.at(0);
-      return successor::set(n, next, result);
-    }
-
-    if (n.is<invoke::ret>()) {
-      // Do nothing. A `return` has no successor in an our analysis.
-      return;
-    }
-
-    std::cout << "something went wrong at\n\t" << n.name() << "\n";
-    assert(false && "liveness::successor: unreachable!");
+  void compute (result & result) {
+    return gen_kill::instructions(result.instructions, result);
   }
 }
 // }}}
@@ -626,7 +676,7 @@ namespace analysis::L2::liveness {
         // load gen, kill sets and successors
         auto & gen        = result.gen [&instruction];
         auto & kill       = result.kill[&instruction];
-        auto & successors = result.successor[&instruction];
+        auto & successors = result.successor.map[&instruction];
         // copy in and out sets
         auto in  = result.in [&instruction];
         auto out = result.out[&instruction];
@@ -688,13 +738,16 @@ namespace analysis::L2::liveness {
 // full liveness analysis {{{
 namespace analysis::L2::liveness {
   void compute (liveness::result & result, unsigned debug = 0) {
+    if (debug & DBG_SUCC) { // {{{
+      analysis::L2::successor::print(result.successor);
+    } // }}}
     // 1. Compute GEN, KILL
-    for (int index = 0; index < result.instructions.children.size(); index++) {
-      const node & wrapper = *result.instructions.children.at(index);
-      const node & instruction = *wrapper.children.at(0);
-      analysis::L2::liveness::gen_kill::instruction(instruction, result);
-      // debug {{{
-      if (debug & DBG_GEN_KILL) {
+    analysis::L2::liveness::gen_kill::compute(result);
+    if (debug & DBG_GEN_KILL) { // {{{
+      const up_nodes & instructions = result.instructions.children;
+      for (int index = 0; index < instructions.size(); index++) {
+        const node & wrapper = *instructions.at(index);
+        const node & instruction = helper::L2::unwrap_assert(wrapper);
         std::cout << "gen[" << index << "]  = ";
         for (auto g : result.gen[&instruction]) std::cout << g << " ";
         std::cout << "\n";
@@ -702,37 +755,11 @@ namespace analysis::L2::liveness {
         for (auto r : result.kill[&instruction]) std::cout << r << " ";
         std::cout << "\n";
       }
-      // }}}
-    }
-    // debug {{{
-    if (debug & DBG_GEN_KILL) std::cout << "\n";
-    // }}}
-
-    // 2. Compute successors
-    for (int index = 0; index < result.instructions.children.size(); index++) {
-      namespace successor = analysis::L2::liveness::successor;
-      const node & wrapper = *result.instructions.children.at(index);
-      const node & instruction = *wrapper.children.at(0);
-      successor::instruction(instruction, index, result);
-      // debug {{{
-      if (debug & DBG_SUCC) {
-        std::cout << "succ[" << index << "] = ";
-        for (auto successor : result.successor[&instruction]) {
-          std::cout << successor->name();
-        }
-        std::cout << "\n";
-      }
-      // }}}
-    }
-    // debug {{{
-    if (debug & DBG_SUCC) std::cout << "\n";
-    // }}}
-
+      std::cout << "\n";
+    } // }}}
     // 3. Iteratively compute IN/OUT sets
     in_out(result, debug);
-
-    // debug {{{
-    if (debug & DBG_PRINT) {
+    if (debug & DBG_IN_OUT) { // {{{
       std::cout << "\n";
       for (int index = 0; index < result.instructions.children.size(); index++) {
         const node & wrapper = *result.instructions.children.at(index);
@@ -745,9 +772,7 @@ namespace analysis::L2::liveness {
         std::cout << "\n";
       }
       std::cout << "\n";
-    }
-    // }}}
-
+    } // }}}
     return;
   }
 }
@@ -761,7 +786,9 @@ namespace analysis::L2::liveness {
       && "liveness: called on non-function!"
     );
     const node & instructions = *function.children.at(3);
-    liveness::result result = { instructions };
+    successor::result successor = { instructions };
+    analysis::L2::successor::compute(successor);
+    liveness::result result = { instructions, successor };
     liveness::compute(result);
     return result;
   }
@@ -1080,6 +1107,7 @@ namespace analysis::L2::color::graph {
 // }}}
 
 namespace analysis::L2::color {
+  // REFACTOR(jordan): with the code in driver.h and transform.h
   result function (const interference::result & interference) {
     color::result result = {
       interference.instructions,
@@ -1127,15 +1155,28 @@ namespace analysis::L2::color {
     return result;
   }
 
+  void print (std::ostream & os, const result & result) { // {{{
+    for (const auto & mapping : result.mapping) {
+      os
+        << helper::L2::strip_variable_prefix(mapping.first)
+        << " = "
+        << color_to_string(mapping.second)
+        << "\n";
+    }
+  } // }}}
+
+  // recommenders {{{
   const std::string recommend_spill (
     const result & result,
-    const std::string & prefix_filter
+    const std::string & prefix
   ) {
     auto variable = std::find_if(
       result.variables.begin(),
       result.variables.end(),
       [&] (const std::string & variable) {
-        return true//variable.find(prefix_filter) != 0
+        return true
+          // NOTE(jordan): uncomment this to debug infinite spill loops
+          /* && variable.find(prefix) != 0 */
           && result.mapping.at(variable) == Color::none;
       }
     );
@@ -1152,8 +1193,9 @@ namespace analysis::L2::color {
     }
     return recommended;
   }
+  // }}}
 
-  bool is_complete (const result & result) {
+  bool is_complete (const result & result) { // {{{
     return std::all_of(
       result.variables.begin(),
       result.variables.end(),
@@ -1161,15 +1203,6 @@ namespace analysis::L2::color {
         return result.mapping.at(variable) != Color::none;
       }
     );
-  }
-  void print (std::ostream & os, const result & result) { // {{{
-    for (const auto & mapping : result.mapping) {
-      os
-        << helper::L2::strip_variable_prefix(mapping.first)
-        << " = "
-        << color_to_string(mapping.second)
-        << "\n";
-    }
   } // }}}
 }
 // }}}
