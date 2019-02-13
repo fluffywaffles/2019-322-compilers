@@ -8,7 +8,7 @@
 
 /*
  * NOTE(jordan): really needed to cut the gordian knot here, so this
- * is based on a character-for-character copy of L1/parse_tree.h.
+ * is based on a character-for-character copy of L1/ast.h.
  *
  * Ideally it could be simplified into a version where we save a generic
  * L1Instruction node in the parse tree. We could then handle all the L1
@@ -118,6 +118,12 @@ namespace ast::L2 {
           /* NOTE(jordan): these nodes are just containers; they don't
            * have any content of their own. Keeping their content would be
            * purely redundant.
+           */
+          /* NOTE(jordan): THAT SAID, the way PEGTL nodes "hold" content
+           * is with a pair of iterators into a single referenced source.
+           * So, it would not take up any additional memory to store the
+           * contents of instructions. It would just clutter the output of
+           * an AST print dump. (A lot, in fact.)
            */
           instruction::any,
           instruction::assign::assignable::gets_movable,

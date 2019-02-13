@@ -11,6 +11,7 @@
 #include "helper.h"
 
 // NOTE(jordan): toggle at compile time whether to always connect OUT/KILL
+// TODO(jordan): implement register coalescing and remove this.
 #define HACK_ALWAYS_OUT_KILL true
 
 namespace analysis::L2 {
@@ -58,7 +59,7 @@ namespace helper::L2::liveness::gen_kill {
     using result = analysis::L2::liveness::result;
     static const bool DBG = false;
     static void generic (
-      GenKill choice,
+      GenKill which,
       const node & i,
       const node & v,
       result & result
@@ -86,19 +87,19 @@ namespace helper::L2::liveness::gen_kill {
       }
       std::string content = v.content();
       if (DBG) std::cout << "gen/kill: of var: " << content << "\n";
-      switch (choice) {
+      switch (which) {
         case GenKill::gen  : result.gen [&i].insert(content); return;
         case GenKill::kill : result.kill[&i].insert(content); return;
         default: assert(false && "gen/kill: unreachable!");
       }
     }
     template <typename Reg>
-    static void generic (GenKill choice, const node & i, result & result) {
+    static void generic (GenKill which, const node & i, result & result) {
       assert(!matches<Reg>("rsp") && "gen/kill: cannot gen rsp!");
       namespace register_helper = helper::L2::x86_64_register;
       const std::string & reg = register_helper::convert<Reg>::string;
       if (DBG) std::cout << "gen/kill<Register>: " << reg << "\n";
-      switch (choice) {
+      switch (which) {
         case GenKill::gen  : result.gen [&i].insert(reg); return;
         case GenKill::kill : result.kill[&i].insert(reg); return;
         default: assert(false && "gen/kill<Register>: unreachable!");
@@ -135,7 +136,7 @@ namespace helper::L2::liveness::gen_kill::operand {
       return Operand::accept(v);
     };
     static void generic (
-      GenKill choice,
+      GenKill which,
       const node & n,
       const node & v,
       result & result
@@ -143,8 +144,8 @@ namespace helper::L2::liveness::gen_kill::operand {
       using variable = gen_kill::variable;
       const node & value = Operand::unwrap(v);
       if (accept(value)) {
-        if (GenKill::gen  == choice) variable::gen(n, value, result);
-        if (GenKill::kill == choice) variable::kill(n, value, result);
+        if (GenKill::gen  == which) variable::gen(n, value, result);
+        if (GenKill::kill == which) variable::kill(n, value, result);
       }
     }
     static void gen  (const node & n, const node & v, result & result) {

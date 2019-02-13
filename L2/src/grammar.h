@@ -352,7 +352,7 @@ namespace grammar::L2 {
   namespace literal::intrinsic {
     struct print       : TAO_PEGTL_STRING("print")    {};
     struct allocate    : TAO_PEGTL_STRING("allocate") {};
-    // NOTE: oracle L1 supports both 'array_error' and 'array-error'
+    // NOTE: oracle L1 only supports the DASH version. (Oops.)
     namespace spellings::array_error {
       struct dash       : TAO_PEGTL_STRING("array-error") {};
       struct underscore : TAO_PEGTL_STRING("array_error") {};
