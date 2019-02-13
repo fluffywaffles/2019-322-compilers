@@ -11,7 +11,7 @@ namespace helper::L2 { // {{{
   namespace grammar = grammar::L2;
   using node = ast::L2::node;
 
-  using nodes = std::vector<std::unique_ptr<node>>;
+  using up_nodes = std::vector<std::unique_ptr<node>>;
 
   template <class R>
   bool matches (const node & n)  { return L1_helper::matches<R>(n); }
@@ -99,7 +99,7 @@ namespace helper::L2 { // {{{
     }
   }
 
-  std::set<std::string> collect_variables (const nodes & instructions) {
+  std::set<std::string> collect_variables (const up_nodes & instructions) {
     std::set<std::string> variables;
     for (auto & instruction_wrapper : instructions) {
       const auto & instruction = instruction_wrapper->children.at(0);
@@ -112,7 +112,7 @@ namespace helper::L2 { // {{{
 
   const node & definition_for (
     const node & label,
-    const nodes & instructions
+    const up_nodes & instructions
   ) {
     assert(
       label.is<grammar::operand::label>()

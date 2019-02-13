@@ -16,7 +16,7 @@
 
 namespace analysis::L2 {
   using node   = ast::L2::node;
-  using nodes  = helper::L2::nodes;
+  using up_nodes  = helper::L2::up_nodes;
   using string = std::string;
   using liveness_map     = std::map<const node *, std::set<string>>;
   using successor_map    = std::map<const node *, std::set<const node *>>;
@@ -510,7 +510,7 @@ namespace analysis::L2::liveness::successor {
     namespace instruction = grammar::L2::instruction;
     using namespace instruction;
 
-    const nodes & siblings = result.instructions.children;
+    const up_nodes & siblings = result.instructions.children;
 
     if (n.is<instruction::any>()) {
       assert(n.children.size() == 1);
@@ -613,8 +613,8 @@ namespace analysis::L2::liveness::successor {
 // in/out calculation {{{
 namespace analysis::L2::liveness {
   void in_out (result & result, unsigned debug = 0) {
-    const nodes & instructions = result.instructions.children;
     // QUESTION: uh... what's our efficiency here? This code is gross.
+    const up_nodes & instructions = result.instructions.children;
     int iteration_limit = -1; // NOTE(jordan): used for debugging.
     bool fixed_state;
     do {
