@@ -550,8 +550,10 @@ namespace analysis::L2::liveness::successor {
     ) {
       // Ugh. Jumps.
       if (n.is<jump::go2>()) {
-        const node & label = helper::L2::definition_for(*n.children.at(0), siblings);
-        return successor::set(n, label, result);
+        const node & label = *n.children.at(0);
+        const node & instruction
+          = helper::L2::definition_for(label, siblings);
+        return successor::set(n, instruction, result);
       }
       if (n.is<jump::cjump::when>()) {
         /* const node & cmp        = *n.children.at(0); */
