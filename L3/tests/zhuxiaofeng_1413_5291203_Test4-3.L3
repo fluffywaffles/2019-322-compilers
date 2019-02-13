@@ -108,7 +108,7 @@ define :storeValueToArray (%A1, %a, %index) {
     :loop_next
     %offest_index <- call :increaseOne (%index)
     %offest <- 8 * %offest_index
-    %addr <- %array_address + %offest
+    %addr <- %A1 + %offest
     %a <- %a + %index
     %encoded_a <- call :encode(%a)
     store %addr <- %encoded_a
