@@ -158,6 +158,9 @@ namespace helper::L2 { // {{{
     assert(false && "definition_for: could not find label!");
   }
 
+  /* FIXME(jordan): this is crufty/gross. Shouldn't go backwards from
+   * string to variable like this; we should just keep the nodes around.
+   */
   std::string strip_variable_prefix (const std::string & s) {
     if (matches<grammar::identifier::variable>(s)) {
       using variable = peg::must<grammar::identifier::variable>;
