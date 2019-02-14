@@ -1037,7 +1037,7 @@ namespace analysis::L2::color {
     interference::result interference;
     std::vector<entry::uncolored> removed;
     std::map<const std::string, Color> mapping;
-    std::map<Color, std::string> color_to_register;
+    std::map<const Color, std::string> color_to_register;
   };
 }
 
