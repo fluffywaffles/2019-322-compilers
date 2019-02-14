@@ -37,7 +37,6 @@ namespace driver::L2 {
   std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
     using Mode = Options::Mode;
     switch (opt.mode) {
-      // FIXME(jordan): Mode::x86 should parse a whole program
       case Mode::x86          : return parse<program >(opt, in);
       case Mode::spill        : return parse<spiller >(opt, in);
       case Mode::liveness     : return parse<function>(opt, in);

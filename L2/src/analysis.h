@@ -1146,7 +1146,6 @@ namespace analysis::L2::color {
     // 3. pop the stack, color the node, and reinsert it in the graph
     while (result.removed.size() != 0) {
       const auto uncolored = result.removed.back();
-      // NOTE(jordan): don't try to color impossible nodes
       Color color = graph::choose_color(uncolored, result);
       const auto & colored = graph::color(uncolored, color, result);
       graph::reinsert(colored, result);
