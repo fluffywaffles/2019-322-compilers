@@ -12,7 +12,8 @@ namespace helper::L2 { // {{{
   namespace grammar = grammar::L2;
   using node = ast::L2::node;
 
-  using up_nodes = std::vector<std::unique_ptr<node>>;
+  using up_node  = std::unique_ptr<node>;
+  using up_nodes = std::vector<up_node>;
 
   template <class R>
   bool matches (const node & n)  { return L1_helper::matches<R>(n); }
@@ -146,8 +147,8 @@ namespace helper::L2 { // {{{
       label.is<grammar::operand::label>()
       && "definition_for: called on a non-label!"
     );
-    for (auto & wrapper : instructions) {
-      const node & instruction = *wrapper->children.at(0);
+    for (const up_node & wrapper : instructions) {
+      const node & instruction = unwrap_assert(*wrapper);
       if (instruction.is<grammar::instruction::define::label>()) {
         const node & defined_label = *instruction.children.at(0);
         assert(defined_label.is<grammar::operand::label>());

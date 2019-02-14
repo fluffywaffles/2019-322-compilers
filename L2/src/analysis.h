@@ -51,8 +51,7 @@ namespace analysis::L2::successor {
     const up_nodes & siblings = result.instructions.children;
 
     if (n.is<instruction::any>()) {
-      assert(n.children.size() == 1);
-      const node & actual_instruction = *n.children.at(0);
+      const node & actual_instruction = helper::L2::unwrap_assert(n);
       return successor::instruction(actual_instruction, index, result);
     }
 
@@ -155,8 +154,9 @@ namespace analysis::L2::successor {
   void print (result & result) {
     const up_nodes & instructions = result.instructions.children;
     for (int index = 0; index < instructions.size(); index++) {
-      const node & wrapper = *instructions.at(index);
-      const node & instruction = helper::L2::unwrap_assert(wrapper);
+      const helper::L2::up_node & wrapper = instructions.at(index);
+      // NOTE(jordan): access the value of the pointer AND unwrap child.
+      const node & instruction = helper::L2::unwrap_assert(*wrapper);
       std::cout << "succ[" << index << "] = ";
       for (auto successor : result.map[&instruction]) {
         std::cout << successor->name();
