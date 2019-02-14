@@ -16,17 +16,17 @@ namespace helper::L2 { // {{{
   using up_nodes = std::vector<up_node>;
 
   template <class R>
-  bool matches (const node & n)  { return L1_helper::matches<R>(n); }
+  bool matches (node const & n)  { return L1_helper::matches<R>(n); }
   template <class R>
-  bool matches (const std::string & s) { return L1_helper::matches<R>(s); }
+  bool matches (std::string const & s) { return L1_helper::matches<R>(s); }
 
   template <typename Colln>
-  bool set_equal (const Colln & a, const Colln & b) {
+  bool set_equal (Colln const & a, Colln const & b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end());
   }
 
   template <typename Colln>
-  void set_union (const Colln & a, const Colln & b, Colln & dest) {
+  void set_union (Colln const & a, Colln const & b, Colln & dest) {
     // NOTE(jordan): return dest.end(). Don't care; discard.
     std::set_union(
       a.begin(), a.end(),
@@ -37,7 +37,7 @@ namespace helper::L2 { // {{{
   }
 
   template <typename Colln>
-  void set_difference (const Colln & a, const Colln & b, Colln & dest) {
+  void set_difference (Colln const & a, Colln const & b, Colln & dest) {
     // NOTE(jordan): return dest.end(). Don't care; discard.
     std::set_difference(
       a.begin(), a.end(),
@@ -47,7 +47,7 @@ namespace helper::L2 { // {{{
     return;
   }
 
-  int integer (const node & n) {
+  int integer (node const & n) {
     assert(n.has_content() && "helper::integer: no content!");
     assert(
       matches<grammar::literal::number::integer::any>(n)
@@ -56,7 +56,7 @@ namespace helper::L2 { // {{{
     return std::stoi(n.content());
   }
 
-  const node & unwrap_assert (const node & parent) {
+  node const & unwrap_assert (node const & parent) {
     assert(
       parent.children.size() == 1
       && "helper::unwrap_assert: not exactly 1 child in parent!"
@@ -68,19 +68,19 @@ namespace helper::L2 { // {{{
   namespace x86_64_register {
     namespace reg = grammar::identifier::x86_64_register;
     template <typename Register> struct convert {
-      const static std::type_index index;
-      const static std::string string;
+      static const std::type_index index;
+      static const std::string string;
     };
     // REFACTOR(jordan): look at that register call pattern...
     #define mkreg2s(R) \
-      template<> const std::string convert<reg::R>::string = #R
+      template<> std::string const convert<reg::R>::string = #R
     mkreg2s(rax); mkreg2s(rbx); mkreg2s(rcx); mkreg2s(rdx); mkreg2s(rsi);
     mkreg2s(rdi); mkreg2s(rbp); mkreg2s(rsp); mkreg2s(r8 ); mkreg2s(r9 );
     mkreg2s(r10); mkreg2s(r11); mkreg2s(r12); mkreg2s(r13); mkreg2s(r14);
     mkreg2s(r15);
     #undef mkreg2s
     #define mkreg2i(R)                                                   \
-      template<> const std::type_index                                   \
+      template<> std::type_index const                                   \
       convert<reg::R>::index = std::type_index(typeid(reg::R))
     mkreg2i(rax); mkreg2i(rbx); mkreg2i(rcx); mkreg2i(rdx); mkreg2i(rsi);
     mkreg2i(rdi); mkreg2i(rbp); mkreg2i(rsp); mkreg2i(r8 ); mkreg2i(r9 );
@@ -106,7 +106,7 @@ namespace helper::L2 { // {{{
     std::set<std::string> analyzable_registers () {
       std::set<std::string> result;
       for (auto & index : all_register_indices) {
-        const std::string reg = index_to_string(index);
+        std::string const reg = index_to_string(index);
         if (!matches<grammar::register_set::unanalyzable>(reg))
           result.insert(reg);
       }
@@ -116,7 +116,7 @@ namespace helper::L2 { // {{{
 
   // NOTE(jordan): collect_variables is kinda gross. Idk any better way.
   void collect_variables (
-    const node & start,
+    node const & start,
     std::set<std::string> & variables
   ) {
     if (start.is<grammar::identifier::variable>()) {
@@ -128,10 +128,10 @@ namespace helper::L2 { // {{{
     }
   }
 
-  std::set<std::string> collect_variables (const up_nodes & instructions) {
+  std::set<std::string> collect_variables (up_nodes const & instructions) {
     std::set<std::string> variables;
     for (auto & instruction_wrapper : instructions) {
-      const auto & instruction = instruction_wrapper->children.at(0);
+      auto const & instruction = instruction_wrapper->children.at(0);
       for (auto & child : instruction->children) {
         collect_variables(*child, variables);
       }
@@ -139,18 +139,18 @@ namespace helper::L2 { // {{{
     return variables;
   }
 
-  const node & definition_for (
-    const node & label,
-    const up_nodes & instructions
+  node const & definition_for (
+    node const & label,
+    up_nodes const & instructions
   ) {
     assert(
       label.is<grammar::operand::label>()
       && "definition_for: called on a non-label!"
     );
-    for (const up_node & wrapper : instructions) {
-      const node & instruction = unwrap_assert(*wrapper);
+    for (up_node const & wrapper : instructions) {
+      node const & instruction = unwrap_assert(*wrapper);
       if (instruction.is<grammar::instruction::define::label>()) {
-        const node & defined_label = *instruction.children.at(0);
+        node const & defined_label = *instruction.children.at(0);
         assert(defined_label.is<grammar::operand::label>());
         if (defined_label.content() == label.content())
           return instruction;
@@ -162,16 +162,16 @@ namespace helper::L2 { // {{{
   /* FIXME(jordan): this is crufty/gross. Shouldn't go backwards from
    * string to variable like this; we should just keep the nodes around.
    */
-  std::string strip_variable_prefix (const std::string & s) {
+  std::string strip_variable_prefix (std::string const & s) {
     if (matches<grammar::identifier::variable>(s)) {
       using variable = peg::must<grammar::identifier::variable>;
       peg::string_input<> in(s, "");
-      const auto & root
+      auto const & root
         = ast::L2::parse<variable, ast::L2::filter::selector>(in);
       assert(root->children.size() == 1);
-      const node & var_node = *root->children.at(0);
+      node const & var_node = *root->children.at(0);
       assert(var_node.children.size() == 1);
-      const node & name_node = *var_node.children.at(0);
+      node const & name_node = *var_node.children.at(0);
       assert(name_node.is<grammar::identifier::name>());
       return name_node.content();
     } else {

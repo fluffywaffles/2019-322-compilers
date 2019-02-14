@@ -10,10 +10,10 @@
 #include "helper.h"
 
 namespace helper::L2::transform {
-  std::string relative (const node & n, std::string base = "") {
+  std::string relative (node const & n, std::string base = "") {
     assert(n.children.size() == 2 && "mem: incorrect # children");
-    const node & base_node = *n.children.at(0);
-    const node & offset    = *n.children.at(1);
+    node const & base_node = *n.children.at(0);
+    node const & offset    = *n.children.at(1);
     base = base == "" ? base_node.content() : base;
     return "mem " + base + " " + offset.content();
   }
@@ -23,22 +23,22 @@ namespace helper::L2::transform {
 // TODO(jordan): refactor as general-purpose variable rewriter
 // spill helpers {{{
 namespace helper::L2::transform::spill {
-  bool spills (const node & operand, const std::string & target) {
+  bool spills (node const & operand, std::string const & target) {
     assert(operand.has_content() && "spills: operand has no content!");
     return true
       && matches<grammar::identifier::variable>(operand)
       && operand.content() == target;
   }
-  std::string make (const std::string & prefix, int & spills) {
+  std::string make (std::string const & prefix, int & spills) {
     return prefix + std::to_string(spills++);
   }
-  std::string get (const int & offset) {
+  std::string get (int const & offset) {
     return "mem rsp " + std::to_string(offset);
   }
-  std::string save (const std::string & spilled, const int & offset) {
+  std::string save (std::string const & spilled, int const & offset) {
     return spill::get(offset) + " <- " + spilled;
   }
-  std::string load ( const std::string & dest, const int & offset) {
+  std::string load ( std::string const & dest, int const & offset) {
     return dest + " <- " + spill::get(offset);
   }
 }
@@ -49,27 +49,27 @@ namespace transform::L2::spill {
   using node = ast::L2::node;
 
   void instruction (
-    const node & n,
-    const std::string & target,
-    const std::string & prefix,
+    node const & n,
+    std::string const & target,
+    std::string const & prefix,
     int & spills,
-    const int & offset,
+    int const & offset,
     std::ostream & os
   ) {
     namespace helper = helper::L2::transform;
     using namespace grammar::instruction;
     if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
-      const node & unwrapped = *n.children.at(0);
+      node const & unwrapped = *n.children.at(0);
       spill::instruction(unwrapped, target, prefix, spills, offset, os);
       return;
     }
 
     if (n.is<assign::assignable::gets_stack_arg>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & stack_arg = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & stack_arg = *n.children.at(2);
       if (helper::spill::spills(dest, target)) {
         // %SN <- stack-arg M
         // %SN <- mem rsp OFF
@@ -87,9 +87,9 @@ namespace transform::L2::spill {
 
     if (n.is<assign::assignable::gets_movable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
       if (true
         && helper::spill::spills(dest, target)
         && helper::spill::spills(src, target)
@@ -144,10 +144,10 @@ namespace transform::L2::spill {
 
     if (n.is<assign::assignable::gets_relative>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      const node & base = *src.children.at(0);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
+      node const & base = *src.children.at(0);
       if (true
         && helper::spill::spills(base, target)
         && helper::spill::spills(dest, target)
@@ -188,10 +188,10 @@ namespace transform::L2::spill {
 
     if (n.is<assign::relative::gets_movable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      const node & base = *dest.children.at(0);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
+      node const & base = *dest.children.at(0);
       if (true
         && helper::spill::spills(src, target)
         && helper::spill::spills(base, target)
@@ -233,9 +233,9 @@ namespace transform::L2::spill {
 
     if (n.is<update::assignable::arithmetic::comparable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
       // w {+,*,-,&}= t
       if (helper::spill::spills(dest, target) && helper::spill::spills(src, target)) {
         // %SN OP= %SN
@@ -292,9 +292,9 @@ namespace transform::L2::spill {
 
     if (n.is<update::assignable::shift::shift>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
       if (helper::spill::spills(dest, target) && helper::spill::spills(src, target)) {
         // %SN SOP= %SN
         // %SN <- mem rsp OFF
@@ -333,9 +333,9 @@ namespace transform::L2::spill {
 
     if (n.is<update::assignable::shift::number>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & con  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & con  = *n.children.at(2);
       if (helper::spill::spills(dest, target)) {
         // %SN SOP= N -- no relative.
         // %SN <- mem rsp OFF
@@ -358,10 +358,10 @@ namespace transform::L2::spill {
     if (n.is<update::relative::arithmetic::add_comparable>()
         || n.is<update::relative::arithmetic::subtract_comparable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
-      const node & base = *dest.children.at(0);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
+      node const & base = *dest.children.at(0);
       if (true
         && helper::spill::spills(src, target)
         && helper::spill::spills(base, target)
@@ -408,10 +408,10 @@ namespace transform::L2::spill {
     if (n.is<update::assignable::arithmetic::add_relative>()
         || n.is<update::assignable::arithmetic::subtract_relative>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
-      const node & base = *src.children.at(0);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
+      node const & base = *src.children.at(0);
       if (true
         && helper::spill::spills(dest, target)
         && helper::spill::spills(base, target)
@@ -456,13 +456,13 @@ namespace transform::L2::spill {
 
     if (n.is<assign::assignable::gets_comparison>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & cmp  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & cmp  = *n.children.at(2);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
       if (true
         && helper::spill::spills(dest, target)
         && helper::spill::spills(lhs, target)
@@ -583,13 +583,13 @@ namespace transform::L2::spill {
 
     if (n.is<jump::cjump::if_else>()) {
       assert(n.children.size() == 3);
-      const node & cmp  = *n.children.at(0);
+      node const & cmp  = *n.children.at(0);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
-      const node & then = *n.children.at(1);
-      const node & els  = *n.children.at(2);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
+      node const & then = *n.children.at(1);
+      node const & els  = *n.children.at(2);
       if (true
         && helper::spill::spills(lhs, target)
         && helper::spill::spills(rhs, target)
@@ -649,12 +649,12 @@ namespace transform::L2::spill {
 
     if (n.is<jump::cjump::when>()) {
       assert(n.children.size() == 2);
-      const node & cmp  = *n.children.at(0);
+      node const & cmp  = *n.children.at(0);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
-      const node & then = *n.children.at(1);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
+      node const & then = *n.children.at(1);
       if (true
         && helper::spill::spills(lhs, target)
         && helper::spill::spills(rhs, target)
@@ -710,14 +710,14 @@ namespace transform::L2::spill {
 
     if (n.is<define::label>()) {
       assert(n.children.size() == 1);
-      const node & label = *n.children.at(0);
+      node const & label = *n.children.at(0);
       os << label.content();
       return;
     }
 
     if (n.is<jump::go2>()) {
       assert(n.children.size() == 1);
-      const node & label = *n.children.at(0);
+      node const & label = *n.children.at(0);
       os << "goto"
         << " " << label.content();
       return;
@@ -730,10 +730,10 @@ namespace transform::L2::spill {
 
     if (n.is<invoke::call::callable>()) {
       assert(n.children.size() == 2);
-      const node & callable = *n.children.at(0);
-      const node & integer  = *n.children.at(1);
+      node const & callable = *n.children.at(0);
+      node const & integer  = *n.children.at(1);
       assert(callable.children.size() == 1);
-      const node & value = *callable.children.at(0);
+      node const & value = *callable.children.at(0);
       int args  = ::helper::L2::integer(integer);
       if (helper::spill::spills(callable, target)) {
         // call %SN N
@@ -770,7 +770,7 @@ namespace transform::L2::spill {
 
     if (n.is<update::assignable::arithmetic::increment>()) {
       assert(n.children.size() == 2); // ignore '++'
-      const node & dest = *n.children.at(0);
+      node const & dest = *n.children.at(0);
       if (helper::spill::spills(dest, target)) {
         // %SN++
         // %SN <- mem rsp OFF
@@ -790,7 +790,7 @@ namespace transform::L2::spill {
 
     if (n.is<update::assignable::arithmetic::decrement>()) {
       assert(n.children.size() == 2); // ignore '--'
-      const node & dest = *n.children.at(0);
+      node const & dest = *n.children.at(0);
       if (helper::spill::spills(dest, target)) {
         // %SN--
         // %SN <- mem rsp OFF
@@ -810,11 +810,11 @@ namespace transform::L2::spill {
 
     if (n.is<assign::assignable::gets_address>()) {
       assert(n.children.size() == 5);
-      const node & dest           = *n.children.at(0);
-      const node & op             = *n.children.at(1); // ignore '@'
-      const node & base           = *n.children.at(2);
-      const node & address_offset = *n.children.at(3);
-      const node & scale          = *n.children.at(4);
+      node const & dest           = *n.children.at(0);
+      node const & op             = *n.children.at(1); // ignore '@'
+      node const & base           = *n.children.at(2);
+      node const & address_offset = *n.children.at(3);
+      node const & scale          = *n.children.at(4);
       if (true
         && helper::spill::spills(dest, target)
         && helper::spill::spills(address_offset, target)
@@ -939,11 +939,11 @@ namespace transform::L2::spill {
   }
 
   void instructions (
-    const node & instructions,
-    const std::string & target,
-    const std::string & prefix,
+    node const & instructions,
+    std::string const & target,
+    std::string const & prefix,
     int & spills,
-    const int & offset,
+    int const & offset,
     std::ostream & os
   ) {
     for (auto & child : instructions.children) {
@@ -957,16 +957,16 @@ namespace transform::L2::spill {
   }
 
   void function (
-    const node & function,
-    const std::string & target,
-    const std::string & prefix,
+    node const & function,
+    std::string const & target,
+    std::string const & prefix,
     std::ostream & os
   ) {
     assert(function.children.size() == 4);
-    const node & name         = *function.children.at(0);
-    const node & arg_count    = *function.children.at(1);
-    const node & local_count  = *function.children.at(2);
-    const node & instructions = *function.children.at(3);
+    node const & name         = *function.children.at(0);
+    node const & arg_count    = *function.children.at(1);
+    node const & local_count  = *function.children.at(2);
+    node const & instructions = *function.children.at(3);
     int args   = helper::L2::integer(arg_count);
     int locals = helper::L2::integer(local_count);
     int spills = 0;
@@ -988,20 +988,20 @@ namespace transform::L2::spill {
   }
 
   void function (
-    const node & function,
-    const node & target_node,
-    const node & prefix_node,
+    node const & function,
+    node const & target_node,
+    node const & prefix_node,
     std::ostream & os
   ) {
-    const std::string target = target_node.content();
-    const std::string prefix = prefix_node.content();
+    std::string const target = target_node.content();
+    std::string const prefix = prefix_node.content();
     return spill::function(function, target, prefix, os);
   }
 
   void functions (
-    const node & functions,
-    const std::string & target,
-    const std::string & prefix,
+    node const & functions,
+    std::string const & target,
+    std::string const & prefix,
     std::ostream & os
   ) {
     for (auto & function : functions.children) {
@@ -1019,15 +1019,15 @@ namespace transform::L2::spill {
    * output L1.
    */
   void program (
-    const node & program,
-    const std::string & target,
-    const std::string & prefix,
+    node const & program,
+    std::string const & target,
+    std::string const & prefix,
     std::ostream & os
   ) {
     assert(program.is<grammar::program::define>());
     assert(program.children.size() == 2);
-    const node & entry     = *program.children.at(0);
-    const node & functions = *program.children.at(1);
+    node const & entry     = *program.children.at(0);
+    node const & functions = *program.children.at(1);
     os
       << "(" << entry.content()
       << "\n\t";
@@ -1041,12 +1041,12 @@ namespace transform::L2::spill {
 // apply color {{{
 // try_apply {{{
 namespace transform::L2::color {
-  static const std::string prefix = "%_spill_";
+  static std::string const prefix = "%_spill_";
   // REFACTOR(jordan): move this into analysis.h
   // FIXME(jordan): extremely tightly coupled with driver.
   void try_color_function (
-    const ast::L2::node & function,
-    const int index,
+    ast::L2::node const & function,
+    int const index,
     std::map<int, std::string> & replacement_functions,
     std::map<int, analysis::L2::color::result> & colorings
   ) {
@@ -1062,11 +1062,11 @@ namespace transform::L2::color {
       /* std::cout << "spill: " << to_spill << "\n"; */
       // FIXME(jordan): test that prefix is not used.
       std::ostringstream os;
-      const std::string prefixed
+      std::string const prefixed
         = prefix + helper::L2::strip_variable_prefix(to_spill) + "_";
       spill::function(function, to_spill, prefixed, os);
       // Construct an AST out of the new, spilled function
-      const std::string spilled_source = os.str();
+      std::string const spilled_source = os.str();
       /* std::cout << spilled_source << "\n"; */
       replacement_functions[index] = spilled_source;
     } else {
@@ -1080,8 +1080,8 @@ namespace transform::L2::color {
 namespace helper::L2::transform::color {
   using coloring = analysis::L2::color::result;
   std::string replace_variable (
-    const node & operand,
-    const coloring & coloring
+    node const & operand,
+    coloring const & coloring
   ) {
     assert(operand.has_content() && "replace_variable: no content!");
     if (matches<grammar::identifier::variable>(operand)) {
@@ -1103,33 +1103,33 @@ namespace transform::L2::color::apply {
 
   // instruction {{{
   void instruction (
-    const node & n,
-    const coloring & coloring,
+    node const & n,
+    coloring const & coloring,
     std::ostream & os
   ) {
     namespace helper = helper::L2::transform;
     using namespace grammar::instruction;
     if (n.is<grammar::instruction::any>()) {
       assert(n.children.size() == 1);
-      const node & unwrapped = *n.children.at(0);
+      node const & unwrapped = *n.children.at(0);
       color::apply::instruction(unwrapped, coloring, os);
       return;
     }
 
     if (n.is<assign::assignable::gets_stack_arg>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & stack_arg = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & stack_arg = *n.children.at(2);
       os << replace_variable(dest, coloring) << " <- " << stack_arg.content();
       return;
     }
 
     if (n.is<assign::assignable::gets_movable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
       os << replace_variable(dest, coloring)
         << " <- "
         << replace_variable(src, coloring);
@@ -1138,10 +1138,10 @@ namespace transform::L2::color::apply {
 
     if (n.is<assign::assignable::gets_relative>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      const node & base = *src.children.at(0);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
+      node const & base = *src.children.at(0);
       os << replace_variable(dest, coloring)
         << " <- "
         << helper::relative(src, replace_variable(base, coloring));
@@ -1150,10 +1150,10 @@ namespace transform::L2::color::apply {
 
     if (n.is<assign::relative::gets_movable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & src  = *n.children.at(2);
-      const node & base = *dest.children.at(0);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & src  = *n.children.at(2);
+      node const & base = *dest.children.at(0);
       os
         << helper::relative(dest, replace_variable(base, coloring))
         << " <- "
@@ -1163,9 +1163,9 @@ namespace transform::L2::color::apply {
 
     if (n.is<update::assignable::arithmetic::comparable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
       os << replace_variable(dest, coloring)
         << " " << op.content()
         << " " << replace_variable(src, coloring);
@@ -1174,9 +1174,9 @@ namespace transform::L2::color::apply {
 
     if (n.is<update::assignable::shift::shift>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
       os << replace_variable(dest, coloring)
         << " " << op.content()
         << " " << replace_variable(src, coloring);
@@ -1185,9 +1185,9 @@ namespace transform::L2::color::apply {
 
     if (n.is<update::assignable::shift::number>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & con  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & con  = *n.children.at(2);
       os << replace_variable(dest, coloring)
         << " " << op.content()
         << " " << replace_variable(con, coloring);
@@ -1197,10 +1197,10 @@ namespace transform::L2::color::apply {
     if (n.is<update::relative::arithmetic::add_comparable>()
         || n.is<update::relative::arithmetic::subtract_comparable>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
-      const node & base = *dest.children.at(0);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
+      node const & base = *dest.children.at(0);
       os << helper::relative(dest, replace_variable(base, coloring))
         << " " << op.content()
         << " " << replace_variable(src, coloring);
@@ -1210,10 +1210,10 @@ namespace transform::L2::color::apply {
     if (n.is<update::assignable::arithmetic::add_relative>()
         || n.is<update::assignable::arithmetic::subtract_relative>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      const node & op   = *n.children.at(1);
-      const node & src  = *n.children.at(2);
-      const node & base = *src.children.at(0);
+      node const & dest = *n.children.at(0);
+      node const & op   = *n.children.at(1);
+      node const & src  = *n.children.at(2);
+      node const & base = *src.children.at(0);
       os << replace_variable(dest, coloring)
         << " " << op.content()
         << " " << helper::relative(src, replace_variable(base, coloring));
@@ -1222,13 +1222,13 @@ namespace transform::L2::color::apply {
 
     if (n.is<assign::assignable::gets_comparison>()) {
       assert(n.children.size() == 3);
-      const node & dest = *n.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-      const node & cmp  = *n.children.at(2);
+      node const & dest = *n.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+      node const & cmp  = *n.children.at(2);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
       os << replace_variable(dest, coloring)
         << " <- "
         << replace_variable(lhs, coloring)
@@ -1239,13 +1239,13 @@ namespace transform::L2::color::apply {
 
     if (n.is<jump::cjump::if_else>()) {
       assert(n.children.size() == 3);
-      const node & cmp  = *n.children.at(0);
+      node const & cmp  = *n.children.at(0);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
-      const node & then = *n.children.at(1);
-      const node & els  = *n.children.at(2);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
+      node const & then = *n.children.at(1);
+      node const & els  = *n.children.at(2);
       os << "cjump"
         << " " << replace_variable(lhs, coloring)
         << " " << op.content()
@@ -1257,12 +1257,12 @@ namespace transform::L2::color::apply {
 
     if (n.is<jump::cjump::when>()) {
       assert(n.children.size() == 2);
-      const node & cmp  = *n.children.at(0);
+      node const & cmp  = *n.children.at(0);
       assert(cmp.children.size() == 3);
-      const node & lhs  = *cmp.children.at(0);
-      const node & op   = *cmp.children.at(1);
-      const node & rhs  = *cmp.children.at(2);
-      const node & then = *n.children.at(1);
+      node const & lhs  = *cmp.children.at(0);
+      node const & op   = *cmp.children.at(1);
+      node const & rhs  = *cmp.children.at(2);
+      node const & then = *n.children.at(1);
       os << "cjump"
         << " " << replace_variable(lhs, coloring)
         << " " << op.content()
@@ -1273,14 +1273,14 @@ namespace transform::L2::color::apply {
 
     if (n.is<define::label>()) {
       assert(n.children.size() == 1);
-      const node & label = *n.children.at(0);
+      node const & label = *n.children.at(0);
       os << label.content();
       return;
     }
 
     if (n.is<jump::go2>()) {
       assert(n.children.size() == 1);
-      const node & label = *n.children.at(0);
+      node const & label = *n.children.at(0);
       os << "goto"
         << " " << label.content();
       return;
@@ -1293,10 +1293,10 @@ namespace transform::L2::color::apply {
 
     if (n.is<invoke::call::callable>()) {
       assert(n.children.size() == 2);
-      const node & callable = *n.children.at(0);
-      const node & integer  = *n.children.at(1);
+      node const & callable = *n.children.at(0);
+      node const & integer  = *n.children.at(1);
       assert(callable.children.size() == 1);
-      const node & value = *callable.children.at(0);
+      node const & value = *callable.children.at(0);
       int args  = ::helper::L2::integer(integer);
       os << "call"
         << " " << replace_variable(callable, coloring)
@@ -1321,25 +1321,25 @@ namespace transform::L2::color::apply {
 
     if (n.is<update::assignable::arithmetic::increment>()) {
       assert(n.children.size() == 2); // ignore '++'
-      const node & dest = *n.children.at(0);
+      node const & dest = *n.children.at(0);
       os << replace_variable(dest, coloring) << "++";
       return;
     }
 
     if (n.is<update::assignable::arithmetic::decrement>()) {
       assert(n.children.size() == 2); // ignore '--'
-      const node & dest = *n.children.at(0);
+      node const & dest = *n.children.at(0);
       os << replace_variable(dest, coloring) << "--";
       return;
     }
 
     if (n.is<assign::assignable::gets_address>()) {
       assert(n.children.size() == 5);
-      const node & dest           = *n.children.at(0);
-      const node & op             = *n.children.at(1); // ignore '@'
-      const node & base           = *n.children.at(2);
-      const node & address_offset = *n.children.at(3);
-      const node & scale          = *n.children.at(4);
+      node const & dest           = *n.children.at(0);
+      node const & op             = *n.children.at(1); // ignore '@'
+      node const & base           = *n.children.at(2);
+      node const & address_offset = *n.children.at(3);
+      node const & scale          = *n.children.at(4);
       os << replace_variable(dest, coloring)
         << " " << op.content()
         << " " << replace_variable(base, coloring)
@@ -1354,8 +1354,8 @@ namespace transform::L2::color::apply {
   // }}}
 
   void instructions (
-    const node & instructions,
-    const coloring & coloring,
+    node const & instructions,
+    coloring const & coloring,
     std::ostream & os
   ) {
     for (auto & child : instructions.children) {
@@ -1369,15 +1369,15 @@ namespace transform::L2::color::apply {
   }
 
   void function (
-    const node & function,
-    const coloring & coloring,
+    node const & function,
+    coloring const & coloring,
     std::ostream & os
   ) {
     assert(function.children.size() == 4);
-    const node & name         = *function.children.at(0);
-    const node & arg_count    = *function.children.at(1);
-    const node & local_count  = *function.children.at(2);
-    const node & instructions = *function.children.at(3);
+    node const & name         = *function.children.at(0);
+    node const & arg_count    = *function.children.at(1);
+    node const & local_count  = *function.children.at(2);
+    node const & instructions = *function.children.at(3);
     os
       << "(" << name.content()
       << "\n\t" << arg_count.content() << " " << local_count.content()
@@ -1397,27 +1397,27 @@ namespace transform::L2::to_L1 {
   using gets_stack_arg = instruction::assign::assignable::gets_stack_arg;
 
   void stack_arg (
-    const node & instruction,
-    const int & offset,
+    node const & instruction,
+    int const & offset,
     std::ostream & os
   ) {
     assert(instruction.is<gets_stack_arg>());
-    const node & dest      = *instruction.children.at(0);
-      /* const node & op  = *n.children.at(1); */
-    const node & stack_arg = *instruction.children.at(2);
+    node const & dest      = *instruction.children.at(0);
+      /* node const & op  = *n.children.at(1); */
+    node const & stack_arg = *instruction.children.at(2);
     assert(stack_arg.children.size() == 1);
-    const node & arg_node  = *stack_arg.children.at(0);
-    const int arg_index = helper::L2::integer(arg_node);
+    node const & arg_node  = *stack_arg.children.at(0);
+    int const arg_index = helper::L2::integer(arg_node);
     os << dest.content() << " <- mem rsp " << (arg_index + offset);
   }
 
   void instructions (
-    const node & instructions,
-    const int & stack_arg_offset,
+    node const & instructions,
+    int const & stack_arg_offset,
     std::ostream & os
   ) {
     using namespace grammar::L2::instruction;
-    for (const auto & instruction_wrapper : instructions.children) {
+    for (auto const & instruction_wrapper : instructions.children) {
       assert(instruction_wrapper->is<grammar::L2::instruction::any>());
       auto & instruction = instruction_wrapper->children.at(0);
       // FIXME(jordan): a little presumptive, this tabbing.
@@ -1439,12 +1439,12 @@ namespace transform::L2::to_L1 {
     return;
   }
 
-  void function (const node & function, std::ostream & os) {
+  void function (node const & function, std::ostream & os) {
     assert(function.children.size() == 4);
-    const node & name         = *function.children.at(0);
-    const node & arg_count    = *function.children.at(1);
-    const node & local_count  = *function.children.at(2);
-    const node & instructions = *function.children.at(3);
+    node const & name         = *function.children.at(0);
+    node const & arg_count    = *function.children.at(1);
+    node const & local_count  = *function.children.at(2);
+    node const & instructions = *function.children.at(3);
     int args   = helper::L2::integer(arg_count);
     int locals = helper::L2::integer(local_count);
     int stack_arg_offset = 8 * locals;
@@ -1456,7 +1456,7 @@ namespace transform::L2::to_L1 {
     os << "\n\t)";
   }
 
-  void functions (const node & functions, std::ostream & os) {
+  void functions (node const & functions, std::ostream & os) {
     for (auto & function : functions.children) {
       assert(
         function->is<grammar::L2::function::define>()
@@ -1469,11 +1469,11 @@ namespace transform::L2::to_L1 {
   }
 
   // NOTE(jordan): os in this case is a scratch buffer
-  void program (const node & program, std::ostream & os) {
+  void program (node const & program, std::ostream & os) {
     assert(program.is<grammar::L2::program::define>());
     assert(program.children.size() == 2);
-    const node & entry     = *program.children.at(0);
-    const node & functions = *program.children.at(1);
+    node const & entry     = *program.children.at(0);
+    node const & functions = *program.children.at(1);
     os << "(" << entry.content();
     to_L1::functions(functions, os);
     os << "\n)";

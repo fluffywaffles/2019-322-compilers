@@ -56,10 +56,10 @@ namespace driver::L2 {
      * (note that parse returns a std::unique_ptr<node>)
      * }}}
      **/
-    const auto root = parse(opt, in);
+    auto const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) { // {{{
       namespace analysis = analysis::L2;
-      const ast::node & program = *root->children.at(0);
+      ast::node const & program = *root->children.at(0);
       /**
        * FIXME(jordan): so... this is a mess.
        *
@@ -87,10 +87,10 @@ namespace driver::L2 {
        *
        * Had I known then what I know now, this all could be much cleaner.
        */
-      const ast::node & functions = *program.children.at(1);
+      ast::node const & functions = *program.children.at(1);
       std::map<int, std::string> replacement_functions;
       std::map<int, analysis::color::result> colorings;
-      /* for (const auto & function : functions.children) { */
+      /* for (auto const & function : functions.children) { */
       /*   auto liveness     = analysis::liveness::function(*function); */
       /*   auto interference = analysis::interference::function(liveness); */
       /*   analysis::interference::print(std::cout, interference); */
@@ -103,8 +103,8 @@ namespace driver::L2 {
           if (found_position != replacement_functions.end()) {
             // materialize the replacement AST...
             peg::memory_input<> in(replacement_functions.at(index), "");
-            const auto root = parse<driver::L2::function>(opt, in);
-            const ast::node & function = *root->children.at(0);
+            auto const root = parse<driver::L2::function>(opt, in);
+            ast::node const & function = *root->children.at(0);
             transform::color::try_color_function(
               function,
               index,
@@ -112,8 +112,8 @@ namespace driver::L2 {
               colorings
             );
           } else {
-            const ast::node & function = *functions.children.at(index);
-            const std::string & name = function.children.at(0)->content();
+            ast::node const & function = *functions.children.at(index);
+            std::string const & name = function.children.at(0)->content();
             transform::color::try_color_function(
               function,
               index,
@@ -133,14 +133,14 @@ namespace driver::L2 {
           /* analysis::interference::print(std::cout, coloring.interference); */
           // materialize the replacement AST...
           peg::memory_input<> in(replacement_functions.at(index), "");
-          const auto root = parse<driver::L2::function>(opt, in);
-          const ast::node & function = *root->children.at(0);
+          auto const root = parse<driver::L2::function>(opt, in);
+          ast::node const & function = *root->children.at(0);
           std::ostringstream os;
           transform::color::apply::function(function, coloring, os);
           /* std::cout << os.str() << "\n\n"; */
           replacement_functions[index] = os.str();
         } else {
-          const ast::node & function = *functions.children.at(index);
+          ast::node const & function = *functions.children.at(index);
           /* transform::spill::function(function, "", "", std::cout); */
           auto coloring = colorings.at(index);
           /* analysis::color::print(std::cout, coloring); */
@@ -153,10 +153,10 @@ namespace driver::L2 {
       }
       // Transform stack-arg
       for (auto entry : replacement_functions) {
-        const std::string & function_string = entry.second;
+        std::string const & function_string = entry.second;
         peg::memory_input<> in(function_string, "");
-        const auto root = parse<driver::L2::function>(opt, in);
-        const ast::node & function = *root->children.at(0);
+        auto const root = parse<driver::L2::function>(opt, in);
+        ast::node const & function = *root->children.at(0);
         std::ostringstream os;
         transform::to_L1::function(function, os);
         /* std::cout << os.str() << "\n\n"; */
@@ -165,7 +165,7 @@ namespace driver::L2 {
       // Output the program
       std::ofstream out;
       out.open("prog.L1");
-      const ast::node & entry = *program.children.at(0);
+      ast::node const & entry = *program.children.at(0);
       out
         << "(" << entry.content()
         << "\n";
@@ -177,22 +177,22 @@ namespace driver::L2 {
     if (Options::Mode::spill == opt.mode) { // {{{
       using node = ast::node;
       assert(root->children.size() == 3 && "spill: parsed incorrectly!");
-      const node & function = *root->children.at(0);
-      const node & target   = *root->children.at(1);
-      const node & prefix   = *root->children.at(2);
+      node const & function = *root->children.at(0);
+      node const & target   = *root->children.at(1);
+      node const & prefix   = *root->children.at(2);
       transform::spill::function(function, target, prefix, std::cout);
       return 0;
     } // }}}
     if (Options::Mode::liveness == opt.mode) { // {{{
       namespace analysis = analysis::L2;
-      const auto & function = root->children.at(0);
+      auto const & function = root->children.at(0);
       auto liveness = analysis::liveness::function(*function);
       analysis::liveness::print(std::cout, liveness);
       return 0;
     } // }}}
     if (Options::Mode::interference == opt.mode) { // {{{
       namespace analysis = analysis::L2;
-      const auto & function = root->children.at(0);
+      auto const & function = root->children.at(0);
       auto liveness     = analysis::liveness::function(*function);
       auto interference = analysis::interference::function(liveness);
       analysis::interference::print(std::cout, interference);

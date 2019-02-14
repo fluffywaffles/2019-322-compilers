@@ -20,7 +20,7 @@ namespace peg = tao::pegtl;
 namespace ast::L2 {
   using namespace peg::parse_tree;
 
-  void print_node (const node & n, const std::string & indent = "") {
+  void print_node (node const & n, std::string const & indent = "") {
     // node cases
     if (n.is_root()) {
       std::cout << "ROOT\n";
