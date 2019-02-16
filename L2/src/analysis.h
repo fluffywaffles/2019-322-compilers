@@ -398,7 +398,7 @@ namespace helper::L2::liveness::gen_kill::operand {
     }
   };
   struct relative : base<relative>, may_wrap<relative, memory> {
-    using rule = grammar::expression::mem;
+    using rule = grammar::expression::memory;
     static bool accept (node const & v) { return true; }
     static node const & unwrap (node const & v) {
       assert(v.children.size() == 2);

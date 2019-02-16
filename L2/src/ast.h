@@ -78,8 +78,8 @@ namespace ast::L2 {
            * but the redundant storage is worth the insurance /
            * debuggability.
            */
-          expression::cmp,
-          expression::mem,
+          expression::comparison,
+          expression::memory,
           expression::stack_arg,
           /* NOTE(jordan): we can write more generic code by keeping
            * around the contents of operators. Otherwise we're forced to

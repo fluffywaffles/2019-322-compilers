@@ -31,7 +31,7 @@ namespace grammar::L2 {
     template <char c, typename... Rules>
       struct exclude : peg::if_must<peg::not_at<a<c>>, Rules...> {};
     template <typename Rule>
-      using spaced1 = peg::pad<Rule, peg::sor<peg::space, comment>>;
+      struct spaced1 : peg::pad<Rule, peg::sor<peg::space, comment>> {};
     template <typename... Rules>
       struct spaced : peg::seq<spaced1<Rules>...> {};
     template <typename... atoms>
@@ -381,15 +381,14 @@ namespace grammar::L2 {
   //
 
   namespace meta::expression {
-    namespace mem {
+    namespace memory {
       using M   = literal::number::special::divisible_by8;
       using mem = literal::instruction::mem;
       template <typename x>
       struct e : spaced<mem, x, M> {};
     }
-    namespace cmp {
-      using cmp = op::binary::comparison::any;
-      template <typename t>
+    namespace comparison {
+      template <typename cmp, typename t>
       struct e : spaced<t, cmp, t> {};
     }
     namespace stack_arg {
@@ -400,12 +399,16 @@ namespace grammar::L2 {
   }
 
   namespace expression {
+    namespace meta = meta::expression;
     // mem x M
-    using mem = meta::expression::mem::e<operand::memory>;
+    using memory = meta::memory::e<operand::memory>;
     // t cmp t
-    using cmp = meta::expression::cmp::e<operand::comparable>;
+    namespace {
+      using any = op::binary::comparison::any;
+      using comparison = meta::comparison::e<any, operand::comparable>;
+    }
     // stack-arg M
-    using stack_arg = meta::expression::stack_arg::e;
+    using stack_arg = meta::stack_arg::e;
   }
 
   //
@@ -413,11 +416,15 @@ namespace grammar::L2 {
   //
 
   namespace meta::statement {
+    // <A, B>: A <binop> B
+    namespace binop {
+      template <typename Dest, typename Op, typename Src>
+        struct s : spaced<Dest, Op, Src> {};
+    }
     // <A, B>: A <- B
     namespace gets {
-      using gets = op::gets;
       template <typename dest, typename source>
-        struct s : spaced<dest, gets, source> {};
+        struct s : binop::s<dest, op::gets, source> {};
     }
     // <C, L[, L]>: cjump C L [L]
     namespace cjump {
@@ -430,26 +437,6 @@ namespace grammar::L2 {
       using call = literal::instruction::call;
       template <typename fn, typename num_args>
         struct s : spaced<call, fn, num_args> {};
-    }
-    // <A, B>: A <aop> B
-    namespace arithmetic {
-      #define binop template <typename D, typename S>
-      using aop_any = op::binary::arithmetic::any;
-      binop struct add         : spaced<D, op::add, S> {};
-      binop struct subtract    : spaced<D, op::subtract, S> {};
-      binop struct multiply    : spaced<D, op::multiply, S> {};
-      binop struct bitwise_and : spaced<D, op::bitwise_and, S> {};
-      binop struct all         : spaced<D, aop_any, S> {};
-      #undef binop
-    }
-    // <A,B>: A <sop> B
-    namespace shift {
-      #define binop template <typename D, typename S>
-      using any_sop = op::binary::shift::any;
-      binop struct shift_left  : spaced<D, op::shift_left, S> {};
-      binop struct shift_right : spaced<D, op::shift_right, S> {};
-      binop struct all         : spaced<D, any_sop, S> {};
-      #undef binop
     }
   }
 
@@ -466,6 +453,28 @@ namespace grammar::L2 {
         struct intrinsic : meta::statement::call::s<fn, n> {};
       template <typename fn, typename n>
         struct defined   : meta::statement::call::s<fn, n> {};
+    }
+    // Arithmetic
+    namespace arithmetic {
+      namespace binop = meta::statement::binop;
+      using any_aop = op::binary::arithmetic::any;
+      #define mkbinop template <typename D, typename S>
+      mkbinop struct add         : binop::s<D, op::add, S> {};
+      mkbinop struct subtract    : binop::s<D, op::subtract, S> {};
+      mkbinop struct multiply    : binop::s<D, op::multiply, S> {};
+      mkbinop struct bitwise_and : binop::s<D, op::bitwise_and, S> {};
+      mkbinop struct all : binop::s<D, any_aop, S> {};
+      #undef mkbinop
+    }
+    // Shift
+    namespace shift {
+      namespace binop = meta::statement::binop;
+      using any_sop = op::binary::shift::any;
+      #define mkbinop template <typename D, typename S>
+      mkbinop struct shift_left  : binop::s<D, op::shift_left, S> {};
+      mkbinop struct shift_right : binop::s<D, op::shift_right, S> {};
+      mkbinop struct all : binop::s<D, any_sop, S> {};
+      #undef mkbinop
     }
   }
 
@@ -491,10 +500,12 @@ namespace grammar::L2 {
     using s = operand::movable;
     using E = literal::number::special::scale;
     using at = op::address_at;
+    using cmp = expression::comparison;
+    using mem = expression::memory;
     struct gets_address    : spaced<w, at, w, w, E> {};   // w @ w w E
     struct gets_movable    : stmt::gets<w, s> {};         // w <- s
-    struct gets_relative   : stmt::gets<w, expr::mem> {}; // w <- mem x M
-    struct gets_comparison : stmt::gets<w, expr::cmp> {}; // w <- t cmp t
+    struct gets_relative   : stmt::gets<w, mem> {}; // w <- mem x M
+    struct gets_comparison : stmt::gets<w, cmp> {}; // w <- t cmp t
     struct gets_stack_arg
       : stmt::gets<w, expr::stack_arg> {}; // w <- stack-arg M
   }
@@ -504,7 +515,7 @@ namespace grammar::L2 {
     namespace expr = expression;
     namespace stmt = statement;
     using s = operand::movable;
-    struct gets_movable : stmt::gets<expr::mem, s> {}; // mem x M <- s
+    struct gets_movable : stmt::gets<expr::memory, s> {}; // mem x M <- s
   }
 
   // Update
@@ -512,10 +523,10 @@ namespace grammar::L2 {
 
   // Artihmetic on assignable registers
   namespace instruction::update::assignable::arithmetic {
-    namespace aop = meta::statement::arithmetic;
+    namespace aop = statement::arithmetic;
     using w = operand::assignable;
     using t = operand::comparable;
-    using mem = expression::mem;
+    using mem = expression::memory;
     using plusplus   = op::increment;
     using minusminus = op::decrement;
     struct increment         : spaced<w, plusplus> {};   // w++
@@ -530,15 +541,15 @@ namespace grammar::L2 {
     using w  = operand::assignable;
     using N  = operand::number;
     using sx = operand::shift;
-    struct shift  : meta::statement::shift::all<w, sx> {}; // w sop sx
-    struct number : meta::statement::shift::all<w,  N> {}; // w sop N
+    struct shift  : statement::shift::all<w, sx> {}; // w sop sx
+    struct number : statement::shift::all<w,  N> {}; // w sop N
   }
 
   // Arithmetic on relative memory locations
   namespace instruction::update::relative::arithmetic {
-    namespace aop = meta::statement::arithmetic;
+    namespace aop = statement::arithmetic;
     using t = operand::comparable;
-    using mem = expression::mem;
+    using mem = expression::memory;
     struct add_comparable      : aop::add<mem, t> {};      // mem x M += t
     struct subtract_comparable : aop::subtract<mem, t> {}; // mem x M -= t
   }
@@ -549,15 +560,13 @@ namespace grammar::L2 {
     using label = literal::identifier::label;
     using go2_literal = literal::instruction::go2;
     struct go2 : spaced<go2_literal, label> {}; // goto label
-    namespace cjump {
-      namespace stmt = statement;
-      using cmp   = expression::cmp;
-      using label = label;
-      struct when                             // cjump t cmp t label
-        : stmt::cjump<cmp, label> {};
-      struct if_else                          // cjump t cmp t label label
-        : stmt::cjump<cmp, label, label> {};
-    }
+  }
+  namespace instruction::jump::cjump {
+    namespace stmt = statement;
+    using cmp = expression::comparison;
+    using label = label;
+    struct when    : stmt::cjump<cmp, label> {};        // cj t cmp t l
+    struct if_else : stmt::cjump<cmp, label, label> {}; // cj t cmp t l l
   }
 
   // Invoke
