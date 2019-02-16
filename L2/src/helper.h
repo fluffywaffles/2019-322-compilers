@@ -156,6 +156,7 @@ namespace helper::L2 { // {{{
           return instruction;
       }
     }
+    std::cerr << "Could not find " << label.content() << "\n";
     assert(false && "definition_for: could not find label!");
   }
 
