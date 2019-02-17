@@ -96,7 +96,11 @@ namespace ast::L3 {
            * contents of instructions. It would just clutter the output of
            * an AST print dump. (A lot, in fact.)
            */
-          instruction::any,
+          context::free,
+          context::empty,
+          context::started,
+          context::terminated,
+          context::complete,
           instruction::assign::variable::gets_movable,
           instruction::assign::variable::gets_comparison,
           instruction::assign::variable::gets_load,
@@ -114,7 +118,7 @@ namespace ast::L3 {
           operand::list::arguments,
           operand::list::variables,
           // Function containers are just containers
-          function::instructions,
+          function::contexts,
           function::define,
           // Same with program; just a list of functions
           program

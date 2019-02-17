@@ -310,16 +310,13 @@ namespace grammar::L3 {
     struct call : statement::call::any {};
   }
 
-  namespace instruction {
-    struct any : peg::sor<
-      // "define" instructions
-      instruction::define::label,
+  namespace instruction::context {
+    // Context "body" instructions
+    struct body : peg::sor<
       // Instructions with a unique prefix
       instruction::assign::address::gets_movable,
       instruction::ret::value,
       instruction::ret::nothing,
-      instruction::branch::variable,
-      instruction::branch::unconditional,
       instruction::call,
       // "gets" instructions
       // ... with unique rhs prefix
@@ -332,6 +329,48 @@ namespace grammar::L3 {
       // ... with rhs is a simple movable value
       instruction::assign::variable::gets_movable
     > {};
+    // Context "entrypoint" instructions
+    struct entry : instruction::define::label {};
+    // Context "terminator" instructions
+    struct terminator : peg::sor<
+      // branching instructions
+      instruction::branch::variable,
+      instruction::branch::unconditional
+    > {};
+    // Landing/launch pads (folded entries / terminators)
+    struct landing_pad : peg::plus<spaced<entry>> {};
+    struct launch_pad  : peg::plus<spaced<terminator>> {};
+  }
+
+  //
+  // Context
+  //
+
+  namespace context {
+    struct free : peg::plus<spaced<instruction::context::body>> {};
+    struct empty : peg::sor<
+      spaced<
+        instruction::context::entry,
+        instruction::context::terminator
+       >,
+      spaced<instruction::context::entry>,
+      spaced<instruction::context::terminator>
+    > {};
+    struct started : spaced<
+      instruction::context::entry,
+      peg::plus<spaced<instruction::context::body>>
+    > {};
+    struct terminated : spaced<
+      instruction::context::body,
+      peg::plus<spaced<instruction::context::terminator>>
+    > {};
+    struct complete : spaced<
+      instruction::context::entry,
+      peg::plus<spaced<instruction::context::body>>,
+      instruction::context::terminator
+    > {};
+    // NOTE(jordan): ORDER MATTERS: complete must come first
+    struct any : peg::sor<complete, started, terminated, free, empty> {};
   }
 
   //
@@ -339,12 +378,12 @@ namespace grammar::L3 {
   //
 
   namespace function {
-    struct instructions : peg::plus<spaced<instruction::any>> {};
+    struct contexts : peg::plus<spaced<context::any>> {};
     struct define : spaced<
       literal::instruction::define,
       operand::label,
       util::parenthesized<operand::list::arguments>,
-      util::braced<instructions>
+      util::braced<contexts>
     > {};
   }
 
