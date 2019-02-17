@@ -306,7 +306,7 @@ namespace grammar::L3 {
     struct unconditional : statement::branch::on<util::nothing> {};
   }
 
-  namespace instruction {
+  namespace instruction { // call
     struct call : statement::call::any {};
   }
 
@@ -322,14 +322,14 @@ namespace grammar::L3 {
       instruction::branch::unconditional,
       instruction::call,
       // "gets" instructions
-      // with unique rhs prefix
+      // ... with unique rhs prefix
       instruction::assign::variable::gets_load,
       instruction::assign::variable::gets_call,
-      // with rhs binary operator expression
+      // ... with rhs binary operator expression
       instruction::assign::variable::gets_arithmetic,
       instruction::assign::variable::gets_shift,
       instruction::assign::variable::gets_comparison,
-      // with rhs is a simple movable value
+      // ... with rhs is a simple movable value
       instruction::assign::variable::gets_movable
     > {};
   }
