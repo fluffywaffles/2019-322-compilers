@@ -490,7 +490,7 @@ namespace analysis::L2::liveness::gen_kill {
     }
 
     if (n.is<assign::relative::gets_movable>()) {
-      binary_genkill_gen(n, relative, movable);
+      binary_gen_gen(n, relative, movable);
       return;
     }
 
