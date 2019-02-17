@@ -24,8 +24,8 @@ namespace driver::L3 {
       std::cerr << "Parse trace written. Exiting.\n";
       exit(-1);
     }
-    auto root = ast::parse<Entry, ast::filter::selector>(in);
-    if (opt.print_ast) { ast::print_node(*root); }
+    auto root = ast::parse<Entry>(in);
+    if (opt.print_ast) { ast::debug::print_node(*root); }
     return root;
   }
 
@@ -43,6 +43,21 @@ namespace driver::L3 {
   int execute (Options & opt, Input & in) {
     auto const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) { // {{{
+      /* ast::node const & program  = *root->children.at(0); */
+      /* ast::node const & function = *program.children.at(0); */
+      /* ast::node const & contexts = *function.children.at(2); */
+      /* ast::node const & context  = *contexts.children.at(0); */
+      /* ast::node const & instruction = *context.children.at(0); */
+      /* ast::node & operand = *instruction.children.at(0); */
+      /* operand.realize(); */
+      /* std::cout << operand.name() << " has '" << operand.content() << "'\n"; */
+
+      /* std::unique_ptr<ast::node> label */
+      /*   = ast::construct::free_node<grammar::L3::operand::label>(":test"); */
+      /* std::cout << label->realized_content << "\n"; */
+      /* label->reset<grammar::L3::operand::label>(":not_test"); */
+      /* std::cout << label->name() << " has '" << label->content() << "'\n"; */
+
       std::cerr << "Error: Cannot generate L3 yet!\n";
       return -1;
     } // }}}
