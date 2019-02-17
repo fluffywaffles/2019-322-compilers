@@ -3,22 +3,34 @@
 #include <typeindex>
 #include <algorithm>
 
-#include "L1/codegen.h"
 #include "grammar.h"
 #include "ast.h"
 
 namespace helper::L2 { // {{{
-  namespace L1_helper = codegen::L1::generate::helper;
   namespace grammar = grammar::L2;
   using node = ast::L2::node;
 
   using up_node  = std::unique_ptr<node>;
   using up_nodes = std::vector<up_node>;
 
-  template <class R>
-  bool matches (node const & n)  { return L1_helper::matches<R>(n); }
-  template <class R>
-  bool matches (std::string const & s) { return L1_helper::matches<R>(s); }
+  /* NOTE(jordan): nothing about this helper is L1-specific due to
+   * templating; should move it into a common utils?
+   */
+  template <typename Rule>
+  bool matches (const std::string string) {
+    // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
+    using namespace tao::pegtl;
+    memory_input<> string_input (string, "");
+    return normal<Rule>::template
+      match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
+      (string_input);
+  }
+  template <typename Rule>
+  bool matches (const node & n) {
+    assert(n.has_content() && "matches: must have content!");
+    const std::string & content = n.content();
+    return matches<Rule>(content);
+  }
 
   template <typename Colln>
   bool set_equal (Colln const & a, Colln const & b) {
