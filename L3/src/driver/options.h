@@ -8,6 +8,7 @@ namespace driver::L3 {
     enum Mode {
       x86,
       liveness,
+      test_node,
     } mode = Mode::x86;
     bool parsed_mode = false;
     bool print_trace = false;
@@ -51,7 +52,7 @@ namespace driver::L3 {
   Options Options::argv (int argc, char ** argv) {
     int c;
     Options opt;
-    while ((c = getopt(argc, argv, "tpisl:g:O:")) != -1)
+    while ((c = getopt(argc, argv, "tp@l:g:O:")) != -1)
       switch (c) {
       /*
        * ----------------------------------------------------------------
@@ -69,6 +70,10 @@ namespace driver::L3 {
             assert_single_mode(opt);
             opt.mode = Options::Mode::liveness;
           }
+          break;
+        case '@':
+          assert_single_mode(opt);
+          opt.mode = Options::Mode::test_node;
           break;
       /*
        * ----------------------------------------------------------------

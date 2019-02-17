@@ -35,13 +35,27 @@ namespace ast::L3 {
    * source data (copies of what was there before realization); and a
    * 'realized' flag.
    */
+  enum class source_type {
+      input,
+      ephemeral,
+  };
+  std::string const source_type_to_string (source_type const & type) {
+    switch (type) {
+      case source_type::input     : return "<realized>";
+      case source_type::ephemeral : return "<ephemeral>";
+    }
+    std::cerr << "source_type (as int): " << (int)type << "\n";
+    assert(false && "source_type_to_string: unrecognized source_type!");
+  }
   struct node : peg::parse_tree::basic_node<node> {
     bool realized = false;
     std::string realized_content;
     // Copies of original source name, iterators
     std::string original_source;
+    source_type original_source_type = source_type::input;
     peg::internal::iterator original_m_begin;
     peg::internal::iterator original_m_end;
+    std::type_info const * original_id;
     /**
      * EXPLANATION(jordan): realizing a node will allow it to own its
      * content; however, its iterators will "lose their place" in the
@@ -51,13 +65,20 @@ namespace ast::L3 {
      * we're holding our own string.
      *
      * However: we do save our original source iterators in the
-     * original_m_begin and original_m_end member fields.
+     * original_m_begin and original_m_end member fields; and, if the
+     * original source was not ephemeral (i.e. it may still exist, and so
+     * the iterators *MAY* still be valid) the original match can be
+     * obtained via original_content().
      */
-    void realize (std::string const & new_source = "realized") {
+    void realize (enum source_type original_type = source_type::input) {
       assert(has_content());
-      // Change our source to "realized" (instead of a file, string, etc.)
+      // Save original type id (in case we transform<>() later)
+      original_id = id;
+      // Save our old source and its type
       original_source = source;
-      source = new_source;
+      original_source_type = original_type;
+      // Change source string based on original_type
+      source = source_type_to_string(original_source_type);
       // Copy current content into realized_content (take ownership)
       realized_content = content();
       // Save the source match iterators
@@ -78,24 +99,23 @@ namespace ast::L3 {
     }
 
     /**
-     * EXPLANATION(jordan): original_begin() and original_end() make it
-     * possible to trace a realized node back to its original location &
-     * data.
+     * EXPLANATION(jordan): original_content() will return a string copy
+     * of the originally matched string, if that string may still exist.
+     * (Mostly useful for debugging.) If that string was ephemeral, it
+     * instead returns "<gone>".
      *
-     * original_match() will return a string copy of the originally
-     * matched string. (Mostly useful for debugging.)
+     * original_name() will always return the name of the originally
+     * constructed peg parse rule (i.e. node type).
      */
-    peg::position original_begin () const {
+    std::string original_content () const {
       assert(realized);
-      return peg::position(original_m_begin, original_source);
-    }
-    peg::position original_end () const {
-      assert(realized);
-      return peg::position(original_m_end, original_source);
-    }
-    std::string original_match () const {
-      assert(realized);
+      if (original_source_type == source_type::ephemeral)
+        return original_source;
       return std::string(original_m_begin.data, original_m_end.data);
+    }
+    std::string original_name () const {
+      assert(realized);
+      return peg::internal::demangle(original_id->name());
     }
 
     /**
@@ -247,10 +267,10 @@ namespace ast::L3 {
 namespace ast::L3::construct {
   template <typename Rule>
   std::unique_ptr<node> free_node (std::string const & value) {
-    peg::memory_input<> in(value, "<input over constructor string>");
+    peg::memory_input<> in(value, value);
     std::unique_ptr<node> root = parse<Rule>(in);
     std::unique_ptr<node> result = std::move(root->children.at(0));
-    result->realize("<generated>");
+    result->realize(source_type::ephemeral);
     return result;
   }
 }
