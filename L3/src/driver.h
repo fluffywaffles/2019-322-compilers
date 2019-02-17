@@ -33,8 +33,8 @@ namespace driver::L3 {
   std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
     using Mode = Options::Mode;
     switch (opt.mode) {
-      case Mode::x86          : return parse<program>(opt, in);
-      case Mode::liveness     : return parse<program>(opt, in);
+      case Mode::x86      : return parse<program>(opt, in);
+      case Mode::liveness : return parse<program>(opt, in);
     }
     assert(false && "parse: unreachable! Mode unrecognized.");
   }
@@ -43,14 +43,16 @@ namespace driver::L3 {
   int execute (Options & opt, Input & in) {
     auto const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) { // {{{
-      return 0;
+      std::cerr << "Error: Cannot generate L3 yet!\n";
+      return -1;
     } // }}}
     if (Options::Mode::liveness == opt.mode) { // {{{
-      /* namespace analysis = analysis::L2; */
+      /* namespace analysis = analysis::L3; */
       /* auto const & function = root->children.at(0); */
       /* auto liveness = analysis::liveness::function(*function); */
       /* analysis::liveness::print(std::cout, liveness); */
-      return 0;
+      std::cerr << "Error: Cannot analyze liveness for L3 yet!\n";
+      return -1;
     } // }}}
     assert(false && "execute: unreachable! Mode unrecognized.");
   }
