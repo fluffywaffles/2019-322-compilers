@@ -13,7 +13,6 @@
 namespace driver::L3 {
   namespace peg = tao::pegtl;
   namespace ast = ast::L3;
-  //namespace transform = transform::L2;
 
   using program  = peg::must<grammar::L3::program>;
 
@@ -42,12 +41,12 @@ namespace driver::L3 {
 
   template <typename Input>
   int execute (Options & opt, Input & in) {
-    if (Options::Mode::x86 == opt.mode) { // {{{
+    if (Options::Mode::x86 == opt.mode) {
       auto const root = parse(opt, in);
       std::cerr << "Error: Cannot generate L3 yet!\n";
       return -1;
-    } // }}}
-    if (Options::Mode::liveness == opt.mode) { // {{{
+    }
+    if (Options::Mode::liveness == opt.mode) {
       auto const root = parse(opt, in);
       /* namespace analysis = analysis::L3; */
       /* auto const & function = root->children.at(0); */
@@ -55,7 +54,7 @@ namespace driver::L3 {
       /* analysis::liveness::print(std::cout, liveness); */
       std::cerr << "Error: Cannot analyze liveness for L3 yet!\n";
       return -1;
-    } // }}}
+    }
     if (Options::Mode::test_node == opt.mode) {
       assert(std::string(opt.input_name) == "tests/test3.L3");
       peg::file_input<> in("tests/test2.L3");
