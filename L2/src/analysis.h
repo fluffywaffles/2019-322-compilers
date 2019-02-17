@@ -682,7 +682,7 @@ namespace analysis::L2::liveness {
         auto out = result.out[&instruction];
         // out_minus_kill = OUT[i] - KILL[i]
         std::set<std::string> out_minus_kill;
-        helper::L2::set_difference(out, kill, out_minus_kill);
+        helper::set_difference(out, kill, out_minus_kill);
         // debug {{{
         if (debug & DBG_IN_OUT_LOOP_OUT_MINUS_KILL) {
           std::cout << "OUT[" << index << "] - KILL[" << index << "] = ";
@@ -692,11 +692,11 @@ namespace analysis::L2::liveness {
           std::cout << "\n";
         } // }}}
         // IN[i] = GEN[i] U (out_minus_kill)
-        helper::L2::set_union(gen, out_minus_kill, in);
+        helper::set_union(gen, out_minus_kill, in);
         // OUT[i] = U(s : successor of(i)) IN[s]
         for (node const * successor : successors) {
           auto & in_s = result.in[successor];
-          helper::L2::set_union(in_s, out, out);
+          helper::set_union(in_s, out, out);
         }
 
         auto const & in_original  = result.in [&instruction];
@@ -718,8 +718,8 @@ namespace analysis::L2::liveness {
         }
         // }}}
         fixed_state = fixed_state
-          && helper::L2::set_equal(in_original, in)
-          && helper::L2::set_equal(out_original, out);
+          && helper::set_equal(in_original, in)
+          && helper::set_equal(out_original, out);
 
         result.in [&instruction] = in;
         result.out[&instruction] = out;
@@ -900,7 +900,7 @@ namespace analysis::L2::interference {
       if (instruction.is<assign::assignable::gets_movable>()) {
         assert(instruction.children.size() == 3);
         node const & src = *instruction.children.at(1);
-        if (helper::L2::matches<grammar::L2::operand::memory>(src)) {
+        if (helper::matches<grammar::L2::operand::memory>(src)) {
           // This is a variable 'gets' a variable or register.
           !HACK_ALWAYS_OUT_KILL && (connect_kill = false);
         }
@@ -1088,7 +1088,7 @@ namespace analysis::L2::color::graph {
       for (auto color : available_colors) {
         namespace caller = grammar::L2::calling_convention::caller_save;
         auto color_register = result.color_to_register[color];
-        if (helper::L2::matches<caller::any>(color_register))
+        if (helper::matches<caller::any>(color_register))
           return color;
       }
       return *available_colors.begin();
