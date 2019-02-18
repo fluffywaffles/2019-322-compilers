@@ -51,6 +51,21 @@ namespace helper::L3 {
     return meta::integer<node, grammar::literal::number::integer::any>(n);
   }
 
+  node const & unwrap_assert (node const & parent) {
+    return meta::unwrap_assert<node>(parent);
+  }
+
+  std::string strip_variable_prefix (std::string const & v) {
+    return meta::match_substring<grammar::operand::variable, 1>(v);
+  }
+
+  /*
+   * FIXME(jordan): cannot be refactored with
+   * helper::L2::collect_variables because the L2 version walks a tree
+   * from a single start node to an arbitrary depth.
+   *
+   * Template on type of node pointer; then can refactor into one helper.
+   */
   // NOTE(jordan): collects variables one level deep in tree
   std::set<variable> collect_variables (view::vec<node> const & nodes) {
     std::set<variable> variables = {};
@@ -64,7 +79,14 @@ namespace helper::L3 {
     return variables;
   }
 
-  node const & definition_for(
+  /*
+   * FIXME(jordan): cannot be refactored with helper::L2::definition_for
+   * because of L2 instruction::any wrappers.
+   *
+   * Get rid of instruction::any wrappers and template on node pointer;
+   * then can refactor into one helper.
+   */
+  node const & definition_for (
     node            const & label,
     view::vec<node> const & instructions
   ) {
@@ -82,19 +104,6 @@ namespace helper::L3 {
     }
     std::cerr << "Could not find " << label.content() << "\n";
     assert(false && "definition_for: could not find label");
-  }
-
-  // NOTE(jordan): copy/paste from l2/helper.
-  std::string strip_variable_prefix (std::string const & s) {
-    if (matches<grammar::identifier::variable>(s)) {
-      return std::string(s.begin() + 1, s.end());
-    } else {
-      return s;
-    }
-  }
-
-  node const & unwrap_assert (node const & parent) {
-    return meta::unwrap_assert<node>(parent);
   }
 
   view::vec<node> collect_instructions (node const & function) {
