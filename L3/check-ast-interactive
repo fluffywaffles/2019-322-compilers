@@ -1,0 +1,5 @@
+for t in tests/*.L3; do
+  ./bin/L3 -p $t
+  echo "press enter to continue..."
+  read
+done

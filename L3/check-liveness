@@ -1,0 +1,10 @@
+for t in tests/*.L3; do
+  ./bin/L3 -l 1 $t &> /dev/null
+  if [ "$?" != "0" ]; then
+    printf "\nERR\n"
+    printf "$t\n"
+    break
+  else
+    printf "ok "
+  fi
+done
