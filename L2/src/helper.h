@@ -64,7 +64,6 @@ namespace helper::meta {
     );
     return std::stoi(n.content());
   }
-
   template <typename Node>
   Node const & unwrap_assert (Node const & parent) {
     assert(
@@ -73,57 +72,13 @@ namespace helper::meta {
     );
     return *parent.children.at(0);
   }
-
-  // NOTE(jordan): collect_variables is kinda gross. Idk any better way.
-  template <typename Node, typename Variable>
-  void collect_variables (
-    Node const & start,
-    std::set<std::string> & variables
-  ) {
-    if (start.template is<Variable>()) {
-      variables.insert(start.content());
+  // FIXME(jordan): this is a little crufty.
+  template <typename Rule, int offset>
+  std::string match_substring (std::string const & s) {
+    if (matches<Rule>(s)) {
+      return std::string(s.begin() + offset, s.end());
     } else {
-      for (auto & child : start.children) {
-        collect_variables<Node, Variable>(*child, variables);
-      }
-    }
-  }
-  template <typename Node, typename Variable>
-  std::set<std::string> collect_variables (
-    std::vector<std::unique_ptr<Node>> const & instructions
-  ) {
-    std::set<std::string> variables;
-    for (auto & instruction_wrapper : instructions) {
-      auto const & instruction = instruction_wrapper->children.at(0);
-      for (auto & child : instruction->children) {
-        collect_variables<Node, Variable>(*child, variables);
-      }
-    }
-    return variables;
-  }
-
-  namespace label {
-    template<typename Node, typename Label, typename LabelDef>
-    Node const & definition_for (
-      Node const & label,
-      std::vector<std::unique_ptr<Node>> const & instructions
-    ) {
-      using up_node = std::unique_ptr<Node>;
-      assert(
-        label.template is<Label>()
-        && "definition_for: called on a non-label!"
-      );
-      for (up_node const & wrapper : instructions) {
-        Node const & instruction = unwrap_assert(*wrapper);
-        if (instruction.template is<LabelDef>()) {
-          Node const & defined_label = *instruction.children.at(0);
-          assert(defined_label.template is<Label>());
-          if (defined_label.content() == label.content())
-            return instruction;
-        }
-      }
-      std::cerr << "Could not find " << label.content() << "\n";
-      assert(false && "definition_for: could not find label!");
+      return s;
     }
   }
 }
@@ -140,33 +95,60 @@ namespace helper::L2 {
     return meta::integer<node, grammar::literal::number::integer::any>(n);
   }
 
-  std::set<std::string> collect_variables (up_nodes const & insts) {
-    using variable = grammar::identifier::variable;
-    return meta::collect_variables<node, variable>(insts);
+  node const & unwrap_assert (node const & parent) {
+    return meta::unwrap_assert<node>(parent);
   }
 
-  node const & definition_for(
-    node     const & label,
-    up_nodes const & insts
+  std::string strip_variable_prefix (std::string const & v) {
+    return meta::match_substring<grammar::operand::variable, 1>(v);
+  }
+
+  // NOTE(jordan): collect_variables is kinda gross. Idk any better way.
+  void collect_variables (
+    node const & start,
+    std::set<std::string> & variables
   ) {
-    using Label = grammar::operand::label;
-    using Defn  = grammar::instruction::define::label;
-    return meta::label::definition_for<node, Label, Defn>(label, insts);
-  }
-
-  /* FIXME(jordan): this is crufty/gross. Shouldn't go backwards from
-   * string to variable like this; we should just keep the nodes around.
-   */
-  std::string strip_variable_prefix (std::string const & s) {
-    if (matches<grammar::identifier::variable>(s)) {
-      return std::string(s.begin() + 1, s.end());
+    if (start.is<grammar::operand::variable>()) {
+      variables.insert(start.content());
     } else {
-      return s;
+      for (auto & child : start.children) {
+        collect_variables(*child, variables);
+      }
     }
   }
 
-  node const & unwrap_assert (node const & parent) {
-    return meta::unwrap_assert<node>(parent);
+  std::set<std::string> collect_variables (
+    up_nodes const & instructions
+  ) {
+    std::set<std::string> variables;
+    for (auto & instruction_wrapper : instructions) {
+      auto const & instruction = instruction_wrapper->children.at(0);
+      for (auto & child : instruction->children) {
+        collect_variables(*child, variables);
+      }
+    }
+    return variables;
+  }
+
+  node const & definition_for (
+    node     const & label,
+    up_nodes const & instructions
+  ) {
+    assert(
+      label.is<grammar::operand::label>()
+      && "definition_for: called on a non-label!"
+    );
+    for (up_node const & wrapper : instructions) {
+      node const & instruction = unwrap_assert(*wrapper);
+      if (instruction.is<grammar::instruction::define::label>()) {
+        node const & defined_label = *instruction.children.at(0);
+        assert(defined_label.is<grammar::operand::label>());
+        if (defined_label.content() == label.content())
+          return instruction;
+      }
+    }
+    std::cerr << "Could not find " << label.content() << "\n";
+    assert(false && "definition_for: could not find label!");
   }
 
   // NOTE(jordan): woof. Template specialization, amirite?
