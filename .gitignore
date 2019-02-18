@@ -1,4 +1,6 @@
-bin/
-obj/
+*/bin/
+*/obj/
+!*/oracle/bin/
+!*/oracle/obj/
 *.tmp
 .session.vim
