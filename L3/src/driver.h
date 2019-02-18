@@ -6,7 +6,8 @@
 #include "tao/pegtl.hpp"
 
 #include "driver/options.h"
-
+#include "helper.h"
+#include "analysis.h"
 #include "grammar.h"
 #include "ast.h"
 
@@ -47,13 +48,13 @@ namespace driver::L3 {
       return -1;
     }
     if (Options::Mode::liveness == opt.mode) {
+      namespace analysis = analysis::L3;
       auto const root = parse(opt, in);
-      /* namespace analysis = analysis::L3; */
-      /* auto const & function = root->children.at(0); */
-      /* auto liveness = analysis::liveness::function(*function); */
-      /* analysis::liveness::print(std::cout, liveness); */
-      std::cerr << "Error: Cannot analyze liveness for L3 yet!\n";
-      return -1;
+      ast::node const & program = *root->children.at(0);
+      ast::node const & function = *program.children.at(0);
+      auto liveness = analysis::liveness::compute(function);
+      analysis::liveness::print(std::cout, liveness);
+      return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
       assert(std::string(opt.input_name) == "tests/test3.L3");

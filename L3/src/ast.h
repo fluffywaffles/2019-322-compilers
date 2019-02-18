@@ -141,7 +141,7 @@ namespace ast::L3 {
       assert(realized);
       assert(value.size() > 0);
       assert(is<CurrentRule>());
-      assert(helper::L2::matches<CurrentRule>(value));
+      assert(helper::matches<CurrentRule>(value));
       realized_content = std::move(value);
       reiterate();
     }
