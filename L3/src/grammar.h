@@ -146,7 +146,7 @@ namespace grammar::L3 {
     // vars ::=   | var | var(, var)*
     // variable  ::= <var>,*
     // variables ::= <variable>*
-    struct variable  : spaced<variable, peg::opt<comma>> {};
+    struct variable  : spaced<operand::variable, peg::opt<comma>> {};
     struct variables : peg::star<variable> {};
   }
 
@@ -330,7 +330,8 @@ namespace grammar::L3 {
       instruction::assign::variable::gets_movable
     > {};
     // Context "entrypoint" instructions
-    struct entry : instruction::define::label {};
+    // NOTE(jordan): must use peg::sor in order to have define nodes...
+    struct entry : peg::sor<instruction::define::label> {};
     // Context "terminator" instructions
     struct terminator : peg::sor<
       // branching instructions
@@ -361,8 +362,8 @@ namespace grammar::L3 {
       peg::plus<spaced<instruction::context::body>>
     > {};
     struct terminated : spaced<
-      instruction::context::body,
-      peg::plus<spaced<instruction::context::terminator>>
+      peg::plus<spaced<instruction::context::body>>,
+      instruction::context::terminator
     > {};
     struct complete : spaced<
       instruction::context::entry,
@@ -382,7 +383,7 @@ namespace grammar::L3 {
     struct define : spaced<
       literal::instruction::define,
       operand::label,
-      util::parenthesized<operand::list::arguments>,
+      util::parenthesized<operand::list::variables>,
       util::braced<contexts>
     > {};
   }
