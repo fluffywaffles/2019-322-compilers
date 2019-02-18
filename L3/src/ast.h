@@ -11,7 +11,8 @@
 namespace peg = tao::pegtl;
 
 namespace ast::L3 {
-  /** EXPLANATION(jordan): "Realized" nodes
+  /**
+   * EXPLANATION(jordan): "Realized" nodes
    *
    * We need nodes to be able to take ownership of their own content,
    * allowing us to construct them at runtime from an ephemeral string
