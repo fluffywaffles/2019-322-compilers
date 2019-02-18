@@ -123,12 +123,9 @@ namespace analysis::L3::liveness::gen_kill {
       node const & v,
       result & result
     ) {
-      if (!helper::matches<grammar::L3::operand::variable>(v)) {
-        if (DBG) {
-          std::cerr
-            << "FAIL gen/kill on a(n) " << v.name() << "\n";
-        }
-        return;
+      if (DBG) {
+        std::cerr
+          << "TRY  gen/kill " << v.name() << "\n";
       }
       if (v.is<grammar::L3::operand::list::argument>()) {
         if (DBG) {
@@ -136,6 +133,13 @@ namespace analysis::L3::liveness::gen_kill {
             << "UWRP gen/kill unwrapping a(n) " << v.name() << "\n";
         }
         return genkill(which, n, helper::L3::unwrap_assert(v), result);
+      }
+      if (!helper::matches<grammar::L3::operand::variable>(v)) {
+        if (DBG) {
+          std::cerr
+            << "FAIL gen/kill on a(n) " << v.name() << "\n";
+        }
+        return;
       }
       if (DBG) {
         std::cerr
