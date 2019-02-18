@@ -102,27 +102,6 @@ namespace helper::meta {
     return variables;
   }
 
-  /* FIXME(jordan): this is crufty/gross. Shouldn't go backwards from
-   * string to variable like this; we should just keep the nodes around.
-   */
-  template <typename Node, typename Variable, typename Name>
-  std::string strip_variable_prefix (std::string const & s) {
-    if (matches<Variable>(s)) {
-      using variable = peg::must<Variable>;
-      peg::string_input<> in(s, "");
-      auto const & root
-        = ast::L2::parse<variable, ast::L2::filter::selector>(in);
-      assert(root->children.size() == 1);
-      Node const & var_node = *root->children.at(0);
-      assert(var_node.children.size() == 1);
-      Node const & name_node = *var_node.children.at(0);
-      assert(name_node.template is<Name>());
-      return name_node.content();
-    } else {
-      return s;
-    }
-  }
-
   namespace label {
     template<typename Node, typename Label, typename LabelDef>
     Node const & definition_for (
@@ -175,11 +154,16 @@ namespace helper::L2 {
     return meta::label::definition_for<node, Label, Defn>(label, insts);
   }
 
-  std::string strip_variable_prefix(std::string const & v) {
-    using variable = grammar::operand::variable;
-    using name     = grammar::identifier::name;
-    return meta::strip_variable_prefix<node, variable, name>(v);
-  };
+  /* FIXME(jordan): this is crufty/gross. Shouldn't go backwards from
+   * string to variable like this; we should just keep the nodes around.
+   */
+  std::string strip_variable_prefix (std::string const & s) {
+    if (matches<grammar::identifier::variable>(s)) {
+      return std::string(s.begin() + 1, s.end());
+    } else {
+      return s;
+    }
+  }
 
   node const & unwrap_assert (node const & parent) {
     return meta::unwrap_assert<node>(parent);
