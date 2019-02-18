@@ -351,27 +351,27 @@ namespace grammar::L3 {
     struct free : peg::plus<spaced<instruction::context::body>> {};
     struct empty : peg::sor<
       spaced<
-        instruction::context::entry,
-        instruction::context::terminator
-       >,
-      spaced<instruction::context::entry>,
-      spaced<instruction::context::terminator>
+        instruction::context::landing_pad,
+        instruction::context::launch_pad
+      >,
+      instruction::context::landing_pad,
+      instruction::context::launch_pad
     > {};
     struct started : spaced<
-      instruction::context::entry,
+      instruction::context::landing_pad,
       peg::plus<spaced<instruction::context::body>>
     > {};
     struct terminated : spaced<
       peg::plus<spaced<instruction::context::body>>,
-      instruction::context::terminator
+      instruction::context::launch_pad
     > {};
     struct complete : spaced<
-      instruction::context::entry,
+      instruction::context::landing_pad,
       peg::plus<spaced<instruction::context::body>>,
-      instruction::context::terminator
+      instruction::context::launch_pad
     > {};
-    // NOTE(jordan): ORDER MATTERS: complete must come first
-    struct any : peg::sor<complete, started, terminated, free, empty> {};
+    // NOTE(jordan): ORDER MATTERS
+    struct any : peg::sor<terminated, free, complete, started, empty> {};
   }
 
   //
