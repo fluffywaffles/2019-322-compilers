@@ -144,10 +144,10 @@ namespace grammar::L3 {
     struct argument  : spaced<value, peg::opt<comma>> {};
     struct arguments : peg::star<argument> {};
     // vars ::=   | var | var(, var)*
-    // variable  ::= <var>,*
-    // variables ::= <variable>*
-    struct variable  : spaced<operand::variable, peg::opt<comma>> {};
-    struct variables : peg::star<variable> {};
+    // parameter  ::= <var>,*
+    // parameters ::= <parameter>*
+    struct parameter  : spaced<operand::variable, peg::opt<comma>> {};
+    struct parameters : peg::star<parameter> {};
   }
 
   //
@@ -383,7 +383,7 @@ namespace grammar::L3 {
     struct define : spaced<
       literal::instruction::define,
       operand::label,
-      util::parenthesized<operand::list::variables>,
+      util::parenthesized<operand::list::parameters>,
       util::braced<contexts>
     > {};
   }

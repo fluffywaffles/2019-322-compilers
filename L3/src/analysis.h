@@ -353,6 +353,7 @@ namespace analysis::L3::liveness {
     // TODO(jordan): collecting variables is its own analysis
     // Gather up all nodes containing variables
     node const & parameters = *function.children.at(1);
+    assert(parameters.is<grammar::L3::operand::list::parameters>());
     view::vec<node> nodes = instructions;
     for (up_node const & parameter : parameters.children)
       nodes.push_back(&*parameter);

@@ -213,9 +213,7 @@ namespace ast::L3::filter {
         operand::variable,
         operand::callable,
         operand::value,
-        operand::movable,
-        operand::list::argument,
-        operand::list::variable
+        operand::movable
       >,
       peg::parse_tree::apply_remove_content::to<
         /* NOTE(jordan): these nodes are just containers; they don't
@@ -247,8 +245,10 @@ namespace ast::L3::filter {
         instruction::ret::value,
         instruction::call,
         // Argument and variable lists are redundant with their contents
+        operand::list::argument,
+        operand::list::parameter,
         operand::list::arguments,
-        operand::list::variables,
+        operand::list::parameters,
         // Function containers are just containers
         function::contexts,
         function::define,
