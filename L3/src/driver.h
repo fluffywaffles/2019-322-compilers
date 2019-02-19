@@ -70,10 +70,12 @@ namespace driver::L3 {
       std::cout << "\n";
       std::cout << "label definitions\n";
       for (auto const & def : summary.labels_summary.definitions) {
+        auto const & defs = def.second;
+        assert(defs.size() == 1 && "function: label defined >1 time!");
         std::cout
           << "\t" << *def.first
           << " defined at "
-          << def.second->begin()
+          << (*defs.begin())->begin()
           << "\n";
       }
       std::cout << "\n";

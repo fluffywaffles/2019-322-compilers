@@ -51,7 +51,7 @@ namespace analysis::L3::variables {
 namespace analysis::L3::labels {
   struct result {
     std::set<label> labels;
-    std::map<label const *, node const *> definitions;
+    std::map<label const *, view::set<node>> definitions;
     std::map<label const *, view::set<node>> uses;
   };
   struct definitions {
@@ -69,7 +69,7 @@ namespace analysis::L3::labels {
       std::string content = label_node.content();
       result.labels.insert(content);
       auto const * label = &*collection::find(content, result.labels);
-      result.definitions[label] = &n;
+      result.definitions[label].insert(&n);
       return false; // NOTE(jordan): don't bother with our children.
     } else {
       return true;
