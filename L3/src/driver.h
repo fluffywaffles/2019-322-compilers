@@ -63,6 +63,20 @@ namespace driver::L3 {
         std::cout << variable << " ";
       }
       std::cout << "\n";
+      std::cout << "labels\n\t";
+      for (auto const & label : summary.labels_summary.labels) {
+        std::cout << label << " ";
+      }
+      std::cout << "\n";
+      std::cout << "label definitions\n";
+      for (auto const & def : summary.labels_summary.definitions) {
+        std::cout
+          << "\t" << *def.first
+          << " defined at "
+          << def.second->begin()
+          << "\n";
+      }
+      std::cout << "\n";
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
