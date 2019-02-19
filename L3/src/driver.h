@@ -58,6 +58,11 @@ namespace driver::L3 {
         summary.instructions,
         summary.liveness
       );
+      std::cout << "variables\n\t";
+      for (auto const & variable : summary.variables_summary.variables) {
+        std::cout << variable << " ";
+      }
+      std::cout << "\n";
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {

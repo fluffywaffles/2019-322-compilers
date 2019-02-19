@@ -183,20 +183,20 @@ namespace analysis::L3::successor {
 
 namespace analysis::L3::liveness::gen_kill {
   struct result {
-    variables::result const & variables_summary;
     std::map<node const *, view::set<variable>> gen;
     std::map<node const *, view::set<variable>> kill;
   };
 }
 
 namespace analysis::L3::liveness::gen_kill {
-  namespace {
+  namespace generic {
     static bool DBG = true;
     enum class GenKill { gen, kill };
     void genkill (
       GenKill which,
       node const & n,
       node const & v,
+      variables::result const & variables_summary,
       result & result
     ) {
       if (DBG) {
@@ -208,7 +208,8 @@ namespace analysis::L3::liveness::gen_kill {
           std::cerr
             << "UWRP gen/kill unwrapping a(n) " << v.name() << "\n";
         }
-        return genkill(which, n, helper::L3::unwrap_assert(v), result);
+        node const & unwrapped = helper::L3::unwrap_assert(v);
+        return genkill(which, n, unwrapped, variables_summary, result);
       }
       if (!helper::matches<grammar::L3::operand::variable>(v)) {
         if (DBG) {
@@ -223,7 +224,7 @@ namespace analysis::L3::liveness::gen_kill {
           << "\n     " << (which == GenKill::gen ? "GEN " : "KILL")
           << " "  << v.content() << "\n";
       }
-      auto const & variables = result.variables_summary.variables;
+      auto const & variables = variables_summary.variables;
       std::string const variable_string = v.content();
       // NOTE(jordan): produce error for gen/kill undefined variable
       // TODO(jordan): This makes sense as its own pre-analysis pass
@@ -241,14 +242,30 @@ namespace analysis::L3::liveness::gen_kill {
     }
   }
 
-  void gen  (node const & n, node const & variable_node, result & result) {
-    return genkill(GenKill::gen, n, variable_node, result);
+  void gen  (
+    node const & n,
+    node const & v,
+    variables::result const & variables_summary,
+    result & result
+  ) {
+    using namespace generic;
+    return genkill(GenKill::gen, n, v, variables_summary, result);
   }
-  void kill (node const & n, node const & variable_node, result & result) {
-    return genkill(GenKill::kill, n, variable_node, result);
+  void kill (
+    node const & n,
+    node const & v,
+    variables::result const & variables_summary,
+    result & result
+  ) {
+    using namespace generic;
+    return genkill(GenKill::kill, n, v, variables_summary, result);
   }
 
-  void instruction (node const & n, result & result) {
+  void instruction (
+    node const & n,
+    variables::result const & variables_summary,
+    result & result
+  ) {
     namespace instruction = grammar::L3::instruction;
     using namespace instruction;
 
@@ -256,8 +273,8 @@ namespace analysis::L3::liveness::gen_kill {
       node const & variable = *n.children.at(0);
       /* node const & gets = *n.children.at(1); */
       node const & movable = *n.children.at(2);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, movable, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, movable, variables_summary, result);
       return;
     }
     if (n.is<instruction::assign::variable::gets_comparison>()) {
@@ -267,9 +284,9 @@ namespace analysis::L3::liveness::gen_kill {
       node const & lhs = *cmp.children.at(0);
       /* node const & op  = *cmp.children.at(1); */
       node const & rhs = *cmp.children.at(2);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, lhs, result);
-      gen_kill::gen  (n, rhs, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, lhs, variables_summary, result);
+      gen_kill::gen  (n, rhs, variables_summary, result);
       return;
     }
     if (n.is<instruction::assign::variable::gets_load>()) {
@@ -277,8 +294,8 @@ namespace analysis::L3::liveness::gen_kill {
       /* node const & gets = *n.children.at(1); */
       node const & load = *n.children.at(2);
       node const & loaded = helper::L3::unwrap_assert(load);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, loaded, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, loaded, variables_summary, result);
       return;
     }
     if (n.is<instruction::assign::variable::gets_call>()) {
@@ -287,11 +304,11 @@ namespace analysis::L3::liveness::gen_kill {
       node const & call   = helper::L3::unwrap_assert(*n.children.at(2));
       node const & called = *call.children.at(0);
       node const & args   = *call.children.at(1);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, called, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, called, variables_summary, result);
       for (up_node const & arg : args.children) {
-        gen_kill::gen (n, *arg, result);
-        gen_kill::kill(n, *arg, result);
+        gen_kill::gen (n, *arg, variables_summary, result);
+        gen_kill::kill(n, *arg, variables_summary, result);
       }
       return;
     }
@@ -302,9 +319,9 @@ namespace analysis::L3::liveness::gen_kill {
       node const & lhs = *arithmetic.children.at(0);
       /* node const & op  = *arithmetic.children.at(1); */
       node const & rhs = *arithmetic.children.at(2);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, lhs, result);
-      gen_kill::gen  (n, rhs, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, lhs, variables_summary, result);
+      gen_kill::gen  (n, rhs, variables_summary, result);
       return;
     }
     if (n.is<instruction::assign::variable::gets_shift>()) {
@@ -314,9 +331,9 @@ namespace analysis::L3::liveness::gen_kill {
       node const & lhs = *shift.children.at(0);
       /* node const & op  = *shift.children.at(1); */
       node const & rhs = *shift.children.at(2);
-      gen_kill::kill (n, variable, result);
-      gen_kill::gen  (n, lhs, result);
-      gen_kill::gen  (n, rhs, result);
+      gen_kill::kill (n, variable, variables_summary, result);
+      gen_kill::gen  (n, lhs, variables_summary, result);
+      gen_kill::gen  (n, rhs, variables_summary, result);
       return;
     }
     if (n.is<instruction::assign::address::gets_movable>()) {
@@ -324,8 +341,8 @@ namespace analysis::L3::liveness::gen_kill {
       node const & stored = helper::L3::unwrap_assert(store);
       /* node const & gets = *n.children.at(1); */
       node const & movable = *n.children.at(2);
-      gen_kill::gen (n, stored, result);
-      gen_kill::gen (n, movable, result);
+      gen_kill::gen (n, stored, variables_summary, result);
+      gen_kill::gen (n, movable, variables_summary, result);
       return;
     }
     if (n.is<instruction::call>()) {
@@ -333,21 +350,21 @@ namespace analysis::L3::liveness::gen_kill {
       node const & call   = helper::L3::unwrap_assert(n);
       node const & called = *call.children.at(0);
       node const & args   = *call.children.at(1);
-      gen_kill::gen(n, called, result);
+      gen_kill::gen(n, called, variables_summary, result);
       for (up_node const & arg : args.children) {
-        gen_kill::gen (n, *arg, result);
-        gen_kill::kill(n, *arg, result);
+        gen_kill::gen (n, *arg, variables_summary, result);
+        gen_kill::kill(n, *arg, variables_summary, result);
       }
       return;
     }
     if (n.is<instruction::branch::variable>()) {
       node const & variable = *n.children.at(0);
-      gen_kill::gen  (n, variable, result);
+      gen_kill::gen  (n, variable, variables_summary, result);
       return;
     }
     if (n.is<instruction::ret::value>()) {
       node const & value = helper::L3::unwrap_assert(n);
-      gen_kill::gen  (n, value, result);
+      gen_kill::gen  (n, value, variables_summary, result);
       return;
     }
     if (n.is<instruction::define::label>()) {
@@ -371,13 +388,13 @@ namespace analysis::L3::liveness::gen_kill {
     view::vec<node> const & instructions,
     variables::result const & variables_summary
   ) {
-    gen_kill::result result = { variables_summary };
+    gen_kill::result result = {};
     for (node const * instruction_ptr : instructions) {
       // NOTE(jordan): make sure every node has at least empty gens/kills
       result.gen  [instruction_ptr] = {};
       result.kill [instruction_ptr] = {};
       node const & instruction = *instruction_ptr;
-      gen_kill::instruction(instruction, result);
+      gen_kill::instruction(instruction, variables_summary, result);
     }
     return result;
   }
@@ -385,7 +402,6 @@ namespace analysis::L3::liveness::gen_kill {
 
 namespace analysis::L3::liveness {
   struct result {
-    variables::result const & variables_summary;
     successor::result const successor;
     gen_kill::result  const gen_kill;
     std::map<node const *, view::set<variable>> in;
@@ -433,7 +449,6 @@ namespace analysis::L3::liveness {
     variables::result const & variables_summary
   ) {
     liveness::result result = {
-      variables_summary,
       successor::compute(instructions),
       gen_kill::compute(instructions, variables_summary),
     };
@@ -451,10 +466,6 @@ namespace analysis::L3::liveness {
     view::vec<node> const & instructions,
     result const & result
   ) {
-    std::cout << "variables\n\t";
-    for (auto const & variable : result.variables_summary.variables) {
-      std:: cout << variable << " ";
-    }
     std::cout << "\n";
     std::cout << "successors\n";
     for (int i = 0; i < instructions.size(); i++) {
@@ -514,15 +525,41 @@ namespace analysis::L3::liveness {
 
 namespace analysis::L3::function {
   struct result {
+    liveness::result  const liveness;
+    labels::result    const labels_summary;
     view::vec<node>   const parameters;
     view::vec<node>   const instructions;
     variables::result const variables_summary;
-    labels::result    const labels_summary;
-    liveness::result  const liveness;
+  };
+  struct instructions {
+    static bool compute (node const &, view::vec<node> &);
   };
 }
 
 namespace analysis::L3::function {
+  bool instructions::compute (node const & n, view::vec<node> & nodes) {
+    if (false // NOTE(jordan): get instructions from all contexts.
+      || n.is<grammar::L3::context::free>()
+      || n.is<grammar::L3::context::empty>()
+      || n.is<grammar::L3::context::started>()
+      || n.is<grammar::L3::context::terminated>()
+      || n.is<grammar::L3::context::complete>()
+    ) {
+      for (up_node const & child : n.children)
+        nodes.push_back(&*child);
+      return false; // NOTE(jordan): don't bother with our children.
+    } else {
+      return true;  // NOTE(jordan): look for contexts in our children.
+    }
+  }
+  view::vec<node> collect_instructions (node const & function) {
+    assert(function.is<grammar::L3::function::define>());
+    // [0] label    [1] parameters   [2] contexts
+    node const & contexts = *function.children.at(2);
+    view::vec<node> instructions_view = {};
+    walk::compute<instructions>(contexts.children, instructions_view);
+    return instructions_view;
+  }
   view::vec<node> collect_parameters (node const & function) {
     node const & parameters = *function.children.at(1);
     view::vec<node> nodes = {};
@@ -530,22 +567,18 @@ namespace analysis::L3::function {
     return nodes;
   }
   result const summarize (node const & function) {
-    auto instructions   = helper::L3::collect_instructions(function);
+    auto instructions   = function::collect_instructions(function);
     auto parameters     = function::collect_parameters(function);
     auto variable_nodes = parameters;
     helper::vector::append(variable_nodes, instructions);
     auto variables_summary = variables::summarize(variable_nodes);
-    std::cout << "variables\n\t";
-    for (auto variable : variables_summary.variables) {
-      std::cout << variable << " ";
-    }
-    std::cout << "\n";
+    // NOTE(jordan): *move* everything; otherwise copies & corruption.
     return {
-      parameters,
-      instructions,
-      variables_summary,
-      labels::summarize(instructions),
-      liveness::compute(instructions, variables_summary),
+      std::move(liveness::compute(instructions, variables_summary)),
+      std::move(labels::summarize(instructions)),
+      std::move(parameters),
+      std::move(instructions),
+      std::move(variables_summary),
     };
   }
 }

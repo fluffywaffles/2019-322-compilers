@@ -84,19 +84,4 @@ namespace helper::L3 {
     std::cerr << "Could not find " << label.content() << "\n";
     assert(false && "definition_for: could not find label");
   }
-
-  view::vec<node> collect_instructions (node const & function) {
-    assert(function.is<grammar::function::define>());
-    // [0] label    [1] parameters   [2] contexts
-    node const & contexts = *function.children.at(2);
-    assert(contexts.is<grammar::function::contexts>());
-    view::vec<node> instructions = {};
-    for (up_node const & up_context : contexts.children) {
-      for (up_node const & up_instruction : up_context->children) {
-        std::cout << up_instruction->name() << "\n";
-        instructions.push_back(&*up_instruction);
-      }
-    }
-    return instructions;
-  }
 }
