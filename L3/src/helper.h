@@ -23,19 +23,31 @@ namespace helper {
     template <typename Item>
       using set = base<std::set, Item>;
   }
-  namespace vector {
-    template <typename Item>
-    void append (std::vector<Item> & a, std::vector<Item> const & b) {
+  namespace collection {
+    template <typename Collection>
+    void append (Collection & a, Collection const & b) {
       a.insert(std::end(a), std::begin(b), std::end(b));
     }
-  }
-  template <typename Collection, typename Item>
-  auto find (Item const & item, Collection const & collection) {
-    return std::find(std::begin(collection), std::end(collection), item);
-  }
-  template <typename Collection, typename Item>
-  bool has (Item const & value, Collection const & collection) {
-    return find(value, collection) != std::end(collection);
+    template <typename Collection>
+    auto concat (Collection const & a, Collection const & b) {
+      Collection result = a;
+      append(result, b);
+      return result;
+    }
+    template <typename Collection>
+    auto find (
+      typename Collection::value_type const & item,
+      Collection const & colln
+    ) {
+      return std::find(std::begin(colln), std::end(colln), item);
+    }
+    template <typename Collection>
+    bool has (
+      typename Collection::value_type const & item,
+      Collection const & colln
+    ) {
+      return find(item, colln) != std::end(colln);
+    }
   }
 }
 
