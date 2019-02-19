@@ -5,12 +5,6 @@
 #include "grammar.h"
 
 namespace helper {
-  namespace vector {
-    template <typename Item>
-    void append (std::vector<Item> & a, std::vector<Item> const & b) {
-      a.insert(std::end(a), std::begin(b), std::end(b));
-    }
-  }
   namespace view {
     /* NOTE(jordan): a view is a collection of constant non-null pointers.
      * Because we only ever derive views from collections of
@@ -28,6 +22,12 @@ namespace helper {
       using vec = base<std::vector, Item>;
     template <typename Item>
       using set = base<std::set, Item>;
+  }
+  namespace vector {
+    template <typename Item>
+    void append (std::vector<Item> & a, std::vector<Item> const & b) {
+      a.insert(std::end(a), std::begin(b), std::end(b));
+    }
   }
   template <typename Collection, typename Item>
   auto find (Item const & item, Collection const & collection) {
