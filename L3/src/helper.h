@@ -7,7 +7,7 @@
 namespace helper {
   namespace vector {
     template <typename Item>
-    std::vector<Item> append (std::vector<Item> a, std::vector<Item> b) {
+    void append (std::vector<Item> & a, std::vector<Item> const & b) {
       a.insert(std::end(a), std::begin(b), std::end(b));
     }
   }
