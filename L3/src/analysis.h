@@ -7,29 +7,114 @@
 
 namespace analysis::L3 {
   namespace view = helper::view;
-  using node = helper::L3::node;
+  using label    = std::string;
+  using variable = std::string;
+  using node     = helper::L3::node;
   using up_node  = helper::L3::up_node;
   using up_nodes = helper::L3::up_nodes;
-  using variable = helper::L3::variable;
-  using successor_map = std::map<node const *, view::set<node>>;
-  using liveness_map  = std::map<node const *, view::set<variable>>;
+}
+
+namespace analysis::L3::walk {
+  template <typename Statistic, typename Collection, typename Result>
+  void compute (Collection const & nodes, Result & result) {
+    for (typename Collection::value_type const & node : nodes) {
+      bool walk_children = Statistic::compute(*node, result);
+      if (walk_children) compute<Statistic>(node->children, result);
+    }
+  }
+}
+
+namespace analysis::L3::variables {
+  struct result {
+    std::set<variable> variables;
+  };
+  struct gather {
+    static bool compute (node const &, result &);
+  };
+}
+
+namespace analysis::L3::variables {
+  bool gather::compute (node const & n, result & result) {
+    if (n.is<grammar::L3::operand::variable>()) {
+      result.variables.insert(n.content());
+      return false; // NOTE(jordan): don't walk our children.
+    } else {
+      return true;
+    }
+  }
+  result const summarize (view::vec<node> const & nodes) {
+    result summary = {};
+    walk::compute<variables::gather>(nodes, summary);
+    return summary;
+  }
+}
+
+namespace analysis::L3::labels {
+  struct result {
+    std::set<label> labels;
+    std::map<label const *, node const *> definitions;
+    std::map<label const *, view::set<node>> uses;
+  };
+  struct definitions {
+    static bool compute (node const &, result &);
+  };
+  struct uses {
+    static bool compute (node const &, result &);
+  };
+}
+
+namespace analysis::L3::labels {
+  bool definitions::compute (node const & n, result & result) {
+    if (n.is<grammar::L3::instruction::define::label>()) {
+      node const & label_node = helper::L3::unwrap_assert(n);
+      std::string label_string = label_node.content();
+      result.labels.insert(label_string);
+      auto const * label = &*helper::find(label_string, result.labels);
+      result.definitions[label] = &n;
+      return false; // NOTE(jordan): don't bother with our children.
+    } else {
+      return true;
+    }
+  }
+  bool uses::compute (node const & n, result & result) {
+    if (n.is<grammar::L3::operand::label>()) {
+      std::string label_string = n.content();
+      auto const * label = &*helper::find(label_string, result.labels);
+      result.uses[label].insert(&n);
+      return false; // NOTE(jordan): don't bother with our children.
+    } else if (n.is<grammar::L3::instruction::define::label>()) {
+      return false; // NOTE(jordan): skip over defined labels.
+    } else {
+      return true;
+    }
+  }
+  result const summarize (view::vec<node> const & nodes) {
+    result summary = {};
+    walk::compute<labels::definitions>(nodes, summary);
+    walk::compute<labels::uses>(nodes, summary);
+    return summary;
+  }
 }
 
 namespace analysis::L3::successor {
   struct result {
-    view::vec<node> const instructions;
-    successor_map map;
+    std::map<node const *, view::set<node>> map;
   };
+}
 
+namespace analysis::L3::successor {
   void set (node const & n, node const & successor, result & result) {
     result.map[&n].insert(&successor);
   }
 
-  void instruction (node const & n, int index, result & result) {
+  void instruction (
+    node const & n,
+    int index,
+    view::vec<node> const & siblings,
+    result & result
+  ) {
     namespace instruction = grammar::L3::instruction;
     using namespace instruction;
-
-    view::vec<node> const & siblings = result.instructions;
 
     if (false
       || n.is<instruction::assign::variable::gets_movable>()
@@ -84,32 +169,23 @@ namespace analysis::L3::successor {
     assert(false && "successor::instruction: unreachable!");
   }
 
-  void compute (result & result) {
-    for (int index = 0; index < result.instructions.size(); index++) {
-      node const & node = *result.instructions.at(index);
+  result compute (view::vec<node> const & instructions) {
+    successor::result result = {};
+    for (int index = 0; index < instructions.size(); index++) {
+      node const & node = *instructions.at(index);
       // NOTE(jordan): make sure every node has at least an empty set
       result.map[&node] = {};
-      successor::instruction(node, index, result);
+      successor::instruction(node, index, instructions, result);
     }
-    return;
-  }
-
-  result compute (view::vec<node> const & instructions) {
-    result result = { instructions };
-    successor::compute(result);
     return result;
   }
 }
 
-namespace analysis::L3::liveness {
+namespace analysis::L3::liveness::gen_kill {
   struct result {
-    view::vec<node> instructions;
-    std::set<variable> variables;
-    successor::result successor;
-    liveness_map in;
-    liveness_map out;
-    liveness_map gen;
-    liveness_map kill;
+    variables::result const & variables_summary;
+    std::map<node const *, view::set<variable>> gen;
+    std::map<node const *, view::set<variable>> kill;
   };
 }
 
@@ -147,7 +223,7 @@ namespace analysis::L3::liveness::gen_kill {
           << "\n     " << (which == GenKill::gen ? "GEN " : "KILL")
           << " "  << v.content() << "\n";
       }
-      auto const & variables = result.variables;
+      auto const & variables = result.variables_summary.variables;
       std::string const variable_string = v.content();
       // NOTE(jordan): produce error for gen/kill undefined variable
       // TODO(jordan): This makes sense as its own pre-analysis pass
@@ -291,32 +367,44 @@ namespace analysis::L3::liveness::gen_kill {
     assert(false && "liveness::gen_kill::instruction: unreachable!");
   }
 
-  void compute (result & result) {
-    for (node const * instruction_ptr : result.instructions) {
+  result compute (
+    view::vec<node> const & instructions,
+    variables::result const & variables_summary
+  ) {
+    gen_kill::result result = { variables_summary };
+    for (node const * instruction_ptr : instructions) {
       // NOTE(jordan): make sure every node has at least empty gens/kills
       result.gen  [instruction_ptr] = {};
       result.kill [instruction_ptr] = {};
       node const & instruction = *instruction_ptr;
       gen_kill::instruction(instruction, result);
     }
-    return;
+    return result;
   }
 }
 
 namespace analysis::L3::liveness {
-  void in_out (result & result) {
-    view::vec<node> const & instructions = result.instructions;
+  struct result {
+    variables::result const & variables_summary;
+    successor::result const successor;
+    gen_kill::result  const gen_kill;
+    std::map<node const *, view::set<variable>> in;
+    std::map<node const *, view::set<variable>> out;
+  };
+}
+
+namespace analysis::L3::liveness {
+  void in_out (view::vec<node> const & instructions, result & result) {
     bool fixed_state;
     do {
       fixed_state = true;
-      for (int index = instructions.size() - 1; index >= 0; index--) {
-        node const & instruction = *instructions.at(index);
-        auto const & gen         = result.gen.at(&instruction);
-        auto const & kill        = result.kill.at(&instruction);
-        auto const & successors  = result.successor.map.at(&instruction);
+      for (node const * p_instruction : instructions) {
+        auto const & gen        = result.gen_kill.gen.at(p_instruction);
+        auto const & kill       = result.gen_kill.kill.at(p_instruction);
+        auto const & successors = result.successor.map.at(p_instruction);
         // copy in and out sets
-        auto in  = result.in.at(&instruction);
-        auto out = result.out.at(&instruction);
+        auto in  = result.in.at(p_instruction);
+        auto out = result.out.at(p_instruction);
         // out_minus_kill = OUT[i] - KILL[i]
         view::set<variable> out_minus_kill = {};
         helper::set_difference(out, kill, out_minus_kill);
@@ -328,85 +416,73 @@ namespace analysis::L3::liveness {
           helper::set_union(in_s, out, out);
         }
 
-        auto const & in_original  = result.in.at(&instruction);
-        auto const & out_original = result.out.at(&instruction);
+        auto const & in_original  = result.in.at(p_instruction);
+        auto const & out_original = result.out.at(p_instruction);
         fixed_state = fixed_state
           && helper::set_equal(in_original, in)
           && helper::set_equal(out_original, out);
 
-        result.in.at(&instruction) = in;
-        result.out.at(&instruction) = out;
+        result.in.at(p_instruction) = in;
+        result.out.at(p_instruction) = out;
       }
     } while(!fixed_state);
   }
 
-  void compute (result & result) {
-    liveness::gen_kill::compute(result);
+  result compute (
+    view::vec<node> const & instructions,
+    variables::result const & variables_summary
+  ) {
+    liveness::result result = {
+      variables_summary,
+      successor::compute(instructions),
+      gen_kill::compute(instructions, variables_summary),
+    };
     // NOTE(jordan): make sure every instruction has at least empty in/out
-    for (node const * instruction_ptr : result.instructions) {
-      result.in[instruction_ptr] = {};
-      result.out[instruction_ptr] = {};
+    for (node const * instruction_ptr : instructions) {
+      result.in  [instruction_ptr] = {};
+      result.out [instruction_ptr] = {};
     }
-    liveness::in_out(result);
-    return;
-  }
-
-  result compute (node const & function) {
-    assert(function.is<grammar::L3::function::define>());
-    auto const instructions = helper::L3::collect_instructions(function);
-    // TODO(jordan): collecting variables is its own analysis
-    // Gather up all nodes containing variables
-    node const & parameters = *function.children.at(1);
-    assert(parameters.is<grammar::L3::operand::list::parameters>());
-    view::vec<node> nodes = instructions;
-    for (up_node const & parameter : parameters.children)
-      nodes.push_back(&*parameter);
-    // Collect defined variables
-    auto const variables = helper::L3::collect_variables(nodes);
-    std::cout << "variables\n\t";
-    for (auto const & variable : variables) {
-      std:: cout << variable << " ";
-    }
-    std::cout << "\n";
-    auto const successor = successor::compute(instructions);
-    result result = { instructions, variables, successor };
-    liveness::compute(result);
+    liveness::in_out(instructions, result);
     return result;
   }
 
-  void print (std::ostream & os, result const & result ) {
+  void print (
+    std::ostream & os,
+    view::vec<node> const & instructions,
+    result const & result
+  ) {
     std::cout << "variables\n\t";
-    for (auto const & variable : result.variables) {
+    for (auto const & variable : result.variables_summary.variables) {
       std:: cout << variable << " ";
     }
     std::cout << "\n";
     std::cout << "successors\n";
-    for (int i = 0; i < result.instructions.size(); i++) {
-      node const * instruction_ptr = result.instructions.at(i);
+    for (int i = 0; i < instructions.size(); i++) {
+      node const * instruction_ptr = instructions.at(i);
       auto const & successors = result.successor.map.at(instruction_ptr);
       std::cout << "\t[" << i << "] ";
       for (node const * successor : successors) {
-        auto const & it = helper::find(successor, result.instructions);
-        assert(it != std::end(result.instructions));
-        int successor_index = it - std::begin(result.instructions);
+        auto const & it = helper::find(successor, instructions);
+        assert(it != std::end(instructions));
+        int successor_index = it - std::begin(instructions);
         std::cout << successor_index << " ";
       }
       std::cout << "\n";
     }
     std::cout << "\n";
     std::cout << "gen\n";
-    for (int i = 0; i < result.instructions.size(); i++) {
-      node const * instruction_ptr = result.instructions.at(i);
-      view::set<variable> const & gens = result.gen.at(instruction_ptr);
+    for (int i = 0; i < instructions.size(); i++) {
+      node const * instruction_ptr = instructions.at(i);
+      auto const & gens = result.gen_kill.gen.at(instruction_ptr);
       std::cout << "\t[" << i << "] ";
       for (variable const * gen : gens) std::cout << *gen << " ";
       std::cout << "\n";
     }
     std::cout << "\n";
     std::cout << "kill\n";
-    for (int i = 0; i < result.instructions.size(); i++) {
-      node const * instruction_ptr = result.instructions.at(i);
-      view::set<variable> const & kills = result.kill.at(instruction_ptr);
+    for (int i = 0; i < instructions.size(); i++) {
+      node const * instruction_ptr = instructions.at(i);
+      auto const & kills = result.gen_kill.kill.at(instruction_ptr);
       std::cout << "\t[" << i << "] ";
       for (variable const * kill : kills)
         std::cout << *kill << " ";
@@ -414,8 +490,8 @@ namespace analysis::L3::liveness {
     }
     std::cout << "\n";
     std::cout << "in\n";
-    for (int i = 0; i < result.instructions.size(); i++) {
-      node const * instruction_ptr = result.instructions.at(i);
+    for (int i = 0; i < instructions.size(); i++) {
+      node const * instruction_ptr = instructions.at(i);
       view::set<variable> const & ins = result.in.at(instruction_ptr);
       std::cout << "\t[" << i << "] ";
       for (variable const * in : ins)
@@ -424,8 +500,8 @@ namespace analysis::L3::liveness {
     }
     std::cout << "\n";
     std::cout << "out\n";
-    for (int i = 0; i < result.instructions.size(); i++) {
-      node const * instruction_ptr = result.instructions.at(i);
+    for (int i = 0; i < instructions.size(); i++) {
+      node const * instruction_ptr = instructions.at(i);
       view::set<variable> const & outs = result.out.at(instruction_ptr);
       std::cout << "\t[" << i << "] ";
       for (variable const * out : outs)
@@ -433,6 +509,43 @@ namespace analysis::L3::liveness {
       std::cout << "\n";
     }
     std::cout << "\n";
-    view::vec<node> instructions = result.instructions;
+  }
+}
+
+namespace analysis::L3::function {
+  struct result {
+    view::vec<node>   const parameters;
+    view::vec<node>   const instructions;
+    variables::result const variables_summary;
+    labels::result    const labels_summary;
+    liveness::result  const liveness;
+  };
+}
+
+namespace analysis::L3::function {
+  view::vec<node> collect_parameters (node const & function) {
+    node const & parameters = *function.children.at(1);
+    view::vec<node> nodes = {};
+    for (up_node const & p : parameters.children) nodes.push_back(&*p);
+    return nodes;
+  }
+  result const summarize (node const & function) {
+    auto instructions   = helper::L3::collect_instructions(function);
+    auto parameters     = function::collect_parameters(function);
+    auto variable_nodes = parameters;
+    helper::vector::append(variable_nodes, instructions);
+    auto variables_summary = variables::summarize(variable_nodes);
+    std::cout << "variables\n\t";
+    for (auto variable : variables_summary.variables) {
+      std::cout << variable << " ";
+    }
+    std::cout << "\n";
+    return {
+      parameters,
+      instructions,
+      variables_summary,
+      labels::summarize(instructions),
+      liveness::compute(instructions, variables_summary),
+    };
   }
 }

@@ -52,8 +52,12 @@ namespace driver::L3 {
       auto const root = parse(opt, in);
       ast::node const & program = *root->children.at(0);
       ast::node const & function = *program.children.at(0);
-      auto liveness = analysis::liveness::compute(function);
-      analysis::liveness::print(std::cout, liveness);
+      auto const summary = analysis::function::summarize(function);
+      analysis::liveness::print(
+        std::cout,
+        summary.instructions,
+        summary.liveness
+      );
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {

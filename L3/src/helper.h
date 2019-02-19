@@ -45,7 +45,6 @@ namespace helper::L3 {
   using node     = ast::L3::node;
   using up_node  = std::unique_ptr<node>;
   using up_nodes = std::vector<up_node>;
-  using variable = std::string;
 
   int integer (node const & n) {
     return meta::integer<node, grammar::literal::number::integer::any>(n);
@@ -57,26 +56,6 @@ namespace helper::L3 {
 
   std::string strip_variable_prefix (std::string const & v) {
     return meta::match_substring<grammar::operand::variable, 1>(v);
-  }
-
-  /*
-   * FIXME(jordan): cannot be refactored with
-   * helper::L2::collect_variables because the L2 version walks a tree
-   * from a single start node to an arbitrary depth.
-   *
-   * Template on type of node pointer; then can refactor into one helper.
-   */
-  // NOTE(jordan): collects variables one level deep in tree
-  std::set<variable> collect_variables (view::vec<node> const & nodes) {
-    std::set<variable> variables = {};
-    for (node const * node : nodes) {
-      for (up_node const & child : node->children) {
-        if (child->is<grammar::operand::variable>()) {
-          variables.insert(child->content());
-        }
-      }
-    }
-    return variables;
   }
 
   /*
