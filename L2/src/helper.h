@@ -65,7 +65,7 @@ namespace helper::meta {
     return std::stoi(n.content());
   }
   template <typename Node>
-  Node const & unwrap_assert (Node const & parent) {
+  Node & unwrap_assert (Node const & parent) {
     assert(
       parent.children.size() == 1
       && "helper::unwrap_assert: not exactly 1 child in parent!"
