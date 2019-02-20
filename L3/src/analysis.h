@@ -540,6 +540,7 @@ namespace analysis::L3::function {
     view::vec<node>   const parameters;
     view::vec<node>   const instructions;
     variables::result const variables_summary;
+    std::string       const name;
   };
   namespace instructions {
     struct gather {
@@ -591,6 +592,8 @@ namespace analysis::L3::function {
     auto variables    = variables::summarize(
       collection::concat(instructions, parameters)
     );
+    node const & entry = *function.children.at(0);
+    node const & name  = helper::L3::unwrap_assert(entry);
     // NOTE(jordan): *move* everything; otherwise copies & corruption.
     return {
       std::move(liveness::compute(instructions, variables, successors)),
@@ -599,6 +602,7 @@ namespace analysis::L3::function {
       std::move(parameters),
       std::move(instructions),
       std::move(variables),
+      name.content(),
     };
   }
 }

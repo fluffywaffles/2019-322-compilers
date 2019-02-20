@@ -53,6 +53,7 @@ namespace driver::L3 {
       ast::node const & program = *root->children.at(0);
       ast::node const & function = *program.children.at(0);
       auto const summary = analysis::function::summarize(function);
+      std::cout << "function " << summary.name << "\n";
       analysis::liveness::print(
         std::cout,
         summary.instructions,
