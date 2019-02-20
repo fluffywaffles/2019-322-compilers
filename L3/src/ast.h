@@ -202,7 +202,7 @@ namespace ast::L3 {
       realized = true;
     }
 
-    std::unique_ptr<node> clone () const {
+    std::unique_ptr<node> clone (bool recursive = true) const {
       auto up_clone = std::unique_ptr<node>(new node);
       node & clone  = *up_clone;
       clone.id      = id;
@@ -210,9 +210,9 @@ namespace ast::L3 {
       clone.m_begin = m_begin;
       clone.m_end   = m_end;
       if (has_content()) clone.realize(source_type::other_node);
-      for (std::unique_ptr<node> const & child : children) {
-        clone.children.push_back(std::move(child->clone()));
-      }
+      if (recursive)
+        for (std::unique_ptr<node> const & child : children)
+          clone.children.push_back(std::move(child->clone()));
       return up_clone;
     }
 

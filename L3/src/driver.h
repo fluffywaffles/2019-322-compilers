@@ -104,12 +104,12 @@ namespace driver::L3 {
       ast::node const & context  = *contexts.children.at(0);
       ast::node const & instruction = *context.children.at(0);
       ast::node const & original_operand = *instruction.children.at(0);
-      helper::L3::up_node const up_operand = original_operand.clone();
+      helper::L3::up_node const up_operand = original_operand.clone(false);
       ast::node & operand = *up_operand;
       /* operand.realize(); */
       operand.transform<
         grammar::L3::operand::value,
-        grammar::L3::operand::variable
+        grammar::L2::operand::variable
       >("%one_two");
       std::cout
         << "is from: " << operand.source
