@@ -196,6 +196,7 @@ namespace ast::L2 {
      */
     void realize (source_type original_type = source_type::input) {
       assert(!realized && "node::realize: already realized!");
+      assert(has_content());
       // Save original type id (in case we transform<>() later)
       original_id = id;
       // Save our old source and its type
@@ -207,7 +208,7 @@ namespace ast::L2 {
       original_m_begin = m_begin;
       original_m_end   = m_end;
       // Copy current content into realized_content (take ownership)
-      realized_content = has_content() ? content() : "";
+      realized_content = content();
       // Update iterators
       reiterate();
       realized = true;
