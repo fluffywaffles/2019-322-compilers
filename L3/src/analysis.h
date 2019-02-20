@@ -78,6 +78,9 @@ namespace analysis::L3::labels {
   bool uses::compute (node const & n, result & result) {
     if (n.is<grammar::L3::operand::label>()) {
       std::string content = n.content();
+      // NOTE(jordan): we might use a label defined in an outer scope.
+      if (!collection::has(content, result.labels))
+        result.labels.insert(content);
       auto const * label = &*collection::find(content, result.labels);
       result.uses[label].insert(&n);
       return false; // NOTE(jordan): don't bother with our children.

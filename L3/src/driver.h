@@ -79,6 +79,17 @@ namespace driver::L3 {
           << "\n";
       }
       std::cout << "\n";
+      std::cout << "label uses\n";
+      for (auto const & use : summary.labels_summary.uses) {
+        auto const & uses = use.second;
+        std::cout
+          << "\t" << *use.first
+          << " used at ";
+        for (auto const & use_site : uses)
+          std::cout << use_site->begin() << " ";
+        std::cout << "\n";
+      }
+      std::cout << "\n";
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
