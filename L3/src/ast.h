@@ -149,11 +149,13 @@ namespace ast::L3 {
   enum class source_type {
       input,
       ephemeral,
+      other_node,
   };
   std::string const source_type_to_string (source_type const & type) {
     switch (type) {
-      case source_type::input     : return "<realized>";
-      case source_type::ephemeral : return "<ephemeral>";
+      case source_type::input      : return "<realized>";
+      case source_type::ephemeral  : return "<ephemeral>";
+      case source_type::other_node : return "<copied>";
     }
     std::cerr << "source_type (as int): " << (int)type << "\n";
     assert(false && "source_type_to_string: unrecognized source_type!");
@@ -198,6 +200,20 @@ namespace ast::L3 {
       // Update iterators
       reiterate();
       realized = true;
+    }
+
+    std::unique_ptr<node> clone () const {
+      auto up_clone = std::unique_ptr<node>(new node);
+      node & clone  = *up_clone;
+      clone.id      = id;
+      clone.source  = source;
+      clone.m_begin = m_begin;
+      clone.m_end   = m_end;
+      if (has_content()) clone.realize(source_type::other_node);
+      for (std::unique_ptr<node> const & child : children) {
+        clone.children.push_back(std::move(child->clone()));
+      }
+      return up_clone;
     }
 
     void reiterate () {

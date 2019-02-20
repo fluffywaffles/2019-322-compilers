@@ -97,12 +97,16 @@ namespace driver::L3 {
       peg::file_input<> in("tests/test2.L3");
       auto const root = parse(opt, in);
       ast::node const & program  = *root->children.at(0);
-      ast::node const & function = *program.children.at(0);
+      ast::node const & original_function = *program.children.at(0);
+      helper::L3::up_node const up_function = original_function.clone();
+      ast::node const & function = *up_function;
       ast::node const & contexts = *function.children.at(2);
       ast::node const & context  = *contexts.children.at(0);
       ast::node const & instruction = *context.children.at(0);
-      ast::node & operand = *instruction.children.at(0);
-      operand.realize();
+      ast::node const & original_operand = *instruction.children.at(0);
+      helper::L3::up_node const up_operand = original_operand.clone();
+      ast::node & operand = *up_operand;
+      /* operand.realize(); */
       operand.transform<
         grammar::L3::operand::value,
         grammar::L3::operand::variable
@@ -116,6 +120,11 @@ namespace driver::L3 {
         << "was from: " << operand.original_source
         << ", was: " << operand.original_name()
         << " " << operand.original_content()
+        << "\n";
+      std::cout
+        << "which itself was from: " << original_operand.original_source
+        << ", and was: " << original_operand.original_name()
+        << " " << original_operand.original_content()
         << "\n";
 
       std::unique_ptr<ast::node> label
