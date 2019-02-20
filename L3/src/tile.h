@@ -205,19 +205,19 @@ namespace tile::L3::ret {
 }
 
 namespace tile::registry {
-  template<> up_node generator<
-    tile::L3::ret::nothing
-  >::generate(view::vec<node> const & matched) {
+  template<>
+  up_node generator<tile::L3::ret::nothing>::generate (
+    view::vec<node> const & matched
+  ) {
     return ast::L3::construct::from_string<
       grammar::L2::function::instructions,
       ast::L2::filter::selector
-    >(
-      "return"
-    );
+    >("return");
   }
-  template<> up_node generator<
-    tile::L3::ret::value
-  >::generate(view::vec<node> const & matched) {
+  template<>
+  up_node generator<tile::L3::ret::value>::generate (
+    view::vec<node> const & matched
+  ) {
     node const & ret = *matched.at(0);
     node const & value = helper::L3::unwrap_assert(ret);
     return ast::L3::construct::from_strings<
