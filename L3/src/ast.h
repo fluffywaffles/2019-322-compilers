@@ -183,7 +183,7 @@ namespace ast::L3 {
      * the iterators *MAY* still be valid) the original match can be
      * obtained via original_content().
      */
-    void realize (enum source_type original_type = source_type::input) {
+    void realize (source_type original_type = source_type::input) {
       assert(!realized && "node::realize: already realized!");
       assert(has_content());
       // Save original type id (in case we transform<>() later)
