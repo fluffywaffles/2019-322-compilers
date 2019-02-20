@@ -46,6 +46,13 @@ namespace analysis::L3::variables {
     walk::compute<variables::gather>(nodes, summary);
     return summary;
   }
+  void print (result const & result) {
+    std::cout << "variables\n\t";
+    for (auto const & variable : result.variables) {
+      std::cout << variable << " ";
+    }
+    std::cout << "\n";
+  }
 }
 
 namespace analysis::L3::labels {
@@ -95,6 +102,43 @@ namespace analysis::L3::labels {
     walk::compute<labels::definitions>(nodes, summary);
     walk::compute<labels::uses>(nodes, summary);
     return summary;
+  }
+  void print (result const & result) {
+    std::cout << "labels\n\t";
+    for (auto const & label : result.labels) {
+      std::cout << label << " ";
+    }
+    std::cout << "\n";
+    std::cout << "label definitions\n";
+    for (auto const & def_entry : result.definitions) {
+      auto const & defs = def_entry.second;
+      assert(defs.size() == 1 && "function: label defined >1 time!");
+      node const * def  = *defs.begin();
+      node const & defined_label = helper::L3::unwrap_assert(*def);
+      std::cout
+        << "\t" << *def_entry.first
+        << " (as " << defined_label.content() << ") defined at"
+        << " " << (*defs.begin())->begin()
+        << "\n";
+    }
+    std::cout << "\n";
+    std::cout << "label uses\n";
+    for (auto const & use : result.uses) {
+      auto const & uses = use.second;
+      std::cout
+        << "\t" << *use.first << " used...";
+      for (auto const & use_site : uses) {
+        node const & label = *use_site;
+        std::cout
+          << "\n\t\tas " << label.content()
+          << " at "
+          << (use_site->realized
+                ? use_site->original_begin()
+                : use_site->begin());
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
   }
 }
 

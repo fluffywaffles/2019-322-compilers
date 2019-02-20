@@ -61,46 +61,8 @@ namespace driver::L3 {
       );
       // NOTE(jordan): watch out! sharp! This mutates the labels.
       transform::L3::globalize::apply(summary.name, summary.labels_summary);
-      std::cout << "variables\n\t";
-      for (auto const & variable : summary.variables_summary.variables) {
-        std::cout << variable << " ";
-      }
-      std::cout << "\n";
-      std::cout << "labels\n\t";
-      for (auto const & label : summary.labels_summary.labels) {
-        std::cout << label << " ";
-      }
-      std::cout << "\n";
-      std::cout << "label definitions\n";
-      for (auto const & def_entry : summary.labels_summary.definitions) {
-        auto const & defs = def_entry.second;
-        assert(defs.size() == 1 && "function: label defined >1 time!");
-        ast::node const * def  = *defs.begin();
-        ast::node const & defined_label = helper::L3::unwrap_assert(*def);
-        std::cout
-          << "\t" << *def_entry.first
-          << " (as " << defined_label.content() << ") defined at"
-          << " " << (*defs.begin())->begin()
-          << "\n";
-      }
-      std::cout << "\n";
-      std::cout << "label uses\n";
-      for (auto const & use : summary.labels_summary.uses) {
-        auto const & uses = use.second;
-        std::cout
-          << "\t" << *use.first << " used...";
-        for (auto const & use_site : uses) {
-          ast::node const & label = *use_site;
-          std::cout
-            << "\n\t\tas " << label.content()
-            << " at "
-            << (use_site->realized
-                  ? use_site->original_begin()
-                  : use_site->begin());
-        }
-        std::cout << "\n";
-      }
-      std::cout << "\n";
+      analysis::variables::print(summary.variables_summary);
+      analysis::labels::print(summary.labels_summary);
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
