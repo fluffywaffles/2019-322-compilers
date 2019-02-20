@@ -5,11 +5,10 @@
 
 namespace transform::L3::globalize {
   using node = ast::L3::node;
-  namespace analysis = analysis::L3;
   static bool const DBG = false;
   void apply (
     std::string const & suffix,
-    analysis::labels::result const & labels
+    analysis::L3::labels::result const & labels
   ) {
     int monotonic_index = 0;
     // NOTE(jordan): Globalize the names of all definitions.
@@ -28,7 +27,7 @@ namespace transform::L3::globalize {
     }
     // NOTE(jordan): Copy the new definition name to each use-site.
     for (auto & use_entry : labels.uses) {
-      analysis::label const * label = use_entry.first;
+      analysis::L3::label const * label = use_entry.first;
       if (!helper::collection::has(label, labels.definitions)) {
         if (DBG) {
           std::cout
