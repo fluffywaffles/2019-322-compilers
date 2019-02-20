@@ -1479,3 +1479,11 @@ namespace transform::L2::to_L1 {
   }
 }
 // }}}
+
+namespace transform::L2::spit {
+  using node = ast::L2::node;
+  void instructions (node const & n, std::ostream & os) {
+    int garbage = 0;
+    return spill::instructions(n, "", "", garbage, garbage, os);
+  }
+}
