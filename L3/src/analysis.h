@@ -589,15 +589,19 @@ namespace analysis::L3::function {
     auto instructions = function::collect_instructions(function);
     auto parameters   = function::collect_parameters(function);
     auto successors   = successor::compute(instructions);
+    auto labels       = labels::summarize(instructions);
     auto variables    = variables::summarize(
       collection::concat(instructions, parameters)
     );
+    auto liveness = liveness::compute(instructions, variables, successors);
     node const & entry = *function.children.at(0);
     node const & name  = helper::L3::unwrap_assert(entry);
     // NOTE(jordan): *move* everything; otherwise copies & corruption.
     return {
-      std::move(liveness::compute(instructions, variables, successors)),
-      std::move(labels::summarize(instructions)),
+      std::move(liveness),
+      // NOTE(jordan): DON'T DO THIS. Moving an rvalue copies its content!
+      /* std::move(labels::summarize(instructions)), */
+      std::move(labels),
       std::move(successors),
       std::move(parameters),
       std::move(instructions),
