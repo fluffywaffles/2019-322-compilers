@@ -549,7 +549,6 @@ namespace analysis::L3::liveness {
   }
 
   void print (
-    std::ostream & os,
     view::vec<node> const & instructions,
     result const & result
   ) {
