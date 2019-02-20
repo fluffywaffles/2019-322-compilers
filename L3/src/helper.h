@@ -82,12 +82,12 @@ namespace helper::L3 {
     view::vec<node> const & instructions
   ) {
     assert(label.is<grammar::operand::label>());
-    std::cout << "seeking " << label.content() << "\n";
+    /* std::cout << "seeking " << label.content() << "\n"; */
     for (node const * instruction : instructions) {
-      std::cout << instruction->name() << "\n";
+      /* std::cout << instruction->name() << "\n"; */
       if (instruction->is<grammar::instruction::define::label>()) {
         up_node const & defined_label = instruction->children.at(0);
-        std::cout << defined_label->name() << " " << defined_label->content() << "\n";
+        /* std::cout << defined_label->name() << " " << defined_label->content() << "\n"; */
         if (defined_label->content() == label.content()) {
           return *instruction;
         }
