@@ -159,26 +159,18 @@ namespace ast::L3::construct {
   template <
     typename Rule,
     template <typename...> class Selector = filter::selector
-  > std::unique_ptr<node> from_string (
-    std::string const & value,
-    bool const unwrap_root = true
-  ) {
+  > std::unique_ptr<node> from_string (std::string const & value) {
     peg::memory_input<> in(value, value);
     std::unique_ptr<node> root = parse<peg::must<Rule>, Selector>(in);
     realize_tree(root, source_type::ephemeral);
-    if (!unwrap_root) {
-      return root;
-    } else {
-      assert(root->children.size() == 1);
-      return std::move(root->children.at(0));
-    }
+    assert(root->children.size() == 1);
+    return std::move(root->children.at(0));
   }
   template <
     typename Rule,
     template <typename...> class Selector = filter::selector
   > std::unique_ptr<node> from_strings (
-    std::vector<std::string> const && strings,
-    bool const unwrap_root = true
+    std::vector<std::string> const && strings
   ) {
     std::stringstream concatenation;
     for (std::string const & string : strings)

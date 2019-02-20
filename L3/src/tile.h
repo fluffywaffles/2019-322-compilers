@@ -204,32 +204,6 @@ namespace tile::L3::ret {
     {};
 }
 
-namespace tile::registry {
-  template<>
-  up_node generator<tile::L3::ret::nothing>::generate (
-    view::vec<node> const & matched
-  ) {
-    return ast::L3::construct::from_string<
-      grammar::L2::function::instructions,
-      ast::L2::filter::selector
-    >("return");
-  }
-  template<>
-  up_node generator<tile::L3::ret::value>::generate (
-    view::vec<node> const & matched
-  ) {
-    node const & ret = *matched.at(0);
-    node const & value = helper::L3::unwrap_assert(ret);
-    return ast::L3::construct::from_strings<
-      grammar::L2::function::instructions,
-      ast::L2::filter::selector
-    >({
-      "rax <- ", value.content(), "\n",
-      "return",
-    });
-  }
-}
-
 namespace tile::L3::assign::address {
   /* store
    * ?
@@ -365,4 +339,30 @@ namespace tile::L3::call::intrinsic {
         L2::instruction::define::label
       >>
     {};
+}
+
+namespace tile::registry {
+  using namespace tile::L3;
+  template <typename Rule>
+  auto make_L2
+    = ast::L3::construct::from_strings<Rule, ast::L2::filter::selector>;
+  template<>
+  struct generator<ret::nothing> {
+    static up_node generate (view::vec<node> const & matched) {
+      return make_L2<grammar::L2::function::instructions>({
+        "return"
+      });
+    }
+  };
+  template<>
+  struct generator<ret::value> {
+    static up_node generate (view::vec<node> const & matched) {
+      node const & ret = *matched.at(0);
+      node const & value = helper::L3::unwrap_assert(ret);
+      return make_L2<grammar::L2::function::instructions>({
+        "rax <- ", value.content(), "\n",
+        "return",
+      });
+    }
+  };
 }
