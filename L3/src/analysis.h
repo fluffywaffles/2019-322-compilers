@@ -214,7 +214,7 @@ namespace analysis::L3::liveness::gen_kill {
 
 namespace analysis::L3::liveness::gen_kill {
   namespace generic {
-    static bool DBG = true;
+    static bool DBG = false;
     enum class GenKill { gen, kill };
     void genkill (
       GenKill which,

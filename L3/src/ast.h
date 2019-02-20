@@ -245,6 +245,12 @@ namespace ast::L3 {
       assert(realized);
       return peg::internal::demangle(original_id->name());
     }
+    peg::position original_begin () const {
+      return peg::position(original_m_begin, original_source);
+    }
+    peg::position original_end () const {
+      return peg::position(original_m_end, original_source);
+    }
 
     /**
      * EXPLANATION(jordan): once a node is realized, we can transform it

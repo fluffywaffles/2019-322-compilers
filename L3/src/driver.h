@@ -70,13 +70,15 @@ namespace driver::L3 {
       }
       std::cout << "\n";
       std::cout << "label definitions\n";
-      for (auto const & def : summary.labels_summary.definitions) {
-        auto const & defs = def.second;
+      for (auto const & def_entry : summary.labels_summary.definitions) {
+        auto const & defs = def_entry.second;
         assert(defs.size() == 1 && "function: label defined >1 time!");
+        ast::node const * def  = *defs.begin();
+        ast::node const & defined_label = helper::L3::unwrap_assert(*def);
         std::cout
-          << "\t" << *def.first
-          << " defined at "
-          << (*defs.begin())->begin()
+          << "\t" << *def_entry.first
+          << " (as " << defined_label.content() << ") defined at"
+          << " " << (*defs.begin())->begin()
           << "\n";
       }
       std::cout << "\n";
@@ -84,10 +86,16 @@ namespace driver::L3 {
       for (auto const & use : summary.labels_summary.uses) {
         auto const & uses = use.second;
         std::cout
-          << "\t" << *use.first
-          << " used at ";
-        for (auto const & use_site : uses)
-          std::cout << use_site->begin() << " ";
+          << "\t" << *use.first << " used...";
+        for (auto const & use_site : uses) {
+          ast::node const & label = *use_site;
+          std::cout
+            << "\n\t\tas " << label.content()
+            << " at "
+            << (use_site->realized
+                  ? use_site->original_begin()
+                  : use_site->begin());
+        }
         std::cout << "\n";
       }
       std::cout << "\n";
