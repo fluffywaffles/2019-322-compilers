@@ -42,14 +42,13 @@ namespace driver::L3 {
 
   template <typename Input>
   int execute (Options & opt, Input & in) {
+    auto const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) {
-      auto const root = parse(opt, in);
       std::cerr << "Error: Cannot generate L3 yet!\n";
       return -1;
     }
     if (Options::Mode::liveness == opt.mode) {
       namespace analysis = analysis::L3;
-      auto const root = parse(opt, in);
       ast::node const & program = *root->children.at(0);
       ast::node const & function = *program.children.at(0);
       auto const summary = analysis::function::summarize(function);
@@ -102,9 +101,7 @@ namespace driver::L3 {
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
-      assert(std::string(opt.input_name) == "tests/test3.L3");
-      peg::file_input<> in("tests/test2.L3");
-      auto const root = parse(opt, in);
+      assert(std::string(opt.input_name) == "tests/test2.L3");
       ast::node const & program  = *root->children.at(0);
       ast::node const & original_function = *program.children.at(0);
       helper::L3::up_node const up_function = original_function.clone();
