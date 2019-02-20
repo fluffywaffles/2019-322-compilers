@@ -82,17 +82,36 @@ namespace analysis::L3::labels {
       return true;
     }
   }
+  // FIXME(jordan): can be simpler if we handle function labels better.
   bool uses::compute (node const & n, result & result) {
-    if (n.is<grammar::L3::operand::label>()) {
+    namespace grammar     = grammar::L3;
+    namespace instruction = grammar::instruction;
+    if (n.is<grammar::operand::label>()) {
       std::string content = n.content();
-      // NOTE(jordan): we might use a label defined in an outer scope.
-      if (!collection::has(content, result.labels))
-        result.labels.insert(content);
+      // TODO(jordan): refactor this verification into its own analysis.
+      if (!collection::has(content, result.labels)) {
+        std::cerr << "label used but not defined! " << content << "\n";
+        assert(false && "labels::uses::compute: use before define!");
+      }
       auto const * label = &*collection::find(content, result.labels);
       result.uses[label].insert(&n);
       return false; // NOTE(jordan): don't bother with our children.
-    } else if (n.is<grammar::L3::instruction::define::label>()) {
+    } else if (n.is<instruction::assign::variable::gets_movable>()) {
+      node const & movable = *n.children.at(2);
+      if (!helper::matches<grammar::operand::label>(movable)) {
+        return false;
+      }
+      // NOTE(jordan): don't count a 'gets' of a function label as a use.
+      std::string const content = movable.content();
+      auto const * label = &*collection::find(content, result.labels);
+      return collection::has(label, result.definitions);
+    } else if (n.is<instruction::define::label>()) {
       return false; // NOTE(jordan): skip over defined labels.
+    } else if (false
+      || n.is<instruction::assign::variable::gets_call>()
+      || n.is<instruction::call>()
+    ) {
+      return false; // NOTE(jordan): don't count calls as uses.
     } else {
       return true;
     }
