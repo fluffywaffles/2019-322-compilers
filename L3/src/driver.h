@@ -10,6 +10,7 @@
 #include "analysis.h"
 #include "grammar.h"
 #include "ast.h"
+#include "transform.h"
 
 namespace driver::L3 {
   namespace peg = tao::pegtl;
@@ -58,6 +59,8 @@ namespace driver::L3 {
         summary.instructions,
         summary.liveness
       );
+      // NOTE(jordan): watch out! sharp! This mutates the labels.
+      transform::L3::globalize::apply(summary.name, summary.labels_summary);
       std::cout << "variables\n\t";
       for (auto const & variable : summary.variables_summary.variables) {
         std::cout << variable << " ";

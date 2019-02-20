@@ -48,6 +48,10 @@ namespace helper {
     ) {
       return find(item, colln) != std::end(colln);
     }
+    template <typename K, typename V>
+    bool has (K const & key, std::map<K, V> const & map) {
+      return map.find(key) != map.end();
+    }
   }
 }
 
