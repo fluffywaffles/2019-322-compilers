@@ -275,7 +275,7 @@ namespace ast::L3 {
       assert(value.size() > 0);
       assert(is<CurrentRule>());
       assert(helper::matches<CurrentRule>(value));
-      realized_content = std::move(value);
+      realized_content = value; // NOTE(jordan): copy new value
       reiterate();
     }
   };
