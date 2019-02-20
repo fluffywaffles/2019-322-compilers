@@ -149,3 +149,40 @@ namespace ast::L3::debug {
     >(in);
   }
 }
+
+namespace ast::L3::construct {
+  void realize_tree (std::unique_ptr<node> & start, source_type type) {
+    if (start->has_content()) start->realize(type);
+    for (std::unique_ptr<node> & child : start->children)
+      realize_tree(child, type);
+  }
+  template <
+    typename Rule,
+    template <typename...> class Selector = filter::selector
+  > std::unique_ptr<node> from_string (
+    std::string const & value,
+    bool const unwrap_root = true
+  ) {
+    peg::memory_input<> in(value, value);
+    std::unique_ptr<node> root = parse<peg::must<Rule>, Selector>(in);
+    realize_tree(root, source_type::ephemeral);
+    if (!unwrap_root) {
+      return root;
+    } else {
+      assert(root->children.size() == 1);
+      return std::move(root->children.at(0));
+    }
+  }
+  template <
+    typename Rule,
+    template <typename...> class Selector = filter::selector
+  > std::unique_ptr<node> from_strings (
+    std::vector<std::string> const && strings,
+    bool const unwrap_root = true
+  ) {
+    std::stringstream concatenation;
+    for (std::string const & string : strings)
+      concatenation << string;
+    return from_string<Rule, Selector>(concatenation.str());
+  }
+}

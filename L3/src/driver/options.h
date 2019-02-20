@@ -9,6 +9,7 @@ namespace driver::L3 {
       x86,
       liveness,
       test_node,
+      run_arbitrary_tests,
     } mode = Mode::x86;
     bool parsed_mode = false;
     bool print_trace = false;
@@ -52,7 +53,7 @@ namespace driver::L3 {
   Options Options::argv (int argc, char ** argv) {
     int c;
     Options opt;
-    while ((c = getopt(argc, argv, "tp@l:g:O:")) != -1)
+    while ((c = getopt(argc, argv, "tp@Ql:g:O:")) != -1)
       switch (c) {
       /*
        * ----------------------------------------------------------------
@@ -74,6 +75,10 @@ namespace driver::L3 {
         case '@':
           assert_single_mode(opt);
           opt.mode = Options::Mode::test_node;
+          break;
+        case 'Q':
+          assert_single_mode(opt);
+          opt.mode = Options::Mode::run_arbitrary_tests;
           break;
       /*
        * ----------------------------------------------------------------
