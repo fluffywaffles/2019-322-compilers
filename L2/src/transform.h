@@ -25,7 +25,7 @@ namespace helper::L2::transform::spill {
   bool spills (node const & operand, std::string const & target) {
     assert(operand.has_content() && "spills: operand has no content!");
     return true
-      && matches<grammar::identifier::variable>(operand)
+      && helper::matches<grammar::identifier::variable>(operand)
       && operand.content() == target;
   }
   std::string make (std::string const & prefix, int & spills) {
@@ -1083,7 +1083,7 @@ namespace helper::L2::transform::color {
     coloring const & coloring
   ) {
     assert(operand.has_content() && "replace_variable: no content!");
-    if (matches<grammar::identifier::variable>(operand)) {
+    if (helper::matches<grammar::identifier::variable>(operand)) {
       assert(coloring.mapping.find(operand.content()) != coloring.mapping.end());
       auto color = coloring.mapping.at(operand.content());
       return coloring.color_to_register.at(color);

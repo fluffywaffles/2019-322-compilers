@@ -13,19 +13,12 @@
 namespace helper {
   namespace peg = tao::pegtl;
   template <typename Rule>
-  bool matches (const std::string string) {
-    // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
-    using namespace peg;
-    memory_input<> string_input (string, "<call to matches>");
-    return normal<Rule>::template
-      match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
-      (string_input);
+  bool matches (std::string const string) {
+    return ast::matches<Rule>(string);
   }
   template <typename Rule, typename Node>
   bool matches (peg::parse_tree::basic_node<Node> const & n) {
-    assert(n.has_content() && "matches: must have content!");
-    const std::string & content = n.content();
-    return matches<Rule>(content);
+    return ast::matches<Rule>(n);
   }
   template <typename Colln>
   bool set_equal (Colln const & a, Colln const & b) {
@@ -59,7 +52,7 @@ namespace helper::meta {
   int integer (Node const & n) {
     assert(n.has_content() && "helper::integer: no content!");
     assert(
-      matches<Int>(n)
+      helper::matches<Int>(n)
       && "helper::integer: does not match literal::number::integer!"
     );
     return std::stoi(n.content());
@@ -75,7 +68,7 @@ namespace helper::meta {
   // FIXME(jordan): this is a little crufty.
   template <typename Rule, int offset>
   std::string match_substring (std::string const & s) {
-    if (matches<Rule>(s)) {
+    if (helper::matches<Rule>(s)) {
       return std::string(s.begin() + offset, s.end());
     } else {
       return s;
@@ -194,7 +187,7 @@ namespace helper::L2 {
       std::set<std::string> result;
       for (auto & index : all_register_indices) {
         std::string const reg = index_to_string(index);
-        if (!matches<grammar::register_set::unanalyzable>(reg))
+        if (!helper::matches<grammar::register_set::unanalyzable>(reg))
           result.insert(reg);
       }
       return result;

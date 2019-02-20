@@ -226,11 +226,11 @@ namespace helper::L2::liveness::gen_kill {
       }
       bool is_variable = v.is<grammar::operand::variable>();
       assert(
-        is_variable || matches<grammar::register_set::any>(v)
+        is_variable || helper::matches<grammar::register_set::any>(v)
         && "gen/kill: node is not register or variable!"
       );
       // NOTE(jordan): generalized handling of rsp being out of scope
-      if (matches<grammar::register_set::unanalyzable>(v)) {
+      if (helper::matches<grammar::register_set::unanalyzable>(v)) {
         if (DBG)
           std::cout
             << "gen/kill: ignoring unanalyzable register:"
@@ -371,7 +371,7 @@ namespace helper::L2::liveness::gen_kill::operand {
     using rule = grammar::operand::shift;
     static bool accept (node const & v) {
       using namespace grammar::operand;
-      return !matches<number>(v);
+      return !helper::matches<number>(v);
     }
   };
   // NOTE(jordan): "Variable-or-Value" operands
@@ -379,14 +379,14 @@ namespace helper::L2::liveness::gen_kill::operand {
     using rule = grammar::operand::movable;
     static bool accept (node const & v) {
       using namespace grammar::operand;
-      return !v.is<label>() && !matches<number>(v);
+      return !v.is<label>() && !helper::matches<number>(v);
     }
   };
   struct comparable : base<comparable>, may_wrap<comparable, memory> {
     using rule = grammar::operand::comparable;
     static bool accept (node const & v) {
       using namespace grammar::operand;
-      return !matches<number>(v);
+      return !helper::matches<number>(v);
     }
   };
   struct callable : base<callable>, may_wrap<callable, assignable> {
