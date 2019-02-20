@@ -12,7 +12,7 @@
 
 namespace tile {
   namespace view = helper::view;
-  using node     = ast::L3::node;
+  using node     = ast::node;
   using up_node  = helper::L3::up_node;
   using up_nodes = helper::L3::up_nodes;
   // TODO(jordan): calm.
@@ -344,8 +344,7 @@ namespace tile::L3::call::intrinsic {
 namespace tile::registry {
   using namespace tile::L3;
   template <typename Rule>
-  auto make_L2
-    = ast::L3::construct::from_strings<Rule, ast::L2::filter::selector>;
+  auto make_L2 = ast::L2::construct::from_strings<Rule>;
   template<>
   struct generator<ret::nothing> {
     static up_node generate (view::vec<node> const & matched) {

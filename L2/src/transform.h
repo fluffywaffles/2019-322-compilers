@@ -45,7 +45,7 @@ namespace helper::L2::transform::spill {
 
 namespace transform::L2::spill {
   namespace grammar = grammar::L2;
-  using node = ast::L2::node;
+  using node = ast::node;
 
   void instruction (
     node const & n,
@@ -1044,7 +1044,7 @@ namespace transform::L2::color {
   // REFACTOR(jordan): move this into analysis.h
   // FIXME(jordan): extremely tightly coupled with driver.
   void try_color_function (
-    ast::L2::node const & function,
+    ast::node const & function,
     int const index,
     std::map<int, std::string> & replacement_functions,
     std::map<int, analysis::L2::color::result> & colorings
@@ -1096,7 +1096,7 @@ namespace helper::L2::transform::color {
 
 namespace transform::L2::color::apply {
   namespace grammar = grammar::L2;
-  using node = ast::L2::node;
+  using node = ast::node;
   using coloring = analysis::L2::color::result;
   using namespace helper::L2::transform::color;
 
@@ -1392,7 +1392,7 @@ namespace transform::L2::color::apply {
 // FIXME(jordan): I can't look myself in the mirror any more after this.
 namespace transform::L2::to_L1 {
   namespace instruction = grammar::L2::instruction;
-  using node = ast::L2::node;
+  using node = ast::node;
   using gets_stack_arg = instruction::assign::assignable::gets_stack_arg;
 
   void stack_arg (
@@ -1481,7 +1481,7 @@ namespace transform::L2::to_L1 {
 // }}}
 
 namespace transform::L2::spit {
-  using node = ast::L2::node;
+  using node = ast::node;
   void instructions (node const & n, std::ostream & os) {
     int garbage = 0;
     return spill::instructions(n, "", "", garbage, garbage, os);

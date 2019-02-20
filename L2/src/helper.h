@@ -79,7 +79,7 @@ namespace helper::meta {
 // L2-specific helpers
 namespace helper::L2 {
   namespace grammar = grammar::L2;
-  using node = ast::L2::node;
+  using node = ast::node;
 
   using up_node  = std::unique_ptr<node>;
   using up_nodes = std::vector<up_node>;

@@ -17,7 +17,7 @@
 namespace driver::L3 {
   namespace peg = tao::pegtl;
 
-  using node     = ast::L3::node;
+  using node     = ast::node;
   using up_node  = helper::L3::up_node;
   using up_nodes = helper::L3::up_nodes;
   using program  = peg::must<grammar::L3::program>;

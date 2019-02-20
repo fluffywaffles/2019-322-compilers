@@ -4,7 +4,7 @@
 #include "analysis.h"
 
 namespace transform::L3::globalize {
-  using node = ast::L3::node;
+  using node = ast::node;
   void apply (
     std::string const & suffix,
     analysis::L3::labels::result const & labels

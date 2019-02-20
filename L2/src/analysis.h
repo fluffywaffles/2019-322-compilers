@@ -13,7 +13,7 @@
 #define HACK_ALWAYS_OUT_KILL true
 
 namespace analysis::L2 {
-  using node     = ast::L2::node;
+  using node     = ast::node;
   using up_node  = helper::L2::up_node;
   using up_nodes = helper::L2::up_nodes;
   using string = std::string;
