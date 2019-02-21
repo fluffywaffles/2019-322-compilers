@@ -707,13 +707,21 @@ namespace tile::registry {
   template<>
   struct generator<assign::variable::gets_arithmetic> {
     static up_node generate (view::vec<node> const & matched) {
-      node const & n = *matched.at(0);
-      node const & variable = *n.children.at(0);
-      node const & gets = *n.children.at(1);
+      node const & n          = *matched.at(0);
+      node const & variable   = *n.children.at(0);
+      node const & gets       = *n.children.at(1);
       node const & arithmetic = *n.children.at(2);
-      node const & lhs = *arithmetic.children.at(0);
-      node & op  = *arithmetic.children.at(1);
-      node const & rhs = *arithmetic.children.at(2);
+      node const & lhs        = *arithmetic.children.at(0);
+      node & op               = *arithmetic.children.at(1);
+      node const & rhs        = *arithmetic.children.at(2);
+      /* FIXME(jordan): We aren't handling the following case:
+       *   %var <- <value> <L3::aop> %var
+       * We generate:
+       *   %var <- <value>
+       *   %var <L2::aop> %var
+       * ... which blows away the current value of %var instead of
+       * updating it in-place.
+       */
       op.realize();
       if (op.is<grammar::L3::op::add>()) {
         op.transform<
