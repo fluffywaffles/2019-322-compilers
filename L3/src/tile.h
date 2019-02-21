@@ -153,7 +153,7 @@ namespace tile {
      * registered for the matched tile.
      */
     static const int generated_size = std::tuple_size<Expect>::value;
-    static const up_node generate (
+    static up_node generate (
       view::vec<node> const & matched,
       bool debug = false
     ) {
