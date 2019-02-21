@@ -85,7 +85,7 @@ namespace driver::L3 {
           if (i == 3) param_strings.push_back("rcx");
           if (i == 4) param_strings.push_back("r8");
           if (i == 5) param_strings.push_back("r9");
-          if (i > 5) param_strings.push_back("mem rsp -" + std::to_string(8 * (i - 4)));
+          if (i > 5) param_strings.push_back("stack-arg " + std::to_string(8 * (i - 6)));
         }
         // NOTE(jordan): Build a new function...
         int const num_params = params.children.size();

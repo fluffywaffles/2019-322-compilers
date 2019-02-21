@@ -634,7 +634,7 @@ namespace tile::registry {
       if (i == 3) argument_strings.push_back("rcx");
       if (i == 4) argument_strings.push_back("r8");
       if (i == 5) argument_strings.push_back("r9");
-      if (i > 5) argument_strings.push_back("mem rsp -" + std::to_string(8 * (i - 4)));
+      if (i > 5) argument_strings.push_back("mem rsp -" + std::to_string(8 * ((arguments.children.size() + 1) - i)));
       argument_strings.push_back(" <- ");
       argument_strings.push_back(argument.content());
       argument_strings.push_back("\n");
@@ -711,9 +711,9 @@ namespace tile::registry {
       node const & variable   = *n.children.at(0);
       node const & gets       = *n.children.at(1);
       node const & arithmetic = *n.children.at(2);
-      node const & lhs        = *arithmetic.children.at(0);
-      node & op               = *arithmetic.children.at(1);
-      node const & rhs        = *arithmetic.children.at(2);
+      node & lhs = *arithmetic.children.at(0);
+      node & op  = *arithmetic.children.at(1);
+      node & rhs = *arithmetic.children.at(2);
       /* FIXME(jordan): We aren't handling the following case:
        *   %var <- <value> <L3::aop> %var
        * We generate:
@@ -722,6 +722,12 @@ namespace tile::registry {
        * ... which blows away the current value of %var instead of
        * updating it in-place.
        */
+      if (rhs.content() == variable.content()) {
+        rhs.realize();
+        lhs.realize();
+        lhs.reset<grammar::L3::operand::value>(rhs.content());
+        rhs.reset<grammar::L3::operand::value>(lhs.original_content());
+      }
       op.realize();
       if (op.is<grammar::L3::op::add>()) {
         op.transform<
