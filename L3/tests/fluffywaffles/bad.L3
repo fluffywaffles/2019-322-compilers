@@ -1,7 +1,0 @@
-define :main () {
-  %check <- 3 <= 4
-  br %check :OK_check
-  :NOK_check // NOTE this cannot be here; it creates ambiguous L2
-  :OK_check
-    return
-}
