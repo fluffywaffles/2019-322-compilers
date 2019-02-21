@@ -298,10 +298,8 @@ namespace tile::L3::call::intrinsic {
         specializers::call::intrinsic<literal::print>
       >
     , tile::generates<print, std::tuple<
-        L2::instruction::assign::relative::gets_movable,
         L2::instruction::assign::assignable::gets_movable, // rdi <- <0>
-        L2::instruction::invoke::call::intrinsic::print,
-        L2::instruction::define::label
+        L2::instruction::invoke::call::intrinsic::print
       >>
     {};
   /* call allocate
@@ -320,11 +318,9 @@ namespace tile::L3::call::intrinsic {
         specializers::call::intrinsic<literal::allocate>
       >
     , tile::generates<allocate, std::tuple<
-        L2::instruction::assign::relative::gets_movable,
         L2::instruction::assign::assignable::gets_movable, // rdi <- <0>
         L2::instruction::assign::assignable::gets_movable, // rsi <- <1>
-        L2::instruction::invoke::call::intrinsic::allocate,
-        L2::instruction::define::label
+        L2::instruction::invoke::call::intrinsic::allocate
       >>
     {};
   /* call array_error
@@ -343,11 +339,9 @@ namespace tile::L3::call::intrinsic {
         specializers::call::intrinsic<literal::array_error>
       >
     , tile::generates<array_error, std::tuple<
-        L2::instruction::assign::relative::gets_movable,
         L2::instruction::assign::assignable::gets_movable, // rdi <- <0>
         L2::instruction::assign::assignable::gets_movable, // rsi <- <1>
-        L2::instruction::invoke::call::intrinsic::array_error,
-        L2::instruction::define::label
+        L2::instruction::invoke::call::intrinsic::array_error
       >>
     {};
 }
@@ -579,13 +573,9 @@ namespace tile::registry {
       node const & arguments = *call.children.at(1);
       assert(arguments.is<grammar::L3::operand::list::arguments>());
       node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
-      std::string suffix = label_generator::suffix();
-      auto return_label = ":return_print" + suffix;
       return make_L2<grammar::L2::instructions>({
-        "mem rsp -8 <- ", return_label, "\n",
         "rdi <- ", argument0.content(), "\n",
         "call print 1\n",
-        return_label, "\n",
       });
     }
   };
@@ -597,14 +587,10 @@ namespace tile::registry {
       assert(arguments.is<grammar::L3::operand::list::arguments>());
       node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
       node const & argument1 = helper::L3::unwrap_assert(*arguments.children.at(1));
-      std::string suffix = label_generator::suffix();
-      auto return_label = ":return_allocate" + suffix;
       return make_L2<grammar::L2::instructions>({
-        "mem rsp -8 <- ", return_label, "\n",
         "rdi <- ", argument0.content(), "\n",
         "rsi <- ", argument1.content(), "\n",
         "call allocate 2\n",
-        return_label, "\n",
       });
     }
   };
@@ -616,27 +602,22 @@ namespace tile::registry {
       assert(arguments.is<grammar::L3::operand::list::arguments>());
       node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
       node const & argument1 = helper::L3::unwrap_assert(*arguments.children.at(1));
-      std::string suffix = label_generator::suffix();
-      auto return_label
-        = ":return_array_error" + suffix;
       return make_L2<grammar::L2::instructions>({
-        "mem rsp -8 <- ", return_label, "\n",
         "rdi <- ", argument0.content(), "\n",
         "rsi <- ", argument1.content(), "\n",
         "call array-error 2\n",
-        return_label, "\n",
       });
     }
   };
 
   std::vector<std::string> generate_call_expression (const node & call) {
-    node const & callable      = *call.children.at(0);
+    node const & callable   = *call.children.at(0);
+    node const & arguments  = *call.children.at(1);
+    bool const is_intrinsic = !callable.is<grammar::L3::operand::callable>();
     node const & callable_name
-      = callable.is<grammar::L3::operand::callable>()
-      ? helper::L3::unwrap_assert(*callable.children.at(0))
-      : callable;
-    node const & arguments     = *call.children.at(1);
-    assert(arguments.is<grammar::L3::operand::list::arguments>());
+      = is_intrinsic
+      ? callable
+      : helper::L3::unwrap_assert(*callable.children.at(0));
     std::string suffix = label_generator::suffix();
     auto return_label
       = ":return_"
@@ -658,15 +639,20 @@ namespace tile::registry {
       argument_strings.push_back(argument.content());
       argument_strings.push_back("\n");
     }
-    std::vector<std::string> instructions = {
-      "mem rsp -8 <- ", return_label, "\n",
-    };
+    std::vector<std::string> instructions = {};
+    if (!is_intrinsic)
+      helper::collection::append(instructions, {
+        "mem rsp -8 <- ", return_label, "\n",
+      });
     helper::collection::append(instructions, argument_strings);
     helper::collection::append(instructions, {
       "call ", callable.content(),
       " ", std::to_string(arguments.children.size()), "\n",
-      return_label, "\n",
     });
+    if (!is_intrinsic)
+      helper::collection::append(instructions, {
+        return_label, "\n",
+      });
     return instructions;
   }
 
