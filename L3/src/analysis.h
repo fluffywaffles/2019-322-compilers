@@ -91,7 +91,8 @@ namespace analysis::L3::labels {
       // TODO(jordan): refactor this verification into its own analysis.
       if (!collection::has(content, result.labels)) {
         std::cerr << "label used but not defined! " << content << "\n";
-        assert(false && "labels::uses::compute: use before define!");
+        return false;
+        /* assert(false && "labels::uses::compute: use before define!"); */
       }
       auto const * label = &*collection::find(content, result.labels);
       result.uses[label].insert(&n);
@@ -193,6 +194,14 @@ namespace analysis::L3::successor {
       || n.is<instruction::define::label>()
     ) {
       // Successor is next sibling
+      if (!(siblings.size() > index + 1)) {
+        std::cerr
+          << "\n\nERR no sibling at "
+          << index
+          << " for " << n.name()
+          << " @ " << n.begin()
+          << "\n\n";
+      }
       assert(siblings.size() > index + 1);
       node const & next = *siblings.at(index + 1);
       return successor::set(n, next, result);

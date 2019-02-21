@@ -162,8 +162,7 @@ namespace ast::L3::construct {
     peg::memory_input<> in(value, value);
     std::unique_ptr<node> root = parse<peg::must<Rule>>(in);
     ast::construct::realize_tree(root, source_type::ephemeral);
-    assert(root->children.size() == 1);
-    return std::move(root->children.at(0));
+    return root;
   }
   using strings = std::vector<std::string>;
   template <typename Rule>
@@ -182,8 +181,7 @@ namespace ast::L2::construct {
     peg::memory_input<> in(value, value);
     std::unique_ptr<node> root = parse<peg::must<Rule>>(in);
     ast::construct::realize_tree(root, source_type::ephemeral);
-    assert(root->children.size() == 1);
-    return std::move(root->children.at(0));
+    return root;
   }
   using strings = std::vector<std::string>;
   template <typename Rule>

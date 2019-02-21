@@ -5,6 +5,15 @@
 
 namespace transform::L3::globalize {
   using node = ast::node;
+  std::string name (
+    std::string const name,
+    std::string const suffix,
+    int const index
+  ) {
+    std::stringstream stream;
+    stream << name << "_" << suffix << "_" << index;
+    return stream.str();
+  }
   void apply (
     std::string const & suffix,
     analysis::L3::labels::result const & labels
@@ -18,9 +27,7 @@ namespace transform::L3::globalize {
       node & label_node = helper::L3::unwrap_assert(*definition);
       node & name_node  = helper::L3::unwrap_assert(label_node);
       std::string const name  = name_node.content();
-      std::stringstream stream;
-      stream << name << "_" << suffix << "_" << monotonic_index++;
-      std::string const new_name = std::move(stream.str());
+      auto new_name = globalize::name(name, suffix, monotonic_index++);
       if (!label_node.realized) label_node.realize();
       label_node.reset<grammar::L3::operand::label>(":" + new_name);
       if (!name_node.realized) name_node.realize();

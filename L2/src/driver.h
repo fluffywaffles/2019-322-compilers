@@ -14,7 +14,6 @@
 
 namespace driver::L2 {
   namespace peg = tao::pegtl;
-  namespace ast = ast::L2;
   namespace transform = transform::L2;
 
   using program  = peg::must<grammar::L2::entry>;
@@ -24,12 +23,12 @@ namespace driver::L2 {
   template <typename Entry, typename Input>
   std::unique_ptr<ast::node> parse (Options & opt, Input & in) {
     if (opt.print_trace) {
-      ast::debug::trace<Entry>(in);
+      ast::L2::debug::trace<Entry>(in);
       std::cerr << "Parse trace written. Exiting.\n";
       exit(-1);
     }
-    auto root = ast::parse<Entry, ast::filter::selector>(in);
-    if (opt.print_ast) { ast::print_node(*root); }
+    auto root = ast::L2::parse<Entry, ast::L2::filter::selector>(in);
+    if (opt.print_ast) { ast::L2::print_node(*root); }
     return root;
   }
 

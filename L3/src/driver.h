@@ -50,44 +50,120 @@ namespace driver::L3 {
   int execute (Options & opt, Input & in) {
     auto const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) {
-      std::cerr << "Error: Cannot generate L3 yet!\n";
-      return -1;
+      node const & program  = *root->children.at(0);
+      std::vector<std::string> program_strings = {
+        "(:main\n\t"
+      };
+      for (up_node const & up_function : program.children) {
+        node const & function = *up_function;
+        auto const summary = analysis::L3::function::summarize(function);
+        transform::L3::globalize::apply(
+          summary.name,
+          summary.labels_summary
+        );
+        node const & name     = *function.children.at(0);
+        node const & params   = *function.children.at(1);
+        node const & contexts = *function.children.at(2);
+        up_nodes context_roots = {};
+        for (up_node const & up_context : contexts.children) {
+          node const & context = *up_context;
+          for (up_node & root : tile::apply(context.children)) {
+            context_roots.push_back(std::move(root));
+          }
+        }
+        assert(params.is<grammar::L3::operand::list::parameters>());
+        std::vector<std::string> param_strings;
+        for (int i = 0; i < params.children.size(); i++) {
+          node const & param
+            = helper::L3::unwrap_assert(*params.children.at(i));
+          param_strings.push_back("\n\t\t");
+          param_strings.push_back(param.content());
+          param_strings.push_back(" <- ");
+          if (i == 0) param_strings.push_back("rdi");
+          if (i == 1) param_strings.push_back("rsi");
+          if (i == 2) param_strings.push_back("rdx");
+          if (i == 3) param_strings.push_back("rcx");
+          if (i == 4) param_strings.push_back("r8");
+          if (i == 5) param_strings.push_back("r9");
+          if (i > 5) param_strings.push_back("mem rsp -" + std::to_string(8 * (i - 4)));
+        }
+        // NOTE(jordan): Build a new function...
+        int const num_params = params.children.size();
+        std::vector<std::string> function_strings = {
+          "\n\t(", name.content(),
+          "\n\t\t", std::to_string(num_params), " 0",
+        };
+        // NOTE(jordan): Add in parameter unpacking...
+        helper::collection::append(function_strings, param_strings);
+        // NOTE(jordan): Insert all of our tiled contexts...
+        std::stringstream ss;
+        for (up_node const & root : context_roots) {
+          for (up_node const & instruction : root->children) {
+            ss << "\n\t\t";
+            transform::L2::spit::instruction(*instruction, ss);
+          }
+        }
+        function_strings.push_back(ss.str());
+        // NOTE(jordan): Don't forget to close the function!
+        function_strings.push_back(")");
+        // NOTE(jordan): Append the the new program we're building...
+        helper::collection::append(program_strings, function_strings);
+        // NOTE(jordan): And construct that mutha
+        up_node new_function_root = ast::L2::construct::from_strings<
+          peg::must<grammar::L2::function::define>
+        >(std::move(function_strings));
+      }
+      program_strings.push_back(")");
+      up_node new_program_root
+        = ast::L2::construct::from_strings<grammar::L2::program::define>(
+          std::move(program_strings)
+        );
+      node const & new_program
+        = helper::L3::unwrap_assert(*new_program_root);
+      std::ofstream file_out;
+      file_out.open("prog.L2");
+      /* transform::L2::spit::program(new_program, std::cout); */
+      transform::L2::spit::program(new_program, file_out);
+      file_out.close();
+      return 0;
     }
     if (Options::Mode::liveness == opt.mode) {
       namespace analysis = analysis::L3;
       node const & program  = *root->children.at(0);
-      node const & function = *program.children.at(0);
-      auto const summary = analysis::function::summarize(function);
-      std::cout << "function " << summary.name << "\n";
+      for (up_node const & up_function : program.children) {
+        node const & function = *up_function;
+        auto const summary = analysis::function::summarize(function);
+        std::cout << "function " << summary.name << "\n";
 
-      helper::view::vec<node> last_instruction;
-      last_instruction.push_back(summary.instructions.back());
-      // NOTE(jordan): print matcher debug log (2nd argument = true)
-      namespace tile = tile::L3;
-      auto retnul = tile::ret::nothing::accept(last_instruction, true);
-      auto retval = tile::ret::value::accept(last_instruction, true);
-      std::cout
-        << "ret::nothing?"
-        << " " << retnul
-        << "\n";
-      std::cout
-        << "ret::value?"
-        << " " << retval
-        << "\n";
+        helper::view::vec<node> last_instruction;
+        last_instruction.push_back(summary.instructions.back());
+        // NOTE(jordan): print matcher debug log (2nd argument = true)
+        namespace tile = tile::L3;
+        auto retnul = tile::ret::nothing::accept(last_instruction, true);
+        auto retval = tile::ret::value::accept(last_instruction, true);
+        std::cout
+          << "ret::nothing?"
+          << " " << retnul
+          << "\n";
+        std::cout
+          << "ret::value?"
+          << " " << retval
+          << "\n";
 
-      if (retnul) {
-        up_node l2 = tile::ret::nothing::generate(last_instruction, true);
-        transform::L2::spit::instructions(*l2, std::cout);
-      } else if (retval) {
-        up_node l2 = tile::ret::value::generate(last_instruction, true);
-        transform::L2::spit::instructions(*l2, std::cout);
+        if (retnul) {
+          up_node l2 = tile::ret::nothing::generate(last_instruction, true);
+          transform::L2::spit::instructions(*l2, std::cout);
+        } else if (retval) {
+          up_node l2 = tile::ret::value::generate(last_instruction, true);
+          transform::L2::spit::instructions(*l2, std::cout);
+        }
+
+        analysis::liveness::print(summary.instructions, summary.liveness);
+        // NOTE(jordan): watch out! sharp! This mutates the labels.
+        transform::L3::globalize::apply(summary.name, summary.labels_summary);
+        analysis::variables::print(summary.variables_summary);
+        analysis::labels::print(summary.labels_summary);
       }
-
-      analysis::liveness::print(summary.instructions, summary.liveness);
-      // NOTE(jordan): watch out! sharp! This mutates the labels.
-      transform::L3::globalize::apply(summary.name, summary.labels_summary);
-      analysis::variables::print(summary.variables_summary);
-      analysis::labels::print(summary.labels_summary);
       return 0;
     }
     if (Options::Mode::test_node == opt.mode) {
@@ -123,10 +199,11 @@ namespace driver::L3 {
         << " " << original_operand.original_content()
         << "\n";
 
-      std::unique_ptr<node> label
+      std::unique_ptr<node> root
         = ast::L3::construct::from_string<grammar::L2::operand::label>(
           ":test"
         );
+      std::unique_ptr<node> const & label = root->children.at(0);
       std::cout
         << "is from: " << label->source
         << ", is: " << label->name()
@@ -152,10 +229,11 @@ namespace driver::L3 {
     }
     if (Options::Mode::run_arbitrary_tests == opt.mode) {
       namespace tile = tile::L3;
-      up_node const print_node
+      up_node const root
         = ast::L3::construct::from_string<grammar::L3::instruction::call>(
           "call print(5)" // prints 2
         );
+      up_node const & print_node = root->children.at(0);
       helper::view::vec<node> print_window;
       print_window.push_back(&*print_node);
       std::cout
@@ -170,6 +248,12 @@ namespace driver::L3 {
         << "call::intrinsic::print?"
         << "\t" << tile::call::intrinsic::print::accept(print_window, true)
         << "\n";
+      up_node const result = tile::call::intrinsic::print::generate(print_window);
+      for (up_node const & instruction : result->children) {
+        transform::L2::spit::instruction(*instruction, std::cout);
+        std::cout << "\n";
+      }
+      // TODO(jordan): add tests here!
       return 0;
     }
     assert(false && "execute: unreachable! Mode unrecognized.");
