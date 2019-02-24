@@ -897,6 +897,24 @@ namespace tile::L3::branchjoin {
 }
 
 namespace tile::registry {
+  template<>
+  struct generator<tile::L3::branchjoin::variable_unconditional> {
+    static up_node generate (view::vec<node> const & matched) {
+      node const & br_variable      = *matched.at(0);
+      node const & br_unconditional = *matched.at(1);
+      node const & variable   = *br_variable.children.at(0);
+      node const & then_label = *br_variable.children.at(1);
+      node const & els_label  = *br_unconditional.children.at(0);
+      return make_L2<grammar::L2::instructions>({
+        "cjump ", variable.content(), " = 1"
+        " ", then_label.content(),
+        " ", els_label.content(), "\n",
+      });
+    }
+  };
+}
+
+namespace tile::registry {
   using tiles = std::tuple<
     // NOTE(jordan): These tiles are all size 1
     tile::L3::ret::nothing,
@@ -928,7 +946,14 @@ namespace tile {
       view::vec<node> window = { &*instruction };
       if ((i + 1) < instructions.size()) {
         window.push_back(&*instructions.at(i + 1));
-        // TODO(jordan): try tiles with window size of 2
+        using tile = tile::L3::branchjoin::variable_unconditional;
+        if (tile::accept(window, debug)) {
+          up_node root = tile::generate(window, debug);
+          roots.push_back(std::move(root));
+          // skip the nest instruction and continue
+          i++;
+          continue;
+        }
         window.pop_back();
       }
       #define try_tile(I) {                                              \
