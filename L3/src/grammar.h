@@ -315,8 +315,6 @@ namespace grammar::L3 {
     struct body : peg::sor<
       // Instructions with a unique prefix
       instruction::assign::address::gets_movable,
-      instruction::ret::value,
-      instruction::ret::nothing,
       instruction::call,
       // "gets" instructions
       // ... with unique rhs prefix
@@ -336,7 +334,10 @@ namespace grammar::L3 {
     struct terminator : peg::sor<
       // branching instructions
       instruction::branch::variable,
-      instruction::branch::unconditional
+      instruction::branch::unconditional,
+      // return instructions
+      instruction::ret::value,
+      instruction::ret::nothing
     > {};
     // Landing/launch pads (folded entries / terminators)
     struct landing_pad : peg::plus<spaced<entry>> {};
