@@ -243,8 +243,8 @@ namespace grammar::L3 {
     }
     namespace branch {
       using branch = literal::instruction::branch;
-      template <typename label, typename var>
-        struct s : spaced<branch, var, label> {};
+      template <typename var, typename... label>
+        struct s : spaced<branch, var, label...> {};
     }
     namespace ret {
       // NOTE(jordan): can pass peg::nothing for value to get void return.
@@ -266,7 +266,7 @@ namespace grammar::L3 {
     namespace branch {
       using label = operand::label;
       template <typename condition>
-        struct on : meta::branch::s<label, condition> {};
+        struct on : meta::branch::s<condition, label> {};
     }
   }
 
