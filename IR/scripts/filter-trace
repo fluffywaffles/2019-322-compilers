@@ -1,0 +1,1 @@
+awk '/start\s|success/ && /program|function|instruction|basic_block/'

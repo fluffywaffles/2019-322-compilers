@@ -1,0 +1,10 @@
+for t in tests/*.IR; do
+  ./bin/IR $t &> /dev/null
+  if [ "$?" != "0" ]; then
+    printf "\nERR\n"
+    printf "$t\n"
+    break
+  else
+    printf "ok "
+  fi
+done
