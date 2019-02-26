@@ -93,7 +93,7 @@ namespace ast::IR::filter {
         operand::callable,
         operand::value,
         operand::typed,
-        operand::array_item,
+        operand::index,
         operand::array::accessor,
         operand::array::accessors,
         operand::movable
@@ -121,7 +121,7 @@ namespace ast::IR::filter {
         instruction::assign::variable::gets_call,
         instruction::assign::variable::gets_new,
         instruction::assign::variable::gets_length,
-        instruction::assign::variable::gets_array_item,
+        instruction::assign::variable::gets_index,
         instruction::assign::variable::gets_comparison,
         instruction::assign::variable::gets_arithmetic,
         instruction::assign::variable::gets_shift,

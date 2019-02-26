@@ -102,7 +102,7 @@ namespace grammar::IR {
       struct accessor   : util::bracketed<operand::value> {};
       struct accessors  : peg::plus<accessor> {};
     }
-    struct array_item : spaced<variable, array::accessors> {};
+    struct index : spaced<variable, array::accessors> {};
   }
 
   namespace operand::list {
@@ -222,21 +222,21 @@ namespace grammar::IR {
     namespace stmt = statement;
     namespace expr = expression;
     using variable = operand::variable;
-    struct gets_new        : stmt::gets<variable, expr::make::any>     {};
-    struct gets_call       : stmt::gets<variable, expr::call::any>     {};
-    struct gets_shift      : stmt::gets<variable, expr::shift>         {};
-    struct gets_length     : stmt::gets<variable, expr::length>        {};
-    struct gets_movable    : stmt::gets<variable, operand::movable>    {};
-    struct gets_arithmetic : stmt::gets<variable, expr::arithmetic>    {};
-    struct gets_comparison : stmt::gets<variable, expr::comparison>    {};
-    struct gets_array_item : stmt::gets<variable, operand::array_item> {};
+    struct gets_new        : stmt::gets<variable, expr::make::any>  {};
+    struct gets_call       : stmt::gets<variable, expr::call::any>  {};
+    struct gets_index      : stmt::gets<variable, operand::index>   {};
+    struct gets_shift      : stmt::gets<variable, expr::shift>      {};
+    struct gets_length     : stmt::gets<variable, expr::length>     {};
+    struct gets_movable    : stmt::gets<variable, operand::movable> {};
+    struct gets_arithmetic : stmt::gets<variable, expr::arithmetic> {};
+    struct gets_comparison : stmt::gets<variable, expr::comparison> {};
   }
 
   namespace instruction::assign::array {
     namespace stmt = statement;
     namespace expr = expression;
     using movable = operand::movable;
-    struct gets_movable : stmt::gets<operand::array_item, movable> {};
+    struct gets_movable : stmt::gets<operand::index, movable> {};
   }
 
   namespace instruction::ret {
@@ -264,7 +264,7 @@ namespace grammar::IR {
       instruction::assign::variable::gets_new,
       instruction::assign::variable::gets_call,
       instruction::assign::variable::gets_length,
-      instruction::assign::variable::gets_array_item,
+      instruction::assign::variable::gets_index,
       instruction::assign::variable::gets_shift,
       instruction::assign::variable::gets_comparison,
       instruction::assign::variable::gets_arithmetic,
