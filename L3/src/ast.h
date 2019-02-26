@@ -124,7 +124,7 @@ namespace ast::L3 {
     typename Entry,
     template <class...> class Selector = filter::selector,
     typename Input
-  > std::unique_ptr<node> parse (Input & in) {
+  > up_node parse (Input & in) {
     return peg::parse_tree::parse<Entry, node, Selector>(in);
   }
 }
@@ -151,22 +151,22 @@ namespace ast::L3::debug {
 namespace ast::construct {
   void realize_tree (std::unique_ptr<node> & start, source_type type) {
     if (start->has_content()) start->realize(type);
-    for (std::unique_ptr<node> & child : start->children)
+    for (up_node & child : start->children)
       realize_tree(child, type);
   }
 }
 
 namespace ast::L3::construct {
   template <typename Rule>
-  std::unique_ptr<node> from_string (std::string const & value) {
+  up_node from_string (std::string const & value) {
     peg::memory_input<> in(value, value);
-    std::unique_ptr<node> root = parse<peg::must<Rule>>(in);
+    up_node root = parse<peg::must<Rule>>(in);
     ast::construct::realize_tree(root, source_type::ephemeral);
     return root;
   }
   using strings = std::vector<std::string>;
   template <typename Rule>
-  std::unique_ptr<node> from_strings (strings const && strings) {
+  up_node from_strings (strings const && strings) {
     std::stringstream concatenation;
     for (std::string const & string : strings)
       concatenation << string;
@@ -177,15 +177,15 @@ namespace ast::L3::construct {
 // REFACTOR(jordan): figure out how to combine with the above L3 version
 namespace ast::L2::construct {
   template <typename Rule>
-  std::unique_ptr<node> from_string (std::string const & value) {
+  up_node from_string (std::string const & value) {
     peg::memory_input<> in(value, value);
-    std::unique_ptr<node> root = parse<peg::must<Rule>>(in);
+    up_node root = parse<peg::must<Rule>>(in);
     ast::construct::realize_tree(root, source_type::ephemeral);
     return root;
   }
   using strings = std::vector<std::string>;
   template <typename Rule>
-  std::unique_ptr<node> from_strings (strings const && strings) {
+  up_node from_strings (strings const && strings) {
     std::stringstream concatenation;
     for (std::string const & string : strings)
       concatenation << string;

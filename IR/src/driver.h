@@ -13,12 +13,12 @@ namespace driver::IR {
   namespace peg = tao::pegtl;
 
   using node     = ast::node;
-  /* using up_node  = helper::IR::up_node; */
-  /* using up_nodes = helper::IR::up_nodes; */
+  using up_node  = ast::up_node;
+  using up_nodes = ast::up_nodes;
   using program  = peg::must<grammar::IR::program>;
 
   template <typename Entry, typename Input>
-  std::unique_ptr<node> parse (Options & opt, Input & in) {
+  up_node parse (Options & opt, Input & in) {
     if (opt.print_trace) {
       ast::IR::debug::trace<Entry>(in);
       std::cerr << "Parse trace written. Exiting.\n";
@@ -30,7 +30,7 @@ namespace driver::IR {
   }
 
   template <typename Input>
-  std::unique_ptr<node> parse (Options & opt, Input & in) {
+  up_node parse (Options & opt, Input & in) {
     using Mode = Options::Mode;
     switch (opt.mode) {
       case Mode::x86       : return parse<program>(opt, in);

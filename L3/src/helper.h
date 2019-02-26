@@ -59,8 +59,8 @@ namespace helper::L3 {
   namespace grammar = grammar::L3;
 
   using node     = ast::node;
-  using up_node  = std::unique_ptr<node>;
-  using up_nodes = std::vector<up_node>;
+  using up_node  = ast::up_node;
+  using up_nodes = ast::up_nodes;
 
   int integer (node const & n) {
     return meta::integer<node, grammar::literal::number::integer::any>(n);

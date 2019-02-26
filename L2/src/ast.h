@@ -169,6 +169,8 @@ namespace ast {
       reiterate();
     }
   };
+  using up_node  = std::unique_ptr<node>;
+  using up_nodes = std::vector<up_node>;
 }
 
 namespace ast::L2::filter {
@@ -298,7 +300,7 @@ namespace ast::L2 {
     typename Entry,
     template <class...> class Selector = filter::selector,
     typename Input
-  > std::unique_ptr<node> parse (Input & in) {
+  > up_node parse (Input & in) {
     return peg::parse_tree::parse<Entry, node, Selector>(in);
   }
 
