@@ -8,6 +8,7 @@
 #include "driver/options.h"
 #include "grammar.h"
 #include "ast.h"
+#include "analysis.h"
 
 namespace driver::IR {
   namespace peg = tao::pegtl;
@@ -41,11 +42,19 @@ namespace driver::IR {
 
   template <typename Input>
   int execute (Options & opt, Input & in) {
-    auto const root = parse(opt, in);
+    up_node const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) {
       return 0;
     }
     if (Options::Mode::run_tests == opt.mode) {
+      node const & program = *root->children.at(0);
+      for (up_node const & function : program.children) {
+        std::cerr
+          << "\nfunction " << function->children.at(1)->content()
+          << "\n----------------------------------------\n\n";
+        auto vars = analysis::IR::variables::summarize({ &*function });
+        analysis::IR::variables::print(vars);
+      }
       return 0;
     }
     assert(false && "execute: unreachable! Mode unrecognized.");
