@@ -9,7 +9,6 @@
 
 namespace peg = tao::pegtl;
 
-
 namespace ast::IR::filter {
   using namespace grammar::IR;
   template <typename Rule>
@@ -23,6 +22,23 @@ namespace ast::IR::filter {
         literal::number::integer::any,
         literal::number::integer::positive,
         literal::number::integer::negative,
+        /* NOTE(jordan): keep around the contents of types so that we can
+         * tell what a variable is supposed to be.
+         */
+        literal::type::tuple_,
+        literal::type::scalar::code_,
+        literal::type::scalar::int64_,
+        literal::type::multiarray::int64_,
+        literal::type::function::void_,
+        /* NOTE(jordan): keep around the [] at the end of multiarray types
+         * so it's trivial to figure out dimensionality.
+         */
+        meta::literal::type::multiarray::suffix,
+        meta::literal::type::multiarray::dimensions,
+        /* NOTE(jordan): constructible object literals.
+         */
+        literal::object::array,
+        literal::object::tuple,
         /* NOTE(jordan): if we store both the labels/variables and their
          * name, we don't have to parse the name out later: the name
          * (without a prefix) is the label/variable child.
@@ -78,9 +94,19 @@ namespace ast::IR::filter {
         operand::value,
         operand::typed,
         operand::array_item,
+        operand::array::accessor,
+        operand::array::accessors,
         operand::movable
       >,
       peg::parse_tree::apply_remove_content::to<
+        /* NOTE(jordan): type wrapper nodes for identifying where/how a
+         * type is being used - is it a function type, or a variable type?
+         * Is it a scalar type, or a multiarray type, or a tuple type?
+         */
+        literal::type::variable::any,
+        literal::type::function::any,
+        literal::type::scalar::any,
+        literal::type::multiarray::any,
         /* NOTE(jordan): these nodes are just containers; they don't
          * have any content of their own. Keeping their content would be
          * purely redundant.

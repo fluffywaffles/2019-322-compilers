@@ -37,10 +37,11 @@ namespace grammar::IR {
   namespace literal { using namespace L3::literal; }
   namespace literal::identifier { using namespace L3::identifier; }
 
-  namespace meta::literal::type {
-    using suffix = spaced<util::bracketed<util::nothing>>;
+  namespace meta::literal::type::multiarray {
+    struct suffix : spaced<util::bracketed<util::nothing>> {};
+    struct dimensions : peg::plus<suffix> {};
     template <typename type>
-      struct multiarray : spaced<type, peg::plus<suffix>> {};
+      struct t : spaced<type, dimensions> {};
   }
 
   namespace literal::type::scalar {
@@ -54,7 +55,7 @@ namespace grammar::IR {
   }
 
   namespace literal::type::multiarray {
-    struct int64_ : meta::literal::type::multiarray<scalar::int64_> {};
+    struct int64_ : meta::literal::type::multiarray::t<scalar::int64_> {};
     struct any    : peg::sor<int64_> {};
   }
 
@@ -97,8 +98,11 @@ namespace grammar::IR {
   namespace operand {
     using namespace L3::operand;
     struct typed : literal::identifier::typed {};
-    using accessor = util::bracketed<operand::value>;
-    struct array_item : spaced<variable, peg::plus<accessor>> {};
+    namespace array {
+      struct accessor   : util::bracketed<operand::value> {};
+      struct accessors  : peg::plus<accessor> {};
+    }
+    struct array_item : spaced<variable, array::accessors> {};
   }
 
   namespace operand::list {
