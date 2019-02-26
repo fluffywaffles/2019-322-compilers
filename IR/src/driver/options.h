@@ -7,9 +7,7 @@ namespace driver::IR {
   struct Options {
     enum Mode {
       x86,
-      liveness,
-      test_node,
-      run_arbitrary_tests,
+      run_tests,
     } mode = Mode::x86;
     bool parsed_mode = false;
     bool print_trace = false;
@@ -53,7 +51,7 @@ namespace driver::IR {
   Options Options::argv (int argc, char ** argv) {
     int c;
     Options opt;
-    while ((c = getopt(argc, argv, "tp@Ql:g:O:")) != -1)
+    while ((c = getopt(argc, argv, "tpQg:O:")) != -1)
       switch (c) {
       /*
        * ----------------------------------------------------------------
@@ -66,19 +64,9 @@ namespace driver::IR {
             opt.mode = Options::Mode::x86;
           }
           break;
-        case 'l':
-          if (check_set()) {
-            assert_single_mode(opt);
-            opt.mode = Options::Mode::liveness;
-          }
-          break;
-        case '@':
-          assert_single_mode(opt);
-          opt.mode = Options::Mode::test_node;
-          break;
         case 'Q':
           assert_single_mode(opt);
-          opt.mode = Options::Mode::run_arbitrary_tests;
+          opt.mode = Options::Mode::run_tests;
           break;
       /*
        * ----------------------------------------------------------------

@@ -34,9 +34,7 @@ namespace driver::IR {
     using Mode = Options::Mode;
     switch (opt.mode) {
       case Mode::x86       : return parse<program>(opt, in);
-      case Mode::liveness  : return parse<program>(opt, in);
-      case Mode::test_node : return parse<program>(opt, in);
-      case Mode::run_arbitrary_tests : return parse<program>(opt, in);
+      case Mode::run_tests : return parse<program>(opt, in);
     }
     assert(false && "parse: unreachable! Mode unrecognized.");
   }
@@ -47,14 +45,7 @@ namespace driver::IR {
     if (Options::Mode::x86 == opt.mode) {
       return 0;
     }
-    if (Options::Mode::liveness == opt.mode) {
-      return 0;
-    }
-    if (Options::Mode::test_node == opt.mode) {
-
-      return 0;
-    }
-    if (Options::Mode::run_arbitrary_tests == opt.mode) {
+    if (Options::Mode::run_tests == opt.mode) {
       return 0;
     }
     assert(false && "execute: unreachable! Mode unrecognized.");
