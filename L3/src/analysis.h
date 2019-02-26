@@ -13,16 +13,6 @@ namespace analysis::L3 {
   using up_nodes = helper::L3::up_nodes;
 }
 
-namespace analysis::L3::walk {
-  template <typename Statistic, typename Collection, typename Result>
-  void compute (Collection const & nodes, Result & result) {
-    for (typename Collection::value_type const & node : nodes) {
-      bool walk_children = Statistic::compute(*node, result);
-      if (walk_children) compute<Statistic>(node->children, result);
-    }
-  }
-}
-
 namespace analysis::L3::variables {
   struct result {
     std::set<variable> variables;
@@ -43,7 +33,7 @@ namespace analysis::L3::variables {
   }
   result const summarize (view::vec<node> const & nodes) {
     result summary = {};
-    walk::compute<variables::gather>(nodes, summary);
+    ast::walk<variables::gather>(nodes, summary);
     return summary;
   }
   void print (result const & result) {
@@ -119,8 +109,8 @@ namespace analysis::L3::labels {
   }
   result const summarize (view::vec<node> const & nodes) {
     result summary = {};
-    walk::compute<labels::definitions>(nodes, summary);
-    walk::compute<labels::uses>(nodes, summary);
+    ast::walk<labels::definitions>(nodes, summary);
+    ast::walk<labels::uses>(nodes, summary);
     return summary;
   }
   void print (result const & result) {
@@ -644,10 +634,7 @@ namespace analysis::L3::function {
     // [0] label    [1] parameters   [2] contexts
     node const & contexts = *function.children.at(2);
     view::vec<node> instructions_view = {};
-    walk::compute<instructions::gather>(
-      contexts.children,
-      instructions_view
-    );
+    ast::walk<instructions::gather>(contexts.children, instructions_view);
     return instructions_view;
   }
   view::vec<node> collect_parameters (node const & function) {
@@ -665,8 +652,8 @@ namespace analysis::L3::function {
       collection::concat(instructions, parameters)
     );
     auto liveness = liveness::compute(instructions, variables, successors);
-    node const & entry = *function.children.at(0);
-    node const & name  = helper::L3::unwrap_assert(entry);
+    node const & label = *function.children.at(0);
+    node const & name  = helper::L3::unwrap_assert(label);
     // NOTE(jordan): *move* everything; otherwise copies & corruption.
     return {
       std::move(liveness),

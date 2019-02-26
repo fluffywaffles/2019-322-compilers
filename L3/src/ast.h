@@ -9,6 +9,16 @@
 
 namespace peg = tao::pegtl;
 
+namespace ast {
+  template <typename Statistic, typename Collection, typename Result>
+  void walk (Collection const & nodes, Result & result) {
+    for (typename Collection::value_type const & node : nodes) {
+      bool walk_children = Statistic::compute(*node, result);
+      if (walk_children) walk<Statistic>(node->children, result);
+    }
+  }
+}
+
 namespace ast::L3::filter {
   using namespace grammar::L3;
   template <typename Rule>
