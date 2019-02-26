@@ -133,6 +133,10 @@ namespace ast::IR::filter {
         instruction::ret::nothing,
         instruction::ret::value,
         instruction::call,
+        // Basic block groupings
+        instruction::basic_block::body,
+        instruction::basic_block::launch_pad,
+        instruction::basic_block::landing_pad,
         // Argument and variable lists are redundant with their contents
         operand::list::argument,
         operand::list::arguments,
