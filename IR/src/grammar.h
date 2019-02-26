@@ -142,7 +142,6 @@ namespace grammar::IR {
 
   namespace meta::expression {
     namespace call = L3::meta::expression::call;
-    namespace binop = L3::meta::expression::binop;
     namespace make {
       using new_ = IR::literal::instruction::new_;
       template <typename object, typename args>
