@@ -551,7 +551,8 @@ namespace tile::registry {
       node const & store   = *n.children.at(0);
       node const & stored  = helper::L3::unwrap_assert(store);
       node const & gets    = *n.children.at(1);
-      node const & movable = *n.children.at(2);
+      // NOTE(jordan): may contain a globalized label; must unwrap.
+      node const & movable = helper::L3::unwrap_assert(*n.children.at(2));
       return make_L2<grammar::L2::instructions>({
         "mem ", stored.content(), " 0",
         " ", gets.content(), " ", movable.content(), "\n"
@@ -875,7 +876,8 @@ namespace tile::registry {
       node const & n = *matched.at(0);
       node const & variable = *n.children.at(0);
       node const & gets     = *n.children.at(1);
-      node const & movable  = *n.children.at(2);
+      // NOTE(jordan): may contain a globalized label; must unwrap.
+      node const & movable  = helper::L3::unwrap_assert(*n.children.at(2));
       return make_L2<grammar::L2::instructions>({
         variable.content(),
         " ", gets.content(),
