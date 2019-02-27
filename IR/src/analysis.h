@@ -72,6 +72,17 @@ namespace analysis::IR::variables {
   }
   void definitions::helper::handle (node const & n, result & result) {
     auto const content = n.content();
+    if (!collection::has(content, result.variables)) {
+      std::cerr
+        << "\nWARN: definition of undeclared variable"
+        << " " << content << "\n";
+      auto const insertion = result.variables.insert(content);
+      variable const * variable = &*insertion.first;
+      result.uses[variable] = {};
+      result.definitions[variable] = {};
+      result.definitions.at(variable).insert(&n);
+      return;
+    }
     auto const * variable = &*collection::find(content, result.variables);
     result.definitions.at(variable).insert(&n);
   }
@@ -116,10 +127,14 @@ namespace analysis::IR::variables {
   }
   void print (variables::result const & result) {
     for (variable const & v : result.variables) {
-      std::cerr
-        << "variable " << v << " (" << &v << ")"
-        << "\n\tdeclared"
-        << "\n\t\t" << result.declarations.at(&v)->begin();
+      std::cerr << "variable " << v << " (" << &v << ")";
+      if (!collection::has(&v, result.declarations)) {
+        std::cerr << "\n\tWARN: variable is never declared.";
+      } else {
+        std::cerr
+          << "\n\tdeclared"
+          << "\n\t\t" << result.declarations.at(&v)->begin();
+      }
       std::cerr
         << "\n\tdefined";
       for (auto const & def : result.definitions.at(&v))
