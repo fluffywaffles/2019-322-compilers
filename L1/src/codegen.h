@@ -63,9 +63,10 @@ namespace codegen::L1::generate {
 
   namespace helper {
     char constant_prefix = '$';
-    void constant  (const node & n, std::ostream & os) {
+    void constant (const node & n, std::ostream & os) {
       assert(n.has_content() && "helper::constant: no content!");
-      os << constant_prefix << n.content();
+      int value = std::stoi(n.content());
+      os << constant_prefix << value;
     }
   }
 
