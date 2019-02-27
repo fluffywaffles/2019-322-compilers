@@ -1,0 +1,395 @@
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :main () {
+// You know it - recursion time! Trampolines! Yeah!
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  //
+  // Allocate the world
+  //
+  // heap size  : 1048576 (1024 * 1024 bytes = 1MB)
+  // int64_ts   : 131072 (1MB / 8 bytes = 131,072 int64_t s)
+  // # to alloc : 131072 (encoded: * 2 + 1 = 262145)
+  //
+  // Let's allocate HEAP_MAX 0s and make sure we don't blow the stack
+  // doing a recursive print.
+  //
+
+  :entry
+
+  // declare the types of our locals
+  int64[] %array
+  int64   %size
+  int64   %size_encoded
+  int64   %end
+  int64   %end_encoded
+  int64   %arbitrary
+  int64   %arbitrary_encoded
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+
+  // 1048574 instead of 1048576 (because... ?)
+  // then subtract 8ish to allow for intermediary allocations
+  //%size <- 1048566
+  // Using more of the heap than this puts too much pressure on the GC,
+  // and you get HUUGE slowdowns. This is fairly reasonable, however.
+  %size <- 1048000
+  %size_encoded <- call :encode (%size)
+  %array <- new Array(%size_encoded) // [ 0 x 131,072 ]
+  %end <- %size - 1
+  // Test that end, size, and array size are all as expected...
+  %end_encoded <- call :encode (%end)
+  %arr_size <- call :array_size(%array)
+  %arr_size_encoded <- call :encode(%arr_size)
+  call print (%size_encoded)
+  call print (%end_encoded)
+  call print (%arr_size_encoded)
+  // Fill the array
+  call :array_fill_through (%array, %end)
+  //
+  // Blow the stack
+  //
+  // call :print_array_range (%array, 0, 131072)
+
+  //
+  // Be bouncy & clever
+  //
+  call :print_array (%array)
+
+  // Add some instructions for padding.
+  %arbitrary <- 8 << 10
+  %arbitrary <- %arbitrary * -1
+  %arbitrary <- call :complexify(%arbitrary)
+  %arbitrary_encoded <- call :encode(%arbitrary)
+  call print(%arbitrary_encoded)
+  // This is just -8. Whoa.
+  // Make sure we don't negate big positive numbers!
+  %arbitrary <- 7 << 52
+  %arbitrary <- call :complexify(%arbitrary)
+  %arbitrary <- %arbitrary >> 42
+  %arbitrary_encoded <- call :encode(%arbitrary)
+  call print(%arbitrary_encoded)
+  // Hey we lost the top couple bits. Whoa again.
+
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :print_array (int64[] %array) {
+// Recursively & inefficiently print the whole of an array
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %size
+  int64 %end
+  code  %print_array_range
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %size <- call :array_size (%array)
+  %end  <- %size - 1
+  %print_array_range <- :print_array_range
+  call :trampoline_3 (%array, 0, %end, %print_array_range)
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define code :print_array_range (
+  int64[] %array,
+  int64 %index,
+  int64 %end
+) {
+// Recursively print a range of values from an array
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64   %index_lt_end
+  int64   %array_i
+  int64[] %result
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %index_lt_end <- %index < %end
+  br %index_lt_end :OK_index_lt_end :NOK_index_lt_end
+  :NOK_index_lt_end
+    %result <- new Array(4)
+    %result[0] <- :stop_recurring
+    %result[1] <- %array
+    %result[2] <- %index
+    %result[3] <- %end
+    return %result
+  :OK_index_lt_end
+  %array_i_ptr <- call :checked_array_pointer_to(%array, %index)
+  %ptr_encoded <- call :encode(%array_i_ptr)
+  %array_i <- %array[%index]
+  call print (%ptr_encoded)
+  call print (%array_i)
+  // Try to recur... NOTE: this SHOULD blow the stack! (Probably.)
+  %index <- %index + 1
+  // call :print_array_range(%array, %index, %end)
+  // return
+  // Trampoline version:
+  %result <- new Array(4)
+  %result[0] <- :print_array_range
+  %result[1] <- %array
+  %result[2] <- %index
+  %result[3] <- %end
+  return %result
+  :stop_recurring
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :trampoline_3 (
+  int64[] %arg1,
+  int64 %arg2,
+  int64 %arg3,
+  code %function
+) {
+// Make the stack bouncy
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64[] %bounce
+  code    %next
+  int64[] %arg1_next
+  int64   %arg2_next
+  int64   %arg3_next
+  int64   %returns_self
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %next      <- %function
+  %arg1_next <- %arg1
+  %arg2_next <- %arg2
+  %arg3_next <- %arg3
+  br :trampoline_jump
+  :trampoline_jump
+  %bounce <- call %next (%arg1_next, %arg2_next, %arg3_next)
+  %next      <- %bounce[0]
+  %arg1_next <- %bounce[1]
+  %arg2_next <- %bounce[2]
+  %arg3_next <- %bounce[3]
+  %returns_self <- %next = %function
+  br %returns_self :trampoline_jump :exit
+  :exit
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define int64 :checked_array_pointer_to (int64[] %array, int64 %index) {
+// Safely(!) get the address of an element of an array.
+// NOTE: Efficiency is traded for safety for no particular reason here.
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %size
+  int64 %end
+  int64 %in_bounds
+  int64 %index_encoded
+  int64 %offset
+  int64 %array_i_ptr
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %index <- %index + 1 // Indices start at 1! Programmers count from 0!
+  %size <- call :array_size(%array)
+  %end  <- %size - 1
+  // Perform bounds check.
+  %in_bounds <- %index <= %end
+  br %in_bounds :OK_in_bounds :NOK_in_bounds
+  :NOK_in_bounds
+    %index_encoded <- call :encode(%index)
+    call array-error (%array, %index_encoded) // do not pass go; etc.
+    return
+  :OK_in_bounds
+    %offset <- %index << 3
+    %array_i_ptr <- %array + %offset
+  return %array_i_ptr
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :array_fill_through (int64[] %array, int64 %limit) {
+// Fill an array with values from 1 through (including) %limit
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %i
+  int64 %i_value
+  int64 %continue
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %i <- 0
+  br :initialize_array
+  :initialize_array
+  // array[i] = i
+  %i_value <- %i + 1
+  %i_value <- call :encode (%i_value)
+  %array[%i] <- %i_value
+  // Increment %i
+  %i <- %i + 1
+  // Loop until we reach the end of the array
+  %continue <- %i <= %limit
+  br %continue :initialize_array :exit
+  :exit
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :array_swap (int64[] %array, int64 %i, int64 %j) {
+// Swap 2 elements of an array.
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %i_value
+  int64 %j_value
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  // get &a[i], &a[j]
+  %i_value <- %array[%i]
+  %j_value <- %array[%j]
+  // swap a[i] ↔ a[j]
+  %array[%i] <- %j_value
+  %array[%j] <- %i_value
+  return
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define int64 :array_size (int64[] %array) {
+// Get the size of an array
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %size
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %size <- length %array 0 // get array size (apparently... encoded)
+  %size <- call :decode (%size)
+  return %size
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define int64 :encode (int64 %value) {
+// Encode a number in order to pass it into a runtime call.
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %result
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %result <- %value << 1
+  %result <- %result + 1
+  return %result
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define int64 :decode (int64 %value) {
+// Decode a number because numbers aren't always odd.
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %result
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  %result <- %value >> 1
+  return %result
+}
+
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+define void :complexify (int64 %value) {
+// Perform some arbitrary computations for ~50 instructions of padding...
+//-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  :entry
+  // declare the types of our locals
+  int64 %mask
+  int64 %bottom
+  int64 %topbit
+  int64 %negativity
+  int64 %negative
+  //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+  // save the negativity for later
+  %topbit     <- 1 << 63
+  %negativity <- %value & %topbit
+  // slosh off the top 10 bits of a number very inefficiently
+  %value <- %value << 1
+  %value <- %value >> 1
+  %value <- %value << 2
+  %value <- %value >> 2
+  %value <- %value << 3
+  %value <- %value >> 3
+  %value <- %value << 4
+  %value <- %value >> 4
+  %value <- %value << 5
+  %value <- %value >> 5
+  %value <- %value << 6
+  %value <- %value >> 6
+  %value <- %value << 7
+  %value <- %value >> 7
+  %value <- %value << 8
+  %value <- %value >> 8
+  %value <- %value << 9
+  %value <- %value >> 9
+  %value <- %value << 10
+  %value <- %value >> 10
+  // if our number was not negative, mask off the top 10 bits
+  %negative <- %negativity < 0
+  br %negative :leave_alone :keep_non_negative
+  :keep_non_negative
+  %mask  <- 1 << 54
+  %mask  <- %mask - 1
+  %value <- %value & %mask
+  br :leave_alone
+  :leave_alone
+  // slosh off the bottom 10 bits as well
+  %value <- %value >> 1
+  %value <- %value << 1
+  %value <- %value >> 2
+  %value <- %value << 2
+  %value <- %value >> 3
+  %value <- %value << 3
+  %value <- %value >> 4
+  %value <- %value << 4
+  %value <- %value >> 5
+  %value <- %value << 5
+  %value <- %value >> 6
+  %value <- %value << 6
+  %value <- %value >> 7
+  %value <- %value << 7
+  %value <- %value >> 8
+  %value <- %value << 8
+  %value <- %value >> 9
+  %value <- %value << 9
+  %value <- %value >> 10
+  %value <- %value << 10
+  // move the remaining number into normal position
+  %value <- %value >> 10
+  // do some no-ops (obfuscate!)
+  %value <- %value & -1
+  %value <- %value & %value
+  %value <- -1 & %value
+  %bottom <- %value & 1
+  %value <- %value >> 1
+  %value <- %value << 1
+  %value <- %value + %bottom
+  br :here
+  :here
+  br :are
+  :are
+  br :some
+  :some
+  br :labels
+  :labels
+  br :arent
+  :arent
+  br :they
+  :they
+  br :nice
+  :nice
+  br :i_sure
+  :i_sure
+  br :think_that
+  :think_that
+  br :these_labels
+  :these_labels
+  br :are_nice
+  :are_nice
+  br :dont_you
+  :dont_you
+  br :sure_you_do
+  :sure_you_do
+  br :were_similar
+  :were_similar
+  br :you_and_i
+  :you_and_i
+  br :we_have
+  :we_have
+  br :the_same_taste
+  :the_same_taste
+  br :in_labels
+  :in_labels
+  return %value
+}
