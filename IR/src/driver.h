@@ -50,8 +50,8 @@ namespace driver::IR {
       node const & program = *root->children.at(0);
       for (up_node const & function : program.children) {
         std::cerr
-          << "\nfunction " << function->children.at(1)->content()
-          << "\n----------------------------------------\n\n";
+          << "function " << function->children.at(1)->content()
+          << "\n----------------------------------------\n";
         auto vars = analysis::IR::variables::summarize({ &*function });
         analysis::IR::variables::print(vars);
       }
