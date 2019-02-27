@@ -2,15 +2,16 @@
 
 #include "grammar.h"
 #include "helper.h"
+#include "ast.h"
 
 namespace analysis::L3 {
   namespace view = helper::view;
   namespace collection = helper::collection;
   using label    = std::string;
   using variable = std::string;
-  using node     = helper::L3::node;
-  using up_node  = helper::L3::up_node;
-  using up_nodes = helper::L3::up_nodes;
+  using node     = ast::node;
+  using up_node  = ast::up_node;
+  using up_nodes = ast::up_nodes;
 }
 
 namespace analysis::L3::variables {
