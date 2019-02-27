@@ -11,15 +11,7 @@ define :main () {
   // # to alloc : 131072 (encoded: * 2 + 1 = 262145)
   //
   // Let's allocate HEAP_MAX 0s and make sure we don't blow the stack
-  // doing a recursive insertion-sort. (Which is a no-op, but it doesn't
-  // know that.)
-  //
-  // NOTE: the heap apparently is much bigger than this. Empirical
-  // testing suggests it's somewhere between 1025000 and 1050000
-  // array-cells (which... should be 8 bytes, right?) large. That
-  // seems... Like unless I'm calculating something very wrong, the
-  // stack is in fact much, much larger than 1MB using the provided
-  // runtime.o, in contrast to the 1MB limit in our runtime.c.
+  // doing a recursive print.
   //
   %size  <- call :encode (1048574) // so... 2 fewer than the max I thought
   %value <- call :encode (0)
@@ -78,7 +70,6 @@ define :checked_array_pointer_to (%array, %index) {
 //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 define :array_swap (%array, %i, %j) {
 // Swap 2 elements of an array.
-// NOTE: Uses (very) unnecessary amounts of stack space.
 //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
   // get &a[i], &a[j]
   %array_i_ptr <- call :checked_array_pointer_to(%array, %i)
