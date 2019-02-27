@@ -1,0 +1,3 @@
+for t in tests/*.IR; do
+  ./bin/IR -Q $t
+done
