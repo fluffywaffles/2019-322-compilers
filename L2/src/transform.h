@@ -309,6 +309,8 @@ namespace transform::L2::spill {
         // %SN SOP= sx
         // %SN <- mem rsp OFF
         std::string spilled = helper::spill::make(prefix, spills);
+        os << helper::spill::load(spilled, offset);
+        os << "\n\t";
         // %SN SOP= sx
         os << spilled << " " << op.content() << " " << src.content();
         os << "\n\t";
