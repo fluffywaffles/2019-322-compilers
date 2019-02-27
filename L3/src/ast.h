@@ -7,7 +7,9 @@
 #include "L2/ast.h"
 #include "grammar.h"
 
-namespace peg = tao::pegtl;
+namespace ast {
+  namespace peg = tao::pegtl;
+}
 
 namespace ast {
   template <typename Statistic, typename Collection, typename Result>

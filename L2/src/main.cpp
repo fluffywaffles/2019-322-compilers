@@ -7,6 +7,7 @@
 #include "driver.h"
 
 int main (int argc, char ** argv) {
+  namespace peg = tao::pegtl;
   namespace driver = driver::L2;
   using Options = driver::Options;
   // TODO(jordan): Print some kind of help output.

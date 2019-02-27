@@ -15,9 +15,8 @@
  * instructions by reemitting them without modification in a single case.
  */
 
-namespace peg = tao::pegtl;
-
 namespace ast {
+  namespace peg = tao::pegtl;
   template <typename Rule>
   bool matches (std::string const string) {
     // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>

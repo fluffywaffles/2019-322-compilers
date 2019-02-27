@@ -7,7 +7,9 @@
 #include "L3/ast.h"
 #include "grammar.h"
 
-namespace peg = tao::pegtl;
+namespace ast {
+  namespace peg = tao::pegtl;
+}
 
 namespace ast::IR::filter {
   using namespace grammar::IR;

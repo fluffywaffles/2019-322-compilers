@@ -16,6 +16,7 @@ namespace grammar::L2 {
 }
 
 namespace tile {
+  namespace peg = tao::pegtl;
   namespace view = helper::view;
   using node     = ast::node;
   using up_node  = helper::L3::up_node;
