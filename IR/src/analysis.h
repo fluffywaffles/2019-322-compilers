@@ -72,6 +72,7 @@ namespace analysis::IR::variables {
   }
   void definitions::helper::handle (node const & n, result & result) {
     auto const content = n.content();
+    // FIXME(jordan): inserted to allow bad tests.
     if (!collection::has(content, result.variables)) {
       std::cerr
         << "\nWARN: definition of undeclared variable"
