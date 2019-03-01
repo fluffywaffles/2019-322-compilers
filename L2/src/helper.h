@@ -44,6 +44,13 @@ namespace helper {
     );
     return;
   }
+  ast::node & unwrap_assert (ast::node const & parent) {
+    assert(
+      parent.children.size() == 1
+      && "helper::unwrap_assert: not exactly 1 child in parent!"
+    );
+    return *parent.children.at(0);
+  }
 }
 
 // Language-specific helper-generators
@@ -56,14 +63,6 @@ namespace helper::meta {
       && "helper::integer: does not match literal::number::integer!"
     );
     return std::stoi(n.content());
-  }
-  template <typename Node>
-  Node & unwrap_assert (Node const & parent) {
-    assert(
-      parent.children.size() == 1
-      && "helper::unwrap_assert: not exactly 1 child in parent!"
-    );
-    return *parent.children.at(0);
   }
   // FIXME(jordan): this is a little crufty.
   template <typename Rule, int offset>
@@ -86,10 +85,6 @@ namespace helper::L2 {
 
   int integer (node const & n) {
     return meta::integer<node, grammar::literal::number::integer::any>(n);
-  }
-
-  node const & unwrap_assert (node const & parent) {
-    return meta::unwrap_assert<node>(parent);
   }
 
   std::string strip_variable_prefix (std::string const & v) {

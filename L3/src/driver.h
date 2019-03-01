@@ -75,7 +75,7 @@ namespace driver::L3 {
         std::vector<std::string> param_strings;
         for (int i = 0; i < params.children.size(); i++) {
           node const & param
-            = helper::L3::unwrap_assert(*params.children.at(i));
+            = helper::unwrap_assert(*params.children.at(i));
           param_strings.push_back("\n\t\t");
           param_strings.push_back(param.content());
           param_strings.push_back(" <- ");
@@ -118,8 +118,7 @@ namespace driver::L3 {
         = ast::L2::construct::from_strings<grammar::L2::program::define>(
           std::move(program_strings)
         );
-      node const & new_program
-        = helper::L3::unwrap_assert(*new_program_root);
+      node const & new_program = helper::unwrap_assert(*new_program_root);
       std::ofstream file_out;
       file_out.open("prog.L2");
       /* transform::L2::spit::program(new_program, std::cout); */

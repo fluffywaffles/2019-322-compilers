@@ -66,10 +66,6 @@ namespace helper::L3 {
     return meta::integer<node, grammar::literal::number::integer::any>(n);
   }
 
-  node & unwrap_assert (node const & parent) {
-    return meta::unwrap_assert<node>(parent);
-  }
-
   std::string strip_variable_prefix (std::string const & v) {
     return meta::match_substring<grammar::operand::variable, 1>(v);
   }

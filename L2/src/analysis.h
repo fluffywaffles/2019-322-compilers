@@ -51,7 +51,7 @@ namespace analysis::L2::successor {
     up_nodes const & siblings = result.instructions.children;
 
     if (n.is<instruction::any>()) {
-      node const & actual_instruction = helper::L2::unwrap_assert(n);
+      node const & actual_instruction = helper::unwrap_assert(n);
       return successor::instruction(actual_instruction, index, result);
     }
 
@@ -156,7 +156,7 @@ namespace analysis::L2::successor {
     for (int index = 0; index < instructions.size(); index++) {
       helper::L2::up_node const & wrapper = instructions.at(index);
       // NOTE(jordan): access the value of the pointer AND unwrap child.
-      node const & instruction = helper::L2::unwrap_assert(*wrapper);
+      node const & instruction = helper::unwrap_assert(*wrapper);
       std::cout << "succ[" << index << "] = ";
       for (auto successor : result.map[&instruction]) {
         std::cout << successor->name();
@@ -340,7 +340,7 @@ namespace helper::L2::liveness::gen_kill::operand {
         std::cout << "unwrap: parent type: " << parent.name() << "\n";
       // NOTE(jordan): whoah dependent type names? cool.
       assert(parent.is<typename Parent::rule>());
-      node const & child = helper::L2::unwrap_assert(parent);
+      node const & child = helper::unwrap_assert(parent);
       if (DBG)
         std::cout << "unwrap: child  type: " << child.name() << "\n";
       if (child.is<typename Child::rule>())
@@ -354,7 +354,7 @@ namespace helper::L2::liveness::gen_kill::operand {
     static bool const DBG = false;
     static node const & unwrap (node const & parent) {
       if (DBG) std::cout << "unwrap: " << parent.name() << "\n";
-      return helper::L2::unwrap_assert(parent);
+      return helper::unwrap_assert(parent);
     }
   };
   using leaf_operand = may_wrap<std::false_type, std::false_type>;
@@ -417,7 +417,7 @@ namespace analysis::L2::liveness::gen_kill {
 
     if (n.is<instruction::any>()) {
       assert(n.children.size() == 1);
-      node const & actual_instruction = helper::L2::unwrap_assert(n);
+      node const & actual_instruction = helper::unwrap_assert(n);
       return gen_kill::instruction(actual_instruction, result);
     }
 
@@ -672,7 +672,7 @@ namespace analysis::L2::liveness {
       fixed_state = true;
       for (int index = instructions.size() - 1; index >= 0; index--) {
         node const & wrapper = *instructions.at(index);
-        node const & instruction = helper::L2::unwrap_assert(wrapper);
+        node const & instruction = helper::unwrap_assert(wrapper);
         // load gen, kill sets and successors
         auto const & gen        = result.gen [&instruction];
         auto const & kill       = result.kill[&instruction];
@@ -747,7 +747,7 @@ namespace analysis::L2::liveness {
       up_nodes const & instructions = result.instructions.children;
       for (int index = 0; index < instructions.size(); index++) {
         node const & wrapper = *instructions.at(index);
-        node const & instruction = helper::L2::unwrap_assert(wrapper);
+        node const & instruction = helper::unwrap_assert(wrapper);
         std::cout << "gen[" << index << "]  = ";
         for (auto g : result.gen[&instruction]) std::cout << g << " ";
         std::cout << "\n";

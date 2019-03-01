@@ -24,8 +24,8 @@ namespace transform::L3::globalize {
       // NOTE(jordan): only handle singly-defined labels.
       assert(definition_entry.second.size() == 1);
       node const * definition = *definition_entry.second.begin();
-      node & label_node = helper::L3::unwrap_assert(*definition);
-      node & name_node  = helper::L3::unwrap_assert(label_node);
+      node & label_node = helper::unwrap_assert(*definition);
+      node & name_node  = helper::unwrap_assert(label_node);
       std::string const name  = name_node.content();
       auto new_name = globalize::name(name, suffix, monotonic_index++);
       if (!label_node.realized) label_node.realize();
@@ -41,11 +41,11 @@ namespace transform::L3::globalize {
       // NOTE(jordan): only handle singly-defined labels.
       assert(labels.definitions.at(label).size() == 1);
       node const * definition = *labels.definitions.at(label).begin();
-      node const & def_label = helper::L3::unwrap_assert(*definition);
-      node const & def_name  = helper::L3::unwrap_assert(def_label);
+      node const & def_label = helper::unwrap_assert(*definition);
+      node const & def_name  = helper::unwrap_assert(def_label);
       for (node const * const_use : use_entry.second) {
         node & use = const_cast<node &>(*const_use);
-        node & use_name = helper::L3::unwrap_assert(use);
+        node & use_name = helper::unwrap_assert(use);
         if (!use.realized) use.realize();
         use.reset<grammar::L3::operand::label>(def_label.content());
         if (!use_name.realized) use_name.realize();

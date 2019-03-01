@@ -63,7 +63,7 @@ namespace analysis::L3::labels {
 namespace analysis::L3::labels {
   bool definitions::compute (node const & n, result & result) {
     if (n.is<grammar::L3::instruction::define::label>()) {
-      node const & label_node = helper::L3::unwrap_assert(n);
+      node const & label_node = helper::unwrap_assert(n);
       std::string content = label_node.content();
       result.labels.insert(content);
       auto const * label = &*collection::find(content, result.labels);
@@ -125,7 +125,7 @@ namespace analysis::L3::labels {
       auto const & defs = def_entry.second;
       assert(defs.size() == 1 && "function: label defined >1 time!");
       node const * def  = *defs.begin();
-      node const & defined_label = helper::L3::unwrap_assert(*def);
+      node const & defined_label = helper::unwrap_assert(*def);
       std::cout
         << "\t" << *def_entry.first
         << " (as " << defined_label.content() << ") defined at"
@@ -294,7 +294,7 @@ namespace analysis::L3::liveness::gen_kill {
           std::cerr
             << "UWRP gen/kill unwrapping a(n) " << v.name() << "\n";
         }
-        node const & unwrapped = helper::L3::unwrap_assert(v);
+        node const & unwrapped = helper::unwrap_assert(v);
         return genkill(which, n, unwrapped, result);
       }
       if (!helper::matches<grammar::L3::operand::variable>(v)) {
@@ -369,7 +369,7 @@ namespace analysis::L3::liveness::gen_kill {
       node const & variable = *n.children.at(0);
       /* node const & gets = *n.children.at(1); */
       node const & load = *n.children.at(2);
-      node const & loaded = helper::L3::unwrap_assert(load);
+      node const & loaded = helper::unwrap_assert(load);
       gen_kill::kill (n, variable, result);
       gen_kill::gen  (n, loaded, result);
       return;
@@ -377,7 +377,7 @@ namespace analysis::L3::liveness::gen_kill {
     if (n.is<instruction::assign::variable::gets_call>()) {
       node const & variable = *n.children.at(0);
       /* node const & gets = *n.children.at(1); */
-      node const & call   = helper::L3::unwrap_assert(*n.children.at(2));
+      node const & call   = helper::unwrap_assert(*n.children.at(2));
       node const & called = *call.children.at(0);
       node const & args   = *call.children.at(1);
       gen_kill::kill (n, variable, result);
@@ -414,7 +414,7 @@ namespace analysis::L3::liveness::gen_kill {
     }
     if (n.is<instruction::assign::address::gets_movable>()) {
       node const & store  = *n.children.at(0);
-      node const & stored = helper::L3::unwrap_assert(store);
+      node const & stored = helper::unwrap_assert(store);
       /* node const & gets = *n.children.at(1); */
       node const & movable = *n.children.at(2);
       gen_kill::gen (n, stored, result);
@@ -423,7 +423,7 @@ namespace analysis::L3::liveness::gen_kill {
     }
     if (n.is<instruction::call>()) {
       // NOTE(jordan): the call instruction wraps a call expression
-      node const & call   = helper::L3::unwrap_assert(n);
+      node const & call   = helper::unwrap_assert(n);
       node const & called = *call.children.at(0);
       node const & args   = *call.children.at(1);
       gen_kill::gen(n, called, result);
@@ -439,7 +439,7 @@ namespace analysis::L3::liveness::gen_kill {
       return;
     }
     if (n.is<instruction::ret::value>()) {
-      node const & value = helper::L3::unwrap_assert(n);
+      node const & value = helper::unwrap_assert(n);
       gen_kill::gen  (n, value, result);
       return;
     }
@@ -654,7 +654,7 @@ namespace analysis::L3::function {
     );
     auto liveness = liveness::compute(instructions, variables, successors);
     node const & label = *function.children.at(0);
-    node const & name  = helper::L3::unwrap_assert(label);
+    node const & name  = helper::unwrap_assert(label);
     // NOTE(jordan): *move* everything; otherwise copies & corruption.
     return {
       std::move(liveness),

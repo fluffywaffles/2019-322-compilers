@@ -164,7 +164,7 @@ namespace tile {
       for (up_node const & instruction_wrapper : root->children) {
         assert(instruction_wrapper->is<grammar::L2::instruction::any>());
         node const & actual_instruction
-          = helper::L3::unwrap_assert(*instruction_wrapper);
+          = helper::unwrap_assert(*instruction_wrapper);
         result_view.push_back(&actual_instruction);
       }
       if (debug) std::cerr << "» tile::generator::check_generate...\n";
@@ -247,7 +247,7 @@ namespace tile::L3::specializers::call {
   template <typename IntrinsicLiteral>
   struct intrinsic {
     static const bool accept (view::vec<node> const & window) {
-      node const & call   = helper::L3::unwrap_assert(*window.at(0));
+      node const & call   = helper::unwrap_assert(*window.at(0));
       node const & callee = *call.children.at(0);
       return call.is<grammar::L3::expression::call::intrinsic>()
           && helper::matches<IntrinsicLiteral>(callee);
@@ -255,7 +255,7 @@ namespace tile::L3::specializers::call {
   };
   struct defined {
     static const bool accept (view::vec<node> const & window) {
-      node const & call = helper::L3::unwrap_assert(*window.at(0));
+      node const & call = helper::unwrap_assert(*window.at(0));
       return call.is<grammar::L3::expression::call::defined>();
     }
   };
@@ -537,7 +537,7 @@ namespace tile::registry {
   struct generator<ret::value> {
     static up_node generate (view::vec<node> const & matched) {
       node const & ret = *matched.at(0);
-      node const & value = helper::L3::unwrap_assert(ret);
+      node const & value = helper::unwrap_assert(ret);
       return make_L2<grammar::L2::instructions>({
         "rax <- ", value.content(), "\n",
         "return",
@@ -549,10 +549,10 @@ namespace tile::registry {
     static up_node generate (view::vec<node> const & matched) {
       node const & n       = *matched.at(0);
       node const & store   = *n.children.at(0);
-      node const & stored  = helper::L3::unwrap_assert(store);
+      node const & stored  = helper::unwrap_assert(store);
       node const & gets    = *n.children.at(1);
       // NOTE(jordan): may contain a globalized label; must unwrap.
-      node const & movable = helper::L3::unwrap_assert(*n.children.at(2));
+      node const & movable = helper::unwrap_assert(*n.children.at(2));
       return make_L2<grammar::L2::instructions>({
         "mem ", stored.content(), " 0",
         " ", gets.content(), " ", movable.content(), "\n"
@@ -571,10 +571,10 @@ namespace tile::registry {
   template<>
   struct generator<call::intrinsic::print> {
     static up_node generate (view::vec<node> const & matched) {
-      node const & call = helper::L3::unwrap_assert(*matched.at(0));
+      node const & call = helper::unwrap_assert(*matched.at(0));
       node const & arguments = *call.children.at(1);
       assert(arguments.is<grammar::L3::operand::list::arguments>());
-      node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
+      node const & argument0 = helper::unwrap_assert(*arguments.children.at(0));
       return make_L2<grammar::L2::instructions>({
         "rdi <- ", argument0.content(), "\n",
         "call print 1\n",
@@ -584,11 +584,11 @@ namespace tile::registry {
   template<>
   struct generator<call::intrinsic::allocate> {
     static up_node generate (view::vec<node> const & matched) {
-      node const & call = helper::L3::unwrap_assert(*matched.at(0));
+      node const & call = helper::unwrap_assert(*matched.at(0));
       node const & arguments = *call.children.at(1);
       assert(arguments.is<grammar::L3::operand::list::arguments>());
-      node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
-      node const & argument1 = helper::L3::unwrap_assert(*arguments.children.at(1));
+      node const & argument0 = helper::unwrap_assert(*arguments.children.at(0));
+      node const & argument1 = helper::unwrap_assert(*arguments.children.at(1));
       return make_L2<grammar::L2::instructions>({
         "rdi <- ", argument0.content(), "\n",
         "rsi <- ", argument1.content(), "\n",
@@ -599,11 +599,11 @@ namespace tile::registry {
   template<>
   struct generator<call::intrinsic::array_error> {
     static up_node generate (view::vec<node> const & matched) {
-      node const & call = helper::L3::unwrap_assert(*matched.at(0));
+      node const & call = helper::unwrap_assert(*matched.at(0));
       node const & arguments = *call.children.at(1);
       assert(arguments.is<grammar::L3::operand::list::arguments>());
-      node const & argument0 = helper::L3::unwrap_assert(*arguments.children.at(0));
-      node const & argument1 = helper::L3::unwrap_assert(*arguments.children.at(1));
+      node const & argument0 = helper::unwrap_assert(*arguments.children.at(0));
+      node const & argument1 = helper::unwrap_assert(*arguments.children.at(1));
       return make_L2<grammar::L2::instructions>({
         "rdi <- ", argument0.content(), "\n",
         "rsi <- ", argument1.content(), "\n",
@@ -619,7 +619,7 @@ namespace tile::registry {
     node const & callable_name
       = is_intrinsic
       ? callable
-      : helper::L3::unwrap_assert(*callable.children.at(0));
+      : helper::unwrap_assert(*callable.children.at(0));
     std::string suffix = label_generator::suffix();
     auto return_label
       = ":return_"
@@ -629,7 +629,7 @@ namespace tile::registry {
     std::vector<std::string> argument_strings = {};
     for (int i = 0; i < arguments.children.size(); i++) {
       node const & argument
-        = helper::L3::unwrap_assert(*arguments.children.at(i));
+        = helper::unwrap_assert(*arguments.children.at(i));
       if (i == 0) argument_strings.push_back("rdi");
       if (i == 1) argument_strings.push_back("rsi");
       if (i == 2) argument_strings.push_back("rdx");
@@ -661,7 +661,7 @@ namespace tile::registry {
   template<>
   struct generator<call::defined> {
     static up_node generate (view::vec<node> const & matched) {
-      node const & call = helper::L3::unwrap_assert(*matched.at(0));
+      node const & call = helper::unwrap_assert(*matched.at(0));
       std::vector<std::string> instructions = generate_call_expression(call);
       return make_L2<grammar::L2::instructions>(std::move(instructions));
     }
@@ -673,7 +673,7 @@ namespace tile::registry {
       assert(instruction.is<grammar::L3::instruction::assign::variable::gets_call>());
       node const & variable = *instruction.children.at(0);
       node const & gets     = *instruction.children.at(1);
-      node const & call = helper::L3::unwrap_assert(*instruction.children.at(2));
+      node const & call = helper::unwrap_assert(*instruction.children.at(2));
       std::vector<std::string> call_insts = generate_call_expression(call);
       std::vector<std::string> instructions = call_insts;
       helper::collection::append(instructions, {
@@ -699,7 +699,7 @@ namespace tile::registry {
       node const & variable = *n.children.at(0);
       node const & gets = *n.children.at(1);
       node const & load = *n.children.at(2);
-      node const & loaded = helper::L3::unwrap_assert(load);
+      node const & loaded = helper::unwrap_assert(load);
       return make_L2<grammar::L2::instructions>({
         variable.content(), " ", gets.content(),
         " mem ", loaded.content(), " 0\n",
@@ -877,7 +877,7 @@ namespace tile::registry {
       node const & variable = *n.children.at(0);
       node const & gets     = *n.children.at(1);
       // NOTE(jordan): may contain a globalized label; must unwrap.
-      node const & movable  = helper::L3::unwrap_assert(*n.children.at(2));
+      node const & movable  = helper::unwrap_assert(*n.children.at(2));
       return make_L2<grammar::L2::instructions>({
         variable.content(),
         " ", gets.content(),
