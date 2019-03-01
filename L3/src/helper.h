@@ -53,6 +53,22 @@ namespace helper {
       return map.find(key) != map.end();
     }
   }
+  namespace string {
+    // NOTE(jordan): concatenate several strings with a single allocation.
+    std::string from_strings (std::vector<std::string> const & strings) {
+      int length = 0;
+      for (std::string const & string : strings)
+        length += string.size();
+      std::string result;
+      result.reserve(length);
+      for (std::string const & string : strings)
+        result += string;
+      return result;
+    }
+    std::string from_strings (std::vector<std::string> const && strings) {
+      return from_strings(strings);
+    }
+  }
 }
 
 namespace helper::L3 {
