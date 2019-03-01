@@ -98,26 +98,11 @@ namespace ast::IR::filter {
         operand::index,
         operand::array::accessor,
         operand::array::accessors,
-        operand::movable
-      >,
-      peg::parse_tree::apply_remove_content::to<
-        /* NOTE(jordan): type wrapper nodes for identifying where/how a
-         * type is being used - is it a function type, or a variable type?
-         * Is it a scalar type, or a multiarray type, or a tuple type?
-         */
-        literal::type::variable::any,
-        literal::type::function::any,
-        literal::type::scalar::any,
-        literal::type::multiarray::any,
-        /* NOTE(jordan): these nodes are just containers; they don't
-         * have any content of their own. Keeping their content would be
-         * purely redundant.
-         */
-        /* NOTE(jordan): THAT SAID, the way PEGTL nodes "hold" content
-         * is with a pair of iterators into a single referenced source.
-         * So, it would not take up any additional memory to store the
-         * contents of instructions. It would just clutter the output of
-         * an AST print dump. (A lot, in fact.)
+        operand::movable,
+        /* NOTE(jordan): instructions are really just containers, but if
+         * we keep around their content it's easier to transfer them
+         * immediately to their equivalent L3 variants in cases where
+         * translation is essentially a no-op.
          */
         instruction::assign::variable::gets_movable,
         instruction::assign::variable::gets_call,
@@ -135,6 +120,16 @@ namespace ast::IR::filter {
         instruction::ret::nothing,
         instruction::ret::value,
         instruction::call,
+        /* NOTE(jordan): type wrapper nodes for identifying where/how a
+         * type is being used - is it a function type, or a variable type?
+         * Is it a scalar type, or a multiarray type, or a tuple type?
+         */
+        literal::type::variable::any,
+        literal::type::function::any,
+        literal::type::scalar::any,
+        literal::type::multiarray::any
+      >,
+      peg::parse_tree::apply_remove_content::to<
         // Basic block groupings
         instruction::basic_block::body,
         instruction::basic_block::launch_pad,
