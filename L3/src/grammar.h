@@ -191,7 +191,6 @@ namespace grammar::L3 {
       template <typename src> struct e : spaced<store, src> {};
     }
     namespace call {
-      // NOTE(jordan): can pass peg::nothing for args to get empty list.
       using call = literal::instruction::call;
       template <typename callable, typename args>
         struct e : spaced<call, callable, args> {};

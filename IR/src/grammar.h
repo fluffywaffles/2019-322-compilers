@@ -79,10 +79,6 @@ namespace grammar::IR {
     struct tuple : TAO_PEGTL_STRING("Tuple") {};
   }
 
-  namespace literal::identifier {
-    struct typed : spaced<literal::type::variable::any, variable> {};
-  }
-
   namespace identifier = literal::identifier;
 
   //
@@ -97,7 +93,7 @@ namespace grammar::IR {
 
   namespace operand {
     using namespace L3::operand;
-    struct typed : literal::identifier::typed {};
+    struct typed : spaced<literal::type::variable::any, variable> {};
     namespace array {
       struct accessor   : util::bracketed<operand::value> {};
       struct accessors  : peg::plus<accessor> {};
