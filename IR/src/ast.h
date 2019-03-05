@@ -11,6 +11,12 @@ namespace ast {
   namespace peg = tao::pegtl;
 }
 
+namespace ast::debug {
+  void print_node (node const & n) {
+    ast::L3::debug::print_node(n);
+  }
+}
+
 namespace ast::IR::filter {
   using namespace grammar::IR;
   template <typename Rule>
