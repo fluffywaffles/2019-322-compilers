@@ -23,6 +23,8 @@ define void :main () {
   int64   %end_encoded
   int64   %arbitrary
   int64   %arbitrary_encoded
+  int64   %arr_size
+  int64   %arr_size_encoded
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 
   // 1048574 instead of 1048576 (because... ?)
@@ -100,6 +102,8 @@ define code :print_array_range (
   // declare the types of our locals
   int64   %index_lt_end
   int64   %array_i
+  int64   %array_i_ptr
+  int64   %ptr_encoded
   int64[] %result
   //-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
   %index_lt_end <- %index < %end
