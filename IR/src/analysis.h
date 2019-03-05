@@ -19,10 +19,9 @@ namespace analysis::IR::variables {
     node const & instruction;
     node const & typed_operand;
   };
-  using up_declaration = std::unique_ptr<declaration_result>;
   struct result {
     std::set<variable> variables;
-    std::map<variable const *, up_declaration> declaration;
+    std::map<variable const *, declaration_result *> declaration;
     std::map<variable const *, view::set<node>> definitions;
     std::map<variable const *, view::set<node>> uses;
   };
@@ -59,9 +58,10 @@ namespace analysis::IR::variables {
     if (!inserted) { // debug
       std::cerr << "multiple declarations of variable " << v;
       if (collection::has(variable, result.declaration)) {
+        auto const & declaration = result.declaration.at(variable);
         std::cerr
           << "\n\t"
-          << result.declaration.at(variable)->instruction.begin()
+          << declaration->instruction.begin()
           << "\n";
       } else {
         std::cerr
@@ -69,9 +69,10 @@ namespace analysis::IR::variables {
       }
       assert(false && "multiple declarations of the same variable");
     }
-    result.declaration.emplace(variable, up_declaration(
+    result.declaration.emplace(
+      variable,
       new declaration_result({ n, typed_operand })
-    ));
+    );
     // Initialize definitions and uses so that we can use set::at()
     result.definitions.emplace(variable, view::set<node>({}));
     result.uses.emplace(variable, view::set<node>({}));
@@ -154,9 +155,10 @@ namespace analysis::IR::variables {
       if (!collection::has(&v, result.declaration)) {
         std::cerr << "\n\tWARN: variable is never declared.";
       } else {
+        auto const & declaration = result.declaration.at(&v);
         std::cerr
           << "\n\tdeclared"
-          << "\n\t\t" << result.declaration.at(&v)->instruction.begin();
+          << "\n\t\t" << declaration->instruction.begin();
       }
       std::cerr
         << "\n\tdefined";
