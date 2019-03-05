@@ -192,12 +192,8 @@ namespace ast::L2::construct {
     ast::construct::realize_tree(root, source_type::ephemeral);
     return root;
   }
-  using strings = std::vector<std::string>;
   template <typename Rule>
-  up_node from_strings (strings const && strings) {
-    std::stringstream concatenation;
-    for (std::string const & string : strings)
-      concatenation << string;
-    return from_string<Rule>(concatenation.str());
+  up_node from_strings (std::vector<std::string> const && strings) {
+    return from_string<Rule>(helper::string::from_strings(strings));
   }
 }

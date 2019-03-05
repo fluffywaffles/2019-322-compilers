@@ -1,7 +1,6 @@
 #pragma once
 
 #include "L2/helper.h"
-#include "ast.h"
 #include "grammar.h"
 
 namespace helper {
@@ -55,18 +54,35 @@ namespace helper {
   }
   namespace string {
     // NOTE(jordan): concatenate several strings with a single allocation.
-    std::string from_strings (std::vector<std::string> const & strings) {
+    std::string from_strings (
+      std::vector<std::string> const & strings,
+      std::string joiner = ""
+    ) {
+      if (strings.size () == 0) return "";
       int length = 0;
       for (std::string const & string : strings)
-        length += string.size();
+        length += string.size() + joiner.size();
       std::string result;
       result.reserve(length);
-      for (std::string const & string : strings)
-        result += string;
+      for (int i = 0; i < (strings.size() - 1); i ++)
+        result += strings.at(i) + joiner;
+      result += strings.back();
       return result;
     }
-    std::string from_strings (std::vector<std::string> const && strings) {
-      return from_strings(strings);
+    std::string from_strings (
+      std::vector<std::string> const && strings,
+      std::string joiner = ""
+    ) {
+      return from_strings(strings, joiner);
+    }
+    std::string trim (std::string const & source) {
+      std::string result(source);
+      auto is_space = helper::matches<peg::space>;
+      while (is_space(std::string(1, *result.begin())))
+        result.erase(0);
+      while (is_space(std::string(1, result.back())))
+        result.erase(result.end() - 1);
+      return result;
     }
   }
 }
@@ -83,7 +99,7 @@ namespace helper::L3 {
   }
 
   std::string strip_variable_prefix (std::string const & v) {
-    return meta::match_substring<grammar::operand::variable, 1>(v);
+    return meta::if_match_skip<grammar::operand::variable, 1>(v);
   }
 
   /*

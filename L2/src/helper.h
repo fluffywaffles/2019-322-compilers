@@ -66,7 +66,7 @@ namespace helper::meta {
   }
   // FIXME(jordan): this is a little crufty.
   template <typename Rule, int offset>
-  std::string match_substring (std::string const & s) {
+  std::string if_match_skip (std::string const & s) {
     if (helper::matches<Rule>(s)) {
       return std::string(s.begin() + offset, s.end());
     } else {
@@ -88,7 +88,7 @@ namespace helper::L2 {
   }
 
   std::string strip_variable_prefix (std::string const & v) {
-    return meta::match_substring<grammar::operand::variable, 1>(v);
+    return meta::if_match_skip<grammar::operand::variable, 1>(v);
   }
 
   // NOTE(jordan): collect_variables is kinda gross. Idk any better way.

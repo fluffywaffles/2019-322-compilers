@@ -953,7 +953,7 @@ namespace tile {
         if (tile::accept(window, debug)) {
           up_node root = tile::generate(window, debug);
           roots.push_back(std::move(root));
-          // skip the nest instruction and continue
+          // skip the next instruction and continue
           i++;
           continue;
         }
