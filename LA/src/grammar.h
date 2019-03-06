@@ -29,6 +29,9 @@ namespace grammar::LA {
   // Literals: Numbers, Identifiers, Types
   //
 
+  namespace meta::literal::type::multiarray {
+    using namespace IR::meta::literal::type::multiarray;
+  }
   namespace literal { using namespace IR::literal; }
   namespace literal::identifier { using namespace IR::identifier; }
   namespace identifier = literal::identifier;
