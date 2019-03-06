@@ -16,18 +16,17 @@
  */
 
 namespace ast {
-  namespace peg = tao::pegtl;
   template <typename Rule>
   bool matches (std::string const string) {
     // WAFKQUSKWLZAQWAAAA YES I AM THE T<EMPL>ATE RELEASER OF Z<ALGO>
-    using namespace peg;
+    using namespace tao::pegtl;
     memory_input<> string_input (string, "<call to matches>");
     return normal<Rule>::template
       match<apply_mode::NOTHING, rewind_mode::DONTCARE, nothing, normal>
       (string_input);
   }
   template <typename Rule, typename Node>
-  bool matches (peg::parse_tree::basic_node<Node> const & n) {
+  bool matches (tao::pegtl::parse_tree::basic_node<Node> const & n) {
     assert(n.has_content() && "matches: must have content!");
     const std::string & content = n.content();
     return matches<Rule>(content);
@@ -40,23 +39,23 @@ namespace ast {
       ephemeral,
       other_node,
   };
-  std::string const source_type_to_string (source_type const & type) {
+  std::string const realized_source_for (source_type const & type) {
     switch (type) {
       case source_type::input      : return "<realized>";
       case source_type::ephemeral  : return "<ephemeral>";
       case source_type::other_node : return "<copied>";
     }
     std::cerr << "source_type (as int): " << (int)type << "\n";
-    assert(false && "source_type_to_string: unrecognized source_type!");
+    assert(false && "realized_source_for: unknown source_type!");
   }
-  struct node : peg::parse_tree::basic_node<node> {
+  struct node : tao::pegtl::parse_tree::basic_node<node> {
     bool realized = false;
     std::string realized_content;
     // Copies of original source name, iterators
     std::string original_source;
     source_type original_source_type = source_type::input;
-    peg::internal::iterator original_m_begin;
-    peg::internal::iterator original_m_end;
+    tao::pegtl::internal::iterator original_m_begin;
+    tao::pegtl::internal::iterator original_m_end;
     std::type_info const * original_id;
     /**
      * EXPLANATION(jordan): realizing a node will allow it to own its
@@ -81,7 +80,7 @@ namespace ast {
       original_source = source;
       original_source_type = original_type;
       // Change source string based on original_type
-      source = source_type_to_string(original_source_type);
+      source = realized_source_for(original_source_type);
       // Save the source match iterators
       original_m_begin = m_begin;
       original_m_end   = m_end;
@@ -132,13 +131,13 @@ namespace ast {
     }
     std::string original_name () const {
       assert(realized);
-      return peg::internal::demangle(original_id->name());
+      return tao::pegtl::internal::demangle(original_id->name());
     }
-    peg::position original_begin () const {
-      return peg::position(original_m_begin, original_source);
+    tao::pegtl::position original_begin () const {
+      return tao::pegtl::position(original_m_begin, original_source);
     }
-    peg::position original_end () const {
-      return peg::position(original_m_end, original_source);
+    tao::pegtl::position original_end () const {
+      return tao::pegtl::position(original_m_end, original_source);
     }
 
     /**
@@ -180,6 +179,30 @@ namespace ast {
   using up_node  = std::unique_ptr<node>;
   using up_nodes = std::vector<up_node>;
 }
+
+namespace ast::debug {
+  template <typename Node>
+  void print_node (
+    tao::pegtl::parse_tree::basic_node<Node> const & n,
+    std::string const & indent = ""
+  ) {
+    // node cases
+    if (n.is_root()) {
+      std::cout << "ROOT\n";
+    } else if (n.has_content()) {
+      std::cout << indent << n.name() << " \"" << n.content() << "\"\n";
+    } else {
+      std::cout << indent << n.name() << "\n";
+    }
+    // recursion
+    if (!n.children.empty()) {
+      for (auto & up : n.children) print_node(*up, "  " + indent);
+    }
+  }
+
+}
+
+namespace ast::L2 { namespace peg = tao::pegtl; }
 
 namespace ast::L2::filter {
   using namespace grammar::L2;
@@ -311,26 +334,6 @@ namespace ast::L2 {
   > up_node parse (Input & in) {
     return peg::parse_tree::parse<Entry, node, Selector>(in);
   }
-
-  template <typename Node>
-  void print_node (
-    peg::parse_tree::basic_node<Node> const & n,
-    std::string const & indent = ""
-  ) {
-    // node cases
-    if (n.is_root()) {
-      std::cout << "ROOT\n";
-    } else if (n.has_content()) {
-      std::cout << indent << n.name() << " \"" << n.content() << "\"\n";
-    } else {
-      std::cout << indent << n.name() << "\n";
-    }
-    // recursion
-    if (!n.children.empty()) {
-      for (auto & up : n.children) print_node(*up, "  " + indent);
-    }
-  }
-
 }
 
 namespace ast::L2::debug {

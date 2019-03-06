@@ -9,10 +9,6 @@
 #include "helper.h"
 
 namespace ast {
-  namespace peg = tao::pegtl;
-}
-
-namespace ast {
   template <typename Statistic, typename Collection, typename... Result>
   void walk (Collection const & nodes, Result & ... result) {
     for (typename Collection::value_type const & node : nodes) {
@@ -33,6 +29,8 @@ namespace ast::mutator {
     return true;
   }
 }
+
+namespace ast::L3 { namespace peg = tao::pegtl; }
 
 namespace ast::L3::filter {
   using namespace grammar::L3;
@@ -155,9 +153,6 @@ namespace ast::L3 {
 }
 
 namespace ast::L3::debug {
-  void print_node (node const & n, std::string const & indent = "") {
-    ast::L2::print_node(n, indent);
-  }
   template <
     typename Entry,
     template <typename...> class Selector = filter::selector,

@@ -28,7 +28,7 @@ namespace driver::L2 {
       exit(-1);
     }
     auto root = ast::L2::parse<Entry, ast::L2::filter::selector>(in);
-    if (opt.print_ast) { ast::L2::print_node(*root); }
+    if (opt.print_ast) { ast::debug::print_node(*root); }
     return root;
   }
 

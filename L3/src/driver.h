@@ -30,7 +30,7 @@ namespace driver::L3 {
       exit(-1);
     }
     auto root = ast::L3::parse<Entry>(in);
-    if (opt.print_ast) { ast::L3::debug::print_node(*root); }
+    if (opt.print_ast) { ast::debug::print_node(*root); }
     return root;
   }
 

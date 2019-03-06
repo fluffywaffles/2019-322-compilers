@@ -28,7 +28,7 @@ namespace driver::IR {
       exit(-1);
     }
     auto root = ast::IR::parse<Entry>(in);
-    if (opt.print_ast) { ast::IR::debug::print_node(*root); }
+    if (opt.print_ast) { ast::debug::print_node(*root); }
     return root;
   }
 

@@ -10,12 +10,6 @@ namespace ast {
   namespace peg = tao::pegtl;
 }
 
-namespace ast::debug {
-  void print_node (node const & n) {
-    ast::L3::debug::print_node(n);
-  }
-}
-
 namespace ast::IR::filter {
   using namespace grammar::IR;
   template <typename Rule>
@@ -165,9 +159,6 @@ namespace ast::IR {
 }
 
 namespace ast::IR::debug {
-  void print_node (node const & n, std::string const & indent = "") {
-    ast::L3::debug::print_node(n, indent);
-  }
   template <
     typename Entry,
     template <typename...> class Selector = filter::selector,
