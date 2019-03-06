@@ -1,0 +1,5 @@
+for t in tests/*.a; do
+  ./bin/LA -p $t
+  echo "press enter to continue..."
+  read
+done

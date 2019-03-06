@@ -1,0 +1,3 @@
+for t in tests/*.a; do
+  ./bin/LA -Q $t
+done
