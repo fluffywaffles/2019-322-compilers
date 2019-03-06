@@ -46,12 +46,12 @@ namespace driver::LA {
     up_node const root = parse(opt, in);
     if (Options::Mode::x86 == opt.mode) {
       node const & program = *root->children.at(0);
-      ast::walk< ast::mutator::trim_content >(program.children);
-      if (opt.print_ast) { ast::debug::print_node(*root); }
       return 0;
     }
     if (Options::Mode::run_tests == opt.mode) {
       node const & program = *root->children.at(0);
+      ast::walk< ast::mutator::trim_content >(program.children);
+      ast::debug::print_node(*root);
       return 0;
     }
     assert(false && "execute: unreachable! Mode unrecognized.");
