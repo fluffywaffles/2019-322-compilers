@@ -160,10 +160,19 @@ namespace ast {
      */
     template <typename CurrentRule>
     void reset (std::string const & value) {
-      assert(realized);
-      assert(value.size() > 0);
       assert(is<CurrentRule>());
       assert(matches<CurrentRule>(value));
+      unchecked_reset(value);
+    }
+
+    /**
+     * EXPLANATION(jordan): once a node is realized, we can change its
+     * content - we don't have to check the correctness of this action if
+     * we're 100% confident the new value doesn't invalidate our type.
+     */
+    void unchecked_reset (std::string const & value) {
+      assert(realized);
+      assert(value.size() > 0);
       realized_content = value; // NOTE(jordan): copy new value
       reiterate();
     }

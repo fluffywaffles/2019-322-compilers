@@ -201,23 +201,17 @@ namespace grammar::L3 {
     namespace meta = meta::expression;
     // load  <var>
     // store <var>
-    using load  = meta::load::e<operand::variable>;
-    using store = meta::store::e<operand::variable>;
+    struct load  : meta::load::e<operand::variable>  {};
+    struct store : meta::store::e<operand::variable> {};
     // t <aop> t
-    namespace {
-      using any_aop = op::binary::arithmetic::any;
-      using arithmetic = meta::binop::e<any_aop, operand::value>;
-    }
+    using any_aop = op::binary::arithmetic::any;
+    struct arithmetic : meta::binop::e<any_aop, operand::value> {};
     // t <sop> t
-    namespace {
-      using any_sop = op::binary::shift::any;
-      using shift = meta::binop::e<any_sop, operand::value>;
-    }
+    using any_sop = op::binary::shift::any;
+    struct shift : meta::binop::e<any_sop, operand::value> {};
     // t <cmp> t
-    namespace {
-      using any_cmp = op::binary::comparison::any;
-      using comparison = meta::binop::e<any_cmp, operand::value>;
-    }
+    using any_cmp = op::binary::comparison::any;
+    struct comparison : meta::binop::e<any_cmp, operand::value> {};
     // call <callee> (<args>)
     namespace call {
       using arguments = util::parenthesized<operand::list::arguments>;

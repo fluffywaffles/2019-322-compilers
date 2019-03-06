@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 
 #include "tao/pegtl/contrib/parse_tree.hpp"
 #include "tao/pegtl/contrib/tracer.hpp"
@@ -195,9 +194,6 @@ namespace ast::IR::construct {
   using strings = std::vector<std::string>;
   template <typename Rule>
   std::unique_ptr<node> from_strings (strings const && strings) {
-    std::stringstream concatenation;
-    for (std::string const & string : strings)
-      concatenation << string;
-    return from_string<Rule>(concatenation.str());
+    return from_string<Rule>(helper::string::from_strings(strings));
   }
 }

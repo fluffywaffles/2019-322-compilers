@@ -19,12 +19,12 @@ namespace analysis::L3::variables {
     std::set<variable> variables;
   };
   struct gather {
-    static bool compute (node const &, result &);
+    static bool act (node const &, result &);
   };
 }
 
 namespace analysis::L3::variables {
-  bool gather::compute (node const & n, result & result) {
+  bool gather::act (node const & n, result & result) {
     if (n.is<grammar::L3::operand::variable>()) {
       result.variables.insert(n.content());
       return false; // NOTE(jordan): don't walk our children.
@@ -53,15 +53,15 @@ namespace analysis::L3::labels {
     std::map<label const *, view::set<node>> uses;
   };
   struct definitions {
-    static bool compute (node const &, result &);
+    static bool act (node const &, result &);
   };
   struct uses {
-    static bool compute (node const &, result &);
+    static bool act (node const &, result &);
   };
 }
 
 namespace analysis::L3::labels {
-  bool definitions::compute (node const & n, result & result) {
+  bool definitions::act (node const & n, result & result) {
     if (n.is<grammar::L3::instruction::define::label>()) {
       node const & label_node = helper::unwrap_assert(n);
       std::string content = label_node.content();
@@ -74,7 +74,7 @@ namespace analysis::L3::labels {
     }
   }
   // FIXME(jordan): can be simpler if we handle function labels better.
-  bool uses::compute (node const & n, result & result) {
+  bool uses::act (node const & n, result & result) {
     namespace grammar     = grammar::L3;
     namespace instruction = grammar::instruction;
     if (n.is<grammar::operand::label>()) {
@@ -83,7 +83,7 @@ namespace analysis::L3::labels {
       if (!collection::has(content, result.labels)) {
         std::cerr << "label used but not defined! " << content << "\n";
         return false;
-        /* assert(false && "labels::uses::compute: use before define!"); */
+        /* assert(false && "labels::uses::act: use before define!"); */
       }
       auto const * label = &*collection::find(content, result.labels);
       result.uses[label].insert(&n);
@@ -606,13 +606,13 @@ namespace analysis::L3::function {
   };
   namespace instructions {
     struct gather {
-      static bool compute (node const &, view::vec<node> &);
+      static bool act (node const &, view::vec<node> &);
     };
   }
 }
 
 namespace analysis::L3::function {
-  bool instructions::gather::compute (
+  bool instructions::gather::act (
     node const & n,
     view::vec<node> & nodes
   ) {

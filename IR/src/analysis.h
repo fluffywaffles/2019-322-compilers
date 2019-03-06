@@ -27,7 +27,7 @@ namespace analysis::IR::variables {
   };
   // AST walk computations
   namespace declaration {
-    struct gather { static bool compute (node const &, result &); };
+    struct gather { static bool act (node const &, result &); };
     namespace helper {
       void handle (node const &, node const &, result &);
     }
@@ -36,10 +36,10 @@ namespace analysis::IR::variables {
     namespace helper {
       void handle (node const &, node const &, result &);
     }
-    struct gather { static bool compute (node const &, result &); };
+    struct gather { static bool act (node const &, result &); };
   }
   namespace uses {
-    struct gather { static bool compute (node const &, result &); };
+    struct gather { static bool act (node const &, result &); };
   }
 }
 
@@ -77,7 +77,7 @@ namespace analysis::IR::variables {
     result.definitions.emplace(variable, view::set<node>({}));
     result.uses.emplace(variable, view::set<node>({}));
   }
-  bool declaration::gather::compute (node const & n, result & result) {
+  bool declaration::gather::act (node const & n, result & result) {
     if (n.is<grammar::IR::instruction::declare::variable>()) {
       helper::handle(n, n, result);
       return false;
@@ -110,7 +110,7 @@ namespace analysis::IR::variables {
     auto const * variable = &*collection::find(content, result.variables);
     result.definitions.at(variable).insert(&definition);
   }
-  bool definitions::gather::compute (node const & n, result & result) {
+  bool definitions::gather::act (node const & n, result & result) {
     using namespace grammar::IR;
     if (false
       || n.is<instruction::assign::variable::gets_arithmetic>()
@@ -136,7 +136,7 @@ namespace analysis::IR::variables {
       return true;
     }
   }
-  bool uses::gather::compute (node const & n, result & result) {
+  bool uses::gather::act (node const & n, result & result) {
     if (n.is<grammar::IR::operand::variable>()) {
       if (!collection::has(n.content(), result.variables)) { // debug
         std::cerr << "use of undeclared variable " << n.content() << "\n";

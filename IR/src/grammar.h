@@ -147,14 +147,13 @@ namespace grammar::IR {
 
   namespace expression {
     namespace meta = meta::expression;
-    namespace { // ops
-      using any_aop = L3::expression::any_aop;
-      using any_sop = L3::expression::any_sop;
-      using any_cmp = L3::expression::any_cmp;
-      using shift = L3::expression::shift;
-      using arithmetic = L3::expression::arithmetic;
-      using comparison = L3::expression::comparison;
-    }
+    // ops
+    using any_aop = L3::expression::any_aop;
+    using any_sop = L3::expression::any_sop;
+    using any_cmp = L3::expression::any_cmp;
+    using shift = L3::expression::shift;
+    using arithmetic = L3::expression::arithmetic;
+    using comparison = L3::expression::comparison;
     namespace make {
       using Array = literal::object::array;
       using Tuple = literal::object::tuple;

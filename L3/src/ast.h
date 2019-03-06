@@ -13,12 +13,24 @@ namespace ast {
 }
 
 namespace ast {
-  template <typename Statistic, typename Collection, typename Result>
-  void walk (Collection const & nodes, Result & result) {
+  template <typename Statistic, typename Collection, typename... Result>
+  void walk (Collection const & nodes, Result & ... result) {
     for (typename Collection::value_type const & node : nodes) {
-      bool walk_children = Statistic::compute(*node, result);
-      if (walk_children) walk<Statistic>(node->children, result);
+      bool walk_children = Statistic::act(*node, result...);
+      if (walk_children) walk<Statistic>(node->children, result...);
     }
+  }
+}
+
+namespace ast::mutator {
+  struct trim_content { static bool act (node &); };
+  bool trim_content::act (node & n) {
+    if (n.has_content()) {
+      n.realize();
+      n.unchecked_reset(helper::string::trim(n.content()));
+    }
+    // NOTE(jordan): walk the entire AST unconditionally
+    return true;
   }
 }
 
