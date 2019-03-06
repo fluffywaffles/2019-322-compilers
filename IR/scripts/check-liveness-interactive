@@ -1,5 +1,0 @@
-for t in tests/*.IR; do
-  ./bin/IR -l 1 $t
-  echo "press enter to continue..."
-  read
-done
