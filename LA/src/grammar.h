@@ -127,7 +127,7 @@ namespace grammar::LA {
     // name <- length name t
     struct length : spaced<
       literal::instruction::length,
-      operand::variable,
+      operand::name,
       operand::value
     > {};
     // name(arguments)

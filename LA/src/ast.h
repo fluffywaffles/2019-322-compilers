@@ -90,6 +90,7 @@ namespace ast::LA::filter {
          */
         operand::label,
         operand::variable,
+        operand::name,
         operand::value,
         operand::typed,
         operand::index,
