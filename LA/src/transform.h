@@ -13,6 +13,52 @@ namespace transform::LA {
   };
 }
 
+/*
+namespace transform::LA {
+  using node     = ast::node;
+  using up_node  = ast::up_node;
+  using up_nodes = ast::up_nodes;
+
+  struct classify_names   { static bool act (node & n); };
+  struct insert_branches  { static bool act (node & n); };
+  struct encode_constants { static bool act (node & n); };
+  struct encode_operands  { static bool act (node & n); };
+  struct decode_operands  { static bool act (node & n); };
+  struct check_bounds     { static bool act (node & n); };
+}
+
+bool transform::LA::classify_names::act (node & n) {
+  using namespace grammar::LA;
+  if (n.is<instruction::call>()) {
+    // might be calling a function
+  }
+  if (n.is<instruction::assign::variable::gets_call>()) {
+    // might be calling a function
+  }
+  if (n.is<instruction::assign::variable::gets_movable>()) {
+    // movable might be a function
+  }
+  if (n.is<operand::name>()) {
+  }
+  return false;
+}
+bool transform::LA::insert_branches::act (node & n) {
+  return false;
+}
+bool transform::LA::encode_constants::act (node & n) {
+  return false;
+}
+bool transform::LA::encode_operands::act (node & n) {
+  return false;
+}
+bool transform::LA::decode_operands::act (node & n) {
+  return false;
+}
+bool transform::LA::check_bounds::act (node & n) {
+  return false;
+}
+*/
+
 bool transform::LA::identify_names::act (
   ast::node & n,
   analysis::LA::functions::result const & functions_summary
