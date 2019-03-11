@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cassert>
 #include <iostream>
 #include <fstream>
@@ -8,7 +9,8 @@
 #include "driver/options.h"
 #include "ast.h"
 #include "grammar.h"
-//#include "analysis.h"
+#include "transform.h"
+#include "analysis.h"
 //#include "helper.h"
 
 namespace driver::LA {
@@ -49,8 +51,15 @@ namespace driver::LA {
       return 0;
     }
     if (Options::Mode::run_tests == opt.mode) {
-      node const & program = *root->children.at(0);
-      ast::walk< ast::mutator::trim_content >(program.children);
+      node const & program  = *root->children.at(0);
+      up_nodes const & up_functions = program.children;
+      auto functions_summary
+        = analysis::LA::functions::summarize(up_functions);
+      ast::walk< ast::mutator::trim_content >(up_functions);
+      ast::walk< transform::LA::identify_names >(
+        up_functions,
+        functions_summary
+      );
       ast::debug::print_node(*root);
       return 0;
     }
