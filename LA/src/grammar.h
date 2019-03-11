@@ -176,25 +176,24 @@ namespace grammar::LA {
     struct variable : operand::typed {};
   }
 
-  namespace instruction::assign::variable {
+  namespace instruction::gets::variable {
     namespace stmt = statement;
     namespace expr = expression;
     using name = operand::name;
-    struct gets_new        : stmt::gets<name, expr::make::any>  {};
-    struct gets_call       : stmt::gets<name, expr::call::any>  {};
-    struct gets_index      : stmt::gets<name, operand::index>   {};
-    struct gets_shift      : stmt::gets<name, expr::shift>      {};
-    struct gets_length     : stmt::gets<name, expr::length>     {};
-    struct gets_movable    : stmt::gets<name, operand::movable> {};
-    struct gets_arithmetic : stmt::gets<name, expr::arithmetic> {};
-    struct gets_comparison : stmt::gets<name, expr::comparison> {};
+    struct new_       : stmt::gets<name, expr::make::any>  {};
+    struct call       : stmt::gets<name, expr::call::any>  {};
+    struct index      : stmt::gets<name, operand::index>   {};
+    struct shift      : stmt::gets<name, expr::shift>      {};
+    struct length     : stmt::gets<name, expr::length>     {};
+    struct movable    : stmt::gets<name, operand::movable> {};
+    struct arithmetic : stmt::gets<name, expr::arithmetic> {};
+    struct comparison : stmt::gets<name, expr::comparison> {};
   }
 
-  namespace instruction::assign::array {
+  namespace instruction::gets::array {
     namespace stmt = statement;
     namespace expr = expression;
-    using movable = operand::movable;
-    struct gets_movable : stmt::gets<operand::index, movable> {};
+    struct movable : stmt::gets<operand::index, operand::movable> {};
   }
 
   namespace instruction::ret {
@@ -225,15 +224,15 @@ namespace grammar::LA {
       instruction::branch::unconditional,
       instruction::declare::variable,
       instruction::call,
-      instruction::assign::variable::gets_new,
-      instruction::assign::variable::gets_call,
-      instruction::assign::variable::gets_length,
-      instruction::assign::variable::gets_index,
-      instruction::assign::variable::gets_shift,
-      instruction::assign::variable::gets_comparison,
-      instruction::assign::variable::gets_arithmetic,
-      instruction::assign::variable::gets_movable,
-      instruction::assign::array::gets_movable
+      instruction::gets::variable::new_,
+      instruction::gets::variable::call,
+      instruction::gets::variable::length,
+      instruction::gets::variable::index,
+      instruction::gets::variable::shift,
+      instruction::gets::variable::comparison,
+      instruction::gets::variable::arithmetic,
+      instruction::gets::variable::movable,
+      instruction::gets::array::movable
     > {};
   }
 
